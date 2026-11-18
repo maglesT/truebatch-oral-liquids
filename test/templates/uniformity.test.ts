@@ -79,6 +79,14 @@ describe('T14 Content uniformity acceptance value', () => {
     expect(refused(t14ContentUniformity({ method: 'weight variation', coating: 'film-coated', individualResultsOnly: true, weights: { values: Array(10).fill('300') as string[], unit: 'mg' }, assay: '99 %', labelClaim: '100 mg' }))).toMatch(/individual results only/);
   });
 
+  it.each([
+    ['every weight typed 0', Array(10).fill('0') as string[]],
+    ['one weight typed 0', [...Array(9).fill('250.0'), '0'] as string[]],
+    ['a negative weight', [...Array(9).fill('250.0'), '-250.0'] as string[]],
+  ])('T14: weight variation refuses %s (no crash)', (_case, values) => {
+    expect(refused(t14ContentUniformity({ method: 'weight variation', coating: 'uncoated', weights: { values, unit: 'mg' }, assay: '99 %', labelClaim: '100 mg' }))).toMatch(/Each unit weight must be more than zero: check the weighings/);
+  });
+
   it('T14: large-sample option (formulation 50): k and the number allowed outside come from the master', () => {
     // 40 units ± 1.0 around 100: s = √(40 × 1 ÷ 39) = 1.01274; with k = 2.2 (master's figure) AV = 2.228
     const values = Array(20).fill(['99.0', '101.0']).flat() as string[];
