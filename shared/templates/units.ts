@@ -16,7 +16,7 @@ export type Kind =
   | 'relative humidity' | 'absolute humidity' | 'absolute humidity per volume' | 'log' | 'frequency' | 'rpm per Hz' | 'charge'
   | 'IU' | 'CFU' | 'activity units' | 'IU per mass' | 'CFU per mass' | 'activity units per mass' | 'mass per IU'
   // TrueBatch Liquids (library section 3).
-  | 'volume fraction' | 'viscosity' | 'torque' | 'IU per volume' | 'IU per drop';
+  | 'volume fraction' | 'viscosity' | 'torque' | 'IU per volume' | 'IU per drop' | 'pH';
 
 export interface Unit {
   readonly symbol: string;
@@ -89,6 +89,7 @@ const TABLE: [string, Kind, Dec | string, string?][] = [
   ['mPa·s', 'viscosity', '1'],
   ['N·m', 'torque', '1'], ['N·cm', 'torque', '0.01'],
   ['IU/mL', 'IU per volume', '1'], ['IU/drop', 'IU per drop', '1'],
+  ['pH', 'pH', '1'], // the pH of a solution: its own kind, never a plain number
 ];
 
 /** Other spellings people type. */

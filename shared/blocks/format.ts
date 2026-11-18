@@ -118,9 +118,14 @@ export function blockProblems(b: Block): string[] {
   for (const s of b.settings) if (s.options && (s.kind !== 'text' || !s.options.length)) p.push(`setting ${s.name}: only a text setting has a list`);
   const known = new Set([...b.fields.map((f) => f.name), ...b.settings.map((s) => s.name), ...PACK_FACTS.map((x) => `pack.${x}`), ...BATCH_FACTS.map((x) => `batch.${x}`)]);
   for (const f of b.atIssue ?? []) if (!b.fields.some((x) => x.name === f)) p.push(`atIssue: no field ${f}`);
+  // "$prev.name" reads the previous round, so it may name any calculation of the block, this one included.
+  const all = new Set([...known, ...b.calcs.map((c) => c.name)]);
+  const prev = (x: unknown): string[] => (typeof x === 'string' ? (x.startsWith('$prev.') ? [x.slice(6).replace(/\?$/, '')] : [])
+    : Array.isArray(x) ? x.flatMap(prev) : x && typeof x === 'object' ? Object.values(x).flatMap(prev) : []);
   for (const c of b.calcs) {
     if (!(c.template in TEMPLATES)) p.push(`calculation ${c.name}: unknown template ${c.template}`);
-    for (const r of refsIn(c.args)) if (!known.has(r)) p.push(`calculation ${c.name}: "$${r}" is not a field, setting or earlier calculation`);
+    const fromPrev = new Set(prev(c.args));
+    for (const r of refsIn(c.args)) if (!known.has(r) && !(fromPrev.has(r) && all.has(r))) p.push(`calculation ${c.name}: "$${r}" is not a field, setting or earlier calculation`);
     known.add(c.name);
   }
   if (b.stop && !b.calcs.some((c) => c.name === b.stop)) p.push(`stop: no calculation ${b.stop}`);

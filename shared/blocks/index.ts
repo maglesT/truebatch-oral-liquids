@@ -37,20 +37,24 @@ import { serialReceived } from './serial-received.js';
 import { serialReconciliation } from './serial-reconciliation.js';
 import { serialSample } from './serial-sample.js';
 import { visionChallenge } from './vision-challenge.js';
+import * as L from './liquids.js';
 
 export type { Block, BlockField, BlockSetting } from './format.js';
 // In the order of a process: dispensing and preparation, (dry syrup) granulation, blending and coating of granules,
 // then the steps of any stage. tablet-reconciliation, bulk-issue and finished-goods stay until their liquid
 // replacements (bulk-yield, liquid-bulk-issue, liquid-finished-goods) are in.
 export const BLOCKS: readonly Block[] = [
-  weigh, charge, sift, binderSolution, coatingSuspension, dryMix, mix, granulate, dry, dryConstant, sieve,
+  weigh, L.water, charge, L.dissolve, L.sugarSyrup, L.hydrate, L.phasePrep, L.phAdjust, L.homogenise, L.sizeCheck, L.makeUp, L.makeUpVolume,
+  L.filtration, L.bulkTest, L.bulkAdjust, L.bulkTransfer, L.bulkYield, L.bulkYieldWeight, L.roomStatus,
+  // A dry syrup: sifting, (wet) granulation, blending and coating of granules.
+  sift, binderSolution, coatingSuspension, dryMix, mix, granulate, dry, dryConstant, sieve,
   subBatchCombine, blendUniformity, densityFlow, sprayCoat, check, qaSample, stageYield, tabletReconciliation, lineClearance,
   // TrueBatch Liquids Packing, in the order of a packing record.
-  bulkIssue, packMaterialIssue, packClearance, lineSetup, visionChallenge, serialReceived, codingCheck, formingCheck, leakTest, onlineInspection,
+  bulkIssue, packMaterialIssue, packClearance, lineSetup, L.bottleWash, L.liquidFill, L.liquidFillUnit, L.powderFill, L.powderFillSachet, L.capCheck, visionChallenge, serialReceived, codingCheck, formingCheck, leakTest, onlineInspection,
   cartonCheck, serialSample, finishedGoods, printedReconciliation, serialReconciliation, destruction, packClearanceAfter,
 ];
 // The blocks either product's masters may use besides its own.
-export const GENERAL_BLOCKS = ['check', 'qa-sample'];
+export const GENERAL_BLOCKS = ['check', 'qa-sample', 'room-status'];
 /** The blocks a master offers: a packing master's (it has a pack) or a tablet master's. */
 export const blocksFor = (packing: boolean) => BLOCKS.filter((b) => GENERAL_BLOCKS.includes(b.id) || !!b.packing === packing);
 
