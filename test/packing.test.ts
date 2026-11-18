@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { findBlock } from '../shared/blocks/index.js';
 import { blocking, masterChecks } from '../shared/master/checks.js';
 import { masterSchema, type MasterDoc } from '../shared/master/schema.js';
@@ -7,6 +7,8 @@ import { c8PrintedData, c9SerialCodes, expiryMonth, gs1, printedMonth, t27Expiry
 import { at, ev, small } from './engine-fixture.js';
 import { code, GTIN, packing } from './packing-fixture.js';
 import { headline } from '../web/src/api-floor.js';
+// The shared test master is built from test-only blocks (test/test-blocks.ts).
+vi.mock('../shared/blocks/index.js', async (original) => (await import('./test-blocks.js')).withTestBlocks(original as never));
 
 // TrueBatch Liquids Packing: the packing master checks (TL-P1 to TL-P9), the packing blocks run by the shared engine,
 // the serialisation check (match, mismatch, duplicate, reconciliation), printed materials reconciled, the expiry from

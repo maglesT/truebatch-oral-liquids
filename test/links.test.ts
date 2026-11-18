@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { connect, type Sql } from '../server/db.js';
 import { links, namesProduct, type Links } from '../server/links.js';
 import { findBlock } from '../shared/blocks/index.js';
@@ -8,6 +8,8 @@ import { loadBatch, recordInput } from '../server/routes/batches.js';
 import { call, freshApp, handLabels, login, proofFor, seedUser, TEST_DATABASE_URL, type TestApp } from './helpers.js';
 import { at, ev, small, tablet, placed } from './engine-fixture.js';
 import { inLogbook } from '../shared/engine/picks.js';
+// The shared test master is built from test-only blocks (test/test-blocks.ts).
+vi.mock('../shared/blocks/index.js', async (original) => (await import('./test-blocks.js')).withTestBlocks(original as never));
 
 // The links to Deviations, QMS, Logbook and MMS (owner 15 Nov 2026), each read through a fake provider schema in the
 // test database with TrueBatch's restricted login, as on the platform: absent (no URL), down (refused or not

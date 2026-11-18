@@ -2,13 +2,15 @@
 // test masters, worked out with every field filled ("1" for a number, yes, the first option), once with the required
 // fields only and once with all, in a first and a second round. A template may refuse what it is given; it must never
 // crash on it (a crash is "could not use these inputs": the step could not be signed).
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { BLOCKS, findBlock, type Block } from '../shared/blocks/index.js';
 import { evaluate, type StepEvent, type Value } from '../shared/engine/index.js';
 import { masterChecks } from '../shared/master/checks.js';
 import { masterSchema, type MasterDoc, type Step } from '../shared/master/schema.js';
 import { at, ev, tablet } from './engine-fixture.js';
 import { GTIN, pack, packing } from './packing-fixture.js';
+// The shared test master is built from test-only blocks (test/test-blocks.ts).
+vi.mock('../shared/blocks/index.js', async (original) => (await import('./test-blocks.js')).withTestBlocks(original as never));
 
 const pct = (low: string, high: string) => ({ low, high, unit: '%' });
 const minutes = { low: '10', high: '12', unit: 'min' };

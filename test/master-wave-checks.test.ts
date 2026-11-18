@@ -1,8 +1,10 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { openSteps, timers } from '../shared/engine/index.js';
 import { blocking, masterChecks } from '../shared/master/checks.js';
 import type { MasterDoc } from '../shared/master/schema.js';
 import { at, ev, tablet, unplaced } from './engine-fixture.js';
+// The shared test master is built from test-only blocks (test/test-blocks.ts).
+vi.mock('../shared/blocks/index.js', async (original) => (await import('./test-blocks.js')).withTestBlocks(original as never));
 // The problems, without the rooms a stage must name (TL-11): the fixtures name none.
 const checks = (d: Parameters<typeof masterChecks>[0]) => unplaced(masterChecks(d));
 

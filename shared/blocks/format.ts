@@ -68,7 +68,7 @@ export const blockSchema = z.object({
   calcs: z.array(calcSchema),
   // For repeat-until: the calculation whose check stops the rounds (the master step may name another).
   stop: name.optional(),
-  // Rounds every N minutes (periodic in-process checks); the master may not set more than maxMinutes (TL-15).
+  // Rounds every N minutes (periodic in-process checks); the master may not set more than maxMinutes.
   // alongside: the steps after it open once its first round is done, and its rounds go on beside them; the stage
   // closes only when its stop check passes (packing: the periodic checks of a running line).
   periodic: z.object({ maxMinutes: z.number().int().positive(), alongside: z.boolean().optional() }).strict().optional(),

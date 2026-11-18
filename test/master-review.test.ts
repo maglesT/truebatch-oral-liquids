@@ -1,6 +1,8 @@
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { call, freshApp, login, proofFor, seedUser, type TestApp } from './helpers.js';
 import { tablet, placed } from './engine-fixture.js';
+// The shared test master is built from test-only blocks (test/test-blocks.ts).
+vi.mock('../shared/blocks/index.js', async (original) => (await import('./test-blocks.js')).withTestBlocks(original as never));
 
 // Review and approval of master versions (TL-02): the author sends for review (signs "prepared"), a second person
 // checks ("checked") or returns, QA approves ("approved") with a change control number, and making a version

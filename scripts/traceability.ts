@@ -36,7 +36,7 @@ const lines = [
   '|------|-------------|-------|',
   ...rules.map((r) => `| ${r.id} | ${short(r.text).replaceAll('|', '/')} | ${(tests.get(r.id) ?? [r.later ? '*later*' : '**NONE**']).map((x) => x.replaceAll('|', '/')).join('<br>')} |`),
   '',
-  `${rules.length} rules, ${covered.length} with tests, ${rules.filter((r) => r.later && !tests.has(r.id)).length} later; ${[...tests.values()].flat().length} rule-named tests (TB and platform PL).`,
+  `${rules.length} rules, ${covered.length} with tests, ${rules.filter((r) => r.later && !tests.has(r.id)).length} later; ${[...tests.values()].flat().length} rule-named tests (TL and platform PL).`,
 ];
 
 if (process.argv.includes('--check')) {

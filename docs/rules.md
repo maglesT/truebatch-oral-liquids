@@ -1,6 +1,6 @@
-# TrueBatch rules
+# TrueBatch Liquids rules
 
-The 23 TrueBatch rules. Each is checked once, in the app. Each test that proves a rule starts its name with the rule
+The 21 TrueBatch Liquids rules (TL-15 and TL-16, compression and punches, are tablets only and left unused). Each is checked once, in the app. Each test that proves a rule starts its name with the rule
 ID, e.g. `TL-08 the person who performed a step cannot check it`. `npm run traceability` prints the rule-to-test list;
 CI (`npm run traceability -- --check`) fails when a rule has no test, unless its feature comes later (marked
 "later" in the Tests column, with the feature it waits for).
@@ -23,8 +23,6 @@ Clauses: the binding clauses each rule rests on (US: 21 CFR 211 and Part 11; EU:
 | TL-12 | Only released, in-date lots are used | US 211.84(a); 211.86; 211.87; 211.101(c)(1); EU C5 5.34; IN SCHM 14.14, 14.16, 14.17 | `test/links.test.ts` (MMS lot status, material and dates; the label without it) |
 | TL-13 | The dispensing target comes from the master, adjusted by assay and LOD | US 211.101(a),(b),(d); 211.188(b)(3),(4); EU C5 5.37, 5.39; C4 4.20(d), 4.8; IN SCHM 14.18, 14.20; 17.3.8.3(f); 7 (recalls) | `test/engine.test.ts`, `test/master-checks.test.ts` |
 | TL-14 | In-process checks against the master's limits; out of limits needs a deviation note | US 211.110(a)-(c); 211.188(b)(5),(10); 211.192; EU C4 4.18(d),(e), 4.20(f); C5 5.43; IN SCHM 17.3.6.2(g),(h); 17.3.8.3(i); 18.4.2; 19.7.5; SCHM-VIII 1.5, 2.3 | `test/engine.test.ts`, `e2e/floor.spec.ts` |
-| TL-15 | Compression: every station at the start, then a sample at least every 30 minutes | US 211.110(a)(1),(2); EU C5 5.43; IN SCHM-VIII 3.3, 3.4, 3.5, 3.7, 3.8 | `test/engine.test.ts`, `test/mywork.test.ts` |
-| TL-16 | Sieves, punches and dies are checked before and after use | IN SCHM-VIII 1.3, 1.4, 2.2, 2.5, 4.2, 6.1, 6.2; US 211.67, 211.113(a) (general); EU C5 5.11 (dust, general) | `test/engine.test.ts` (screens), `test/blocks.test.ts` (punches and dies, the punch and die check block) |
 | TL-17 | Hold times run on the server clock; an overrun needs a deviation note | US 211.111; EU C4 4.18(f); C5 5.41; IN SCHM 17.3.6.2(k); 17.3.8.3(h); 18.4.4 | `test/engine.test.ts`, `test/batches.test.ts` |
 | TL-18 | Yield is calculated and verified; out of limits blocks release | US 211.103; 211.186(b)(7); 211.188(b)(7); 211.192; EU C4 4.17(d), 4.20(g); C5 5.44; IN SCHM 17.3.6.2(d); 17.3.8.3(j); 18.2.3; 18.4.6 | `test/engine.test.ts`, `test/release.test.ts` |
 | TL-19 | Rework only as a new batch issued from an approved master | US 211.115(a),(b); EU C5 5.67, 5.68, 5.69; C4 4.20(d); IN SCHM 14.32, 14.33, 14.34; 17.3.8.3(f) | `test/batches.test.ts` |

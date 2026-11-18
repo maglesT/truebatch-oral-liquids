@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { BLOCKS, findBlock } from '../shared/blocks/index.js';
 import { blocking, masterChecks } from '../shared/master/checks.js';
 import { masterSchema } from '../shared/master/schema.js';
@@ -11,6 +11,8 @@ import { sentence, sentenceText } from '../web/src/designer/sentences.js';
 import { SKELETON_LIST, skeletonStages } from '../web/src/designer/skeletons.js';
 import { tablet, unplaced } from './engine-fixture.js';
 import { packing } from './packing-fixture.js';
+// The shared test master is built from test-only blocks (test/test-blocks.ts).
+vi.mock('../shared/blocks/index.js', async (original) => (await import('./test-blocks.js')).withTestBlocks(original as never));
 
 // The designer's pure parts: sentences instead of formulas, inputs offered by kind, worked examples and the
 // calculation preview through the engine, skeletons, copying to a new batch size, and the changes view.
@@ -36,13 +38,12 @@ describe('master designer', () => {
       const text = [stepText(d, t, 0), ...b.calcs.map((c) => sentenceText(d, b, t.settings, sentence(b, c)))].join(' ');
       expect(text, `${b.id} v${b.version}`).not.toMatch(/\[object Object\]|undefined|NaN/);
     }
-    const punch = block('punch-die-check');
-    expect(sentenceText(d, punch, {}, sentence(punch, punch.calcs[1]!))).toBe('The punches or dies damaged must be 0: none allowed.');
     // Any other shape written into a block reads in words too.
-    const said = (limit: unknown) => sentenceText(d, punch, {}, sentence(punch, { name: 'x', label: 'x', template: 'C1', args: { value: '$damaged', limit } }));
-    expect(said({ max: 0 })).toBe('The punches or dies damaged must be at most 0.');
-    expect(said({ low: '2', high: '5', unit: 'kg' })).toBe('The punches or dies damaged must be within 2 to 5 kg.');
-    expect(said([{ high: '$toolingCheck', highStrict: true }, { min: 1 }])).toBe('The punches or dies damaged must be less than the punches and dies and at least 1.');
+    const qa = block('qa-sample');
+    const said = (limit: unknown) => sentenceText(d, qa, {}, sentence(qa, { name: 'x', label: 'x', template: 'C1', args: { value: '$taken', limit } }));
+    expect(said({ max: 0 })).toBe('The tablets taken must be at most 0.');
+    expect(said({ low: '2', high: '5', unit: 'kg' })).toBe('The tablets taken must be within 2 to 5 kg.');
+    expect(said([{ high: '$sampleLimit', highStrict: true }, { min: 1 }])).toBe('The tablets taken must be less than the tablets to take and at least 1.');
   });
 
   it('a quantity or limit is offered only from values of a compatible kind', () => {
@@ -50,9 +51,9 @@ describe('master designer', () => {
     expect(neededKind(block('stage-yield'), 'yieldLimit')).toBe('fraction');
     expect(neededKind(block('compress'), 'hardnessLimit')).toBe('force');
     // A limit on a result whose template sets its kind: not the kind of the values it is worked out from.
-    expect(['pressureLimit', 'carrLimit', 'hausnerLimit', 'reposeLimit', 'finesLimit', 'recoveryLimit', 'rsdLimit', 'mixTimeLimit']
+    expect(['carrLimit', 'hausnerLimit', 'reposeLimit', 'rsdLimit', 'mixTimeLimit']
       .map((n) => neededKind(BLOCKS.find((b) => b.settings.some((x) => x.name === n))!, n)))
-      .toEqual(['pressure', 'fraction', 'number', 'angle', 'fraction', 'fraction', 'fraction', 'time']);
+      .toEqual(['fraction', 'number', 'angle', 'fraction', 'time']);
     const masses = earlierRefs(tablet(), 3, 0).filter((r) => r.kind === 'mass').map((r) => r.ref);
     expect(masses).toContain('compression/compress/meanWeight');
     expect(masses).not.toContain('compression/yield/yield');
@@ -90,26 +91,19 @@ describe('master designer', () => {
       message: 'The master weighs but names no dispensing rooms: choose them in the header (rooms of master data)' }]);
     // The rooms: the usual areas where every plant has them; a preparation and blending are left for the author (TL-11).
     const rooms = (id: string) => masterChecks(masterSchema.parse({ header, formula: [], stages: skeletonStages(id, header) })).filter((p) => p.rule === 'TL-11').map((p) => p.message.split(':')[0]);
-    expect(rooms('wet-granulation-film-coated')).toEqual(['Stage Binder solution', 'Stage Blending', 'Stage Coating suspension']);
-    expect(skeletonStages('wet-granulation-film-coated', header).map((s) => s.roomTypes.join())).toEqual(['', 'Granulation', '', 'Compression', '', 'Coating']);
-    const dc = skeletonStages('direct-compression-uncoated', header);
-    expect(dc.map((s) => s.steps.map((t) => t.block.id).join(' '))).toEqual(['line-clearance weigh sift dry-mix stage-yield',
-      'line-clearance punch-die-check compress friability disintegration punch-die-check tablet-reconciliation']);
-    expect(dc[1]!.steps[2]!.settings.meanLimit).toEqual({ low: '237.5', high: '262.5', unit: 'mg' });
-    expect(dc[1]!.steps.filter((t) => t.block.id === 'punch-die-check').map((t) => t.name)).toEqual(['Punch and die check — before compression', 'Punch and die check — after compression']);
-    expect(dc[0]!.steps[1]!.settings).toEqual({ tolerance: '0.5' });
-    const wg = skeletonStages('wet-granulation-film-coated', header);
+    expect(rooms('dry-syrup-granulated')).toEqual(['Stage Binder solution', 'Stage Blending']);
+    expect(skeletonStages('dry-syrup-granulated', header).map((s) => s.roomTypes.join())).toEqual(['', 'Granulation', '']);
+    const ds = skeletonStages('dry-syrup', header);
+    expect(ds.map((s) => s.steps.map((t) => t.block.id).join(' '))).toEqual(['line-clearance weigh sift dry-mix blend-uniformity stage-yield']);
+    expect(ds[0]!.steps[1]!.settings).toEqual({ tolerance: '0.5' });
+    expect(ds[0]!.produces).toEqual({ name: 'dry syrup powder', holdHours: 720 });
+    const wg = skeletonStages('dry-syrup-granulated', header);
     const at = (stage: string, step: string) => wg.find((s) => s.key === stage)!.steps.find((t) => t.key === step)!;
-    expect(at('coating', 'coat')).toMatchObject({ block: { id: 'spray-coat' }, everyMinutes: 30, flow: { kind: 'repeat-until' } });
-    // Blending adds the extragranular materials and the lubricant: its yield is on the core batch weight (17 Nov 2026
-    // run, F11); the coating yield on the good cores; the coating gain on the actual core mean; the end point checked.
+    // Blending adds the extragranular materials: its yield is on the batch weight (17 Nov 2026 run, F11); the
+    // granulation end point is checked by a second person.
     expect(at('blending', 'yield').settings.theoretical).toEqual({ header: 'coreBatch' });
-    expect(at('coating', 'yield')).toMatchObject({ block: { id: 'tablet-reconciliation' }, settings: { theoretical: { ref: 'compression/yield/goodTablets' }, meanWeight: { ref: 'coating/coat/meanWeight' } } });
-    expect(at('coating', 'coat').settings.coreWeight).toEqual({ ref: 'compression/compress/meanWeight' });
     expect(at('granulation', 'granulate').checker).toBe(true);
-    // An uncoated wet-granulated tablet (17 Nov 2026 run, F10): the same stages without the coating suspension and coating.
-    expect(skeletonStages('wet-granulation-uncoated', header).map((s) => s.key)).toEqual(['binder', 'granulation', 'blending', 'compression']);
-    expect(skeletonStages('wet-granulation-uncoated', header)[3]!.produces).toEqual({ name: 'bulk tablets', holdHours: 720 });
+    expect(wg.map((s) => s.key)).toEqual(['binder', 'granulation', 'blending']);
   });
 
   it('a weigh step added from the library starts with the usual tolerance', () => {

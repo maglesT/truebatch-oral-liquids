@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { connect, type Sql } from '../server/db.js';
 import { link, links, recruitmentClient } from '../server/links.js';
 import { batchRecordDoc } from '../server/batch-record.js';
@@ -9,6 +9,8 @@ import { masterSchema } from '../shared/master/schema.js';
 import { describeMaster } from '../web/src/designer/describe.js';
 import { call, freshApp, login, proofFor, seedUser, TEST_DATABASE_URL, type TestApp } from './helpers.js';
 import { ev, small } from './engine-fixture.js';
+// The shared test master is built from test-only blocks (test/test-blocks.ts).
+vi.mock('../shared/blocks/index.js', async (original) => (await import('./test-blocks.js')).withTestBlocks(original as never));
 
 // Only trained people sign (owner, 17 Nov 2026): a step that names a training is signed, performed or checked, only by
 // a person Recruitment's training_v1 shows qualified in it; while Recruitment is off or down the signer ticks "I am

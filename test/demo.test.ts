@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { buildApp } from '../server/app.js';
 import { asPermissions } from '../server/auth.js';
@@ -10,6 +10,8 @@ import { PACKING } from '../packing/product.js';
 import { doneProblems, evaluate, lateItems, openSteps, timers, type StepEvent } from '../shared/engine/index.js';
 import { at, ev, pass, reading, small } from './engine-fixture.js';
 import { call, fakeSignOn, freshApp, login, proofFor, seedUser, TEST_PROOF_KEY, type TestApp } from './helpers.js';
+// The shared test master is built from test-only blocks (test/test-blocks.ts).
+vi.mock('../shared/blocks/index.js', async (original) => (await import('./test-blocks.js')).withTestBlocks(original as never));
 
 // Demo installations only (TRUEBATCH_DEMO=1): a skip event satisfies the wait the timers compute, nothing else changes;
 // the button, the route and the terminal command are refused anywhere else.

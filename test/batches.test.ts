@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { Content, TDocumentDefinitions } from 'pdfmake/interfaces.js';
 import { batchRecordDoc } from '../server/batch-record.js';
 import { recordLate } from '../server/late.js';
@@ -7,6 +7,8 @@ import { call, freshApp, handLabels, login, proofFor, seedUser, type TestApp } f
 import { small, tablet } from './engine-fixture.js';
 import { findBlock } from '../shared/blocks/index.js';
 import { machineRefusal, roomRefusal } from '../shared/engine/picks.js';
+// The shared test master is built from test-only blocks (test/test-blocks.ts).
+vi.mock('../shared/blocks/index.js', async (original) => (await import('./test-blocks.js')).withTestBlocks(original as never));
 
 // Master versions (draft, locked once out of draft), issuing a batch from an effective version (TL-03), walking a
 // stage through the step routes, refused actions (TL-08), insert-only step events and the timer job (TL-17).

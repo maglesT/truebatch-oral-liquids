@@ -1,6 +1,8 @@
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { call, freshApp, login, proofFor, seedUser, type TestApp } from './helpers.js';
 import { small } from './engine-fixture.js';
+// The shared test master is built from test-only blocks (test/test-blocks.ts).
+vi.mock('../shared/blocks/index.js', async (original) => (await import('./test-blocks.js')).withTestBlocks(original as never));
 
 // GET /api/batches: "My work" on the floor screens: the batches in production with what waits for each person.
 
@@ -76,7 +78,7 @@ describe('My work', () => {
     expect((await mine('sam')).some((x) => x.id === b.id)).toBe(false);
   });
 
-  it('TL-15 a compression round started shows when the next check is due', async () => {
+  it('periodic rounds (TL-15 unused): a compression round started shows when the next check is due', async () => {
     const c = await issue(small([{ machineTypes: ['tablet press'], steps: [{ block: { id: 'compress', version: 1 }, everyMinutes: 30, flow: { kind: 'repeat-until', maxRounds: 40 },
       settings: { meanLimit: { low: '95.0', high: '105.0', unit: 'mg' }, weightBand: '5.0', weightOuterBand: '10.0', hardnessLimit: { low: '40', high: '80', unit: 'N' }, thicknessLimit: { low: '2.8', high: '3.2', unit: 'mm' } } },
     { block: { id: 'stage-yield', version: 1 }, checker: true, settings: { theoretical: '0.100 kg', yieldLimit: { low: '97.0', high: '100.5', unit: '%' } } }] }]));

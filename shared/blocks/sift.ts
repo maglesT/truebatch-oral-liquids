@@ -1,7 +1,7 @@
 import type { Block } from './format.js';
 
 // Sift dispensed materials through the sieve the master names; the sieve is checked intact before and after use
-// (C4, TL-16), with the same names as the sieve block.
+// (C4), with the same names as the sieve block.
 export const sift: Block = {
   id: 'sift', version: 1, name: 'Sift materials', checker: true,
   instruction: 'Check that the sieve is the one shown and is intact. Sift the materials, then check the sieve again.',

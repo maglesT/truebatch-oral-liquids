@@ -1,9 +1,11 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   currentValues, doneProblems, evaluate, openSteps, parseKey, refusal, stepLabel, stepState, stepTitle, timers,
   type Action, type State, type StepEvent,
 } from '../shared/engine/index.js';
 import { at, ev, fail, pass, reading, small, tablet } from './engine-fixture.js';
+// The shared test master is built from test-only blocks (test/test-blocks.ts).
+vi.mock('../shared/blocks/index.js', async (original) => (await import('./test-blocks.js')).withTestBlocks(original as never));
 
 const kinds = (s: string) => s.split(' ').filter(Boolean).map((k) => ev(k as StepEvent['kind'], '0.1.0.1'));
 const stateOf = (doc: ReturnType<typeof small>, events: StepEvent[], id: string, now = at(1000)) => {
@@ -203,7 +205,7 @@ describe('done needs', () => {
     expect(view([ev('started', '0.1.0.1', { min: 0 }), out, ev('note', '0.1.0.1', { min: 3 })], at(20))).toEqual([]);
   });
 
-  it('TL-16 a screen not intact after use fails the integrity check: the step needs a deviation note', () => {
+  it('sieve (no rule in Liquids, TL-16 unused): a screen not intact after use fails the integrity check: the step needs a deviation note', () => {
     const sieve = small([{ steps: [{ block: { id: 'sieve', version: 1 }, settings: {} }] }]);
     const values = { machine: 'MIL-01', screen: '1.0 mm', intactBefore: 'yes', intactAfter: 'no' };
     const results = evaluate(sieve, [], { stage: 0, sub: 1, step: 0, round: 1 }, values);
@@ -259,7 +261,7 @@ describe('timers', () => {
     expect(timers(doc, [...done, ev('note', '1.1.0.1', { min: 140 }), ev('started', '1.1.0.1', { min: 141 })], at(500))[0]!.state).toBe('late');
   });
 
-  it('TL-15 a periodic check is due every 30 minutes from the start of the previous round', () => {
+  it('periodic rounds (the mechanism of TL-P10; TL-15 unused): a periodic check is due every 30 minutes from the start of the previous round', () => {
     const doc = small([{ steps: [{ everyMinutes: 30, flow: { kind: 'repeat-until', maxRounds: 10, stop: 'readingCheck' } }] }]);
     const r1 = [ev('started', '0.1.0.1', { min: 0 }), reading('0.1.0.1', { readingCheck: fail }, { min: 2 }), ev('done', '0.1.0.1', { min: 3 })];
     expect(timers(doc, r1, at(20))).toMatchObject([{ id: 'every:0.1.0.2', kind: 'periodic', state: 'running', at: at(30) }]);
