@@ -67,6 +67,10 @@ test('TL-P2 packing journey: packing master from the skeleton, approved; a packi
   await expect(check).toContainText('Printed label has no issue step');
   await author.page.getByRole('button', { name: 'Add their issue and reconciliation steps' }).click();
   await expect(check).not.toContainText('has no issue step');
+  // A unit changed after the steps exist changes them too: the check finds no unit mismatch (Tablets round 32).
+  await author.page.getByLabel('Unit of Printed label').selectOption('m');
+  await expect(check).not.toContainText('make them the same');
+  await author.page.getByLabel('Unit of Printed label').selectOption('units');
 
   // The product's limits, from the master check: the fill (61.5 mL at 1.250 g/mL is 76.875 g), the closures, the room.
   await check.getByRole('button', { name: /Mean fill limits is not set/ }).click();

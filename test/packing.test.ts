@@ -7,6 +7,7 @@ import { c8PrintedData, c9SerialCodes, expiryMonth, gs1, printedMonth, t27Expiry
 import { at, ev, small } from './engine-fixture.js';
 import { code, GTIN, packing } from './packing-fixture.js';
 import { headline } from '../web/src/api-floor.js';
+import { withMaterialUnit } from '../web/src/designer/skeletons.js';
 // The shared test master is built from test-only blocks (test/test-blocks.ts).
 vi.mock('../shared/blocks/index.js', async (original) => (await import('./test-blocks.js')).withTestBlocks(original as never));
 
@@ -148,6 +149,23 @@ describe('the packing master (TL-P1 to TL-P10)', () => {
     const exportPack = packing({ destination: 'Export', mrp: undefined });
     where(exportPack, 'room-status').st.settings.temperatureLimit = { high: '35', unit: '°C' };
     expect(errors(exportPack, 'TL-P10')).toEqual([]);
+  });
+});
+
+describe('a packing material\'s unit changed after its steps were added (Tablets round 32)', () => {
+  const units = (d: MasterDoc) => d.stages.flatMap((s) => s.steps).filter((t) => (t.settings.material as { formula?: string } | undefined)?.formula === 'label').map((t) => `${t.block.id} ${String(t.settings.unit)}`);
+  it('the master refuses an issue or reconciliation step in another unit than its material', () => {
+    const d = packing();
+    d.pack!.materials.find((m) => m.key === 'label')!.unit = 'm';
+    expect(errors(d, 'TL-P4')).toEqual(['Printed label is counted in m in the packing materials, but this step in units: make them the same',
+      'Printed label is counted in m in the packing materials, but this step in units: make them the same']);
+  });
+  it('the designer changes the unit on the material and on its steps together', () => {
+    const d = withMaterialUnit(packing(), 'label', 'm');
+    expect(d.pack!.materials.find((m) => m.key === 'label')!.unit).toBe('m');
+    expect(units(d)).toEqual(['pack-material-issue m', 'printed-reconciliation m']);
+    expect(errors(d)).toEqual([]);
+    expect(units(packing())).toEqual(['pack-material-issue units', 'printed-reconciliation units']);
   });
 });
 

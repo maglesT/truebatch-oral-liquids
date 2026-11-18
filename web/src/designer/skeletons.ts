@@ -162,6 +162,13 @@ export function packingStages(pack: Pack, type?: MasterDoc['header']['type']): S
   ];
 }
 
+/** A packing material's new unit, also on its issue and reconciliation steps (their quantities are in it). */
+export function withMaterialUnit(doc: MasterDoc, key: string, unit: string): MasterDoc {
+  const mine = (t: Step) => ['pack-material-issue', 'printed-reconciliation'].includes(t.block.id) && (t.settings.material as { formula?: string } | undefined)?.formula === key;
+  return { ...doc, pack: { ...doc.pack!, materials: doc.pack!.materials.map((m) => (m.key === key ? { ...m, unit: unit as typeof m.unit } : m)) },
+    stages: doc.stages.map((s) => ({ ...s, steps: s.steps.map((t) => (mine(t) ? { ...t, settings: { ...t.settings, unit } } : t)) })) };
+}
+
 /** Adds the issue and reconciliation steps of packing materials that have none (to the first and last stages). */
 export function withMaterialSteps(doc: MasterDoc): MasterDoc {
   const p = doc.pack;

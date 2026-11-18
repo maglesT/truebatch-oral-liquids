@@ -4,7 +4,7 @@ import { useState } from 'react';
 import type { MasterData, Product } from '../api-designer.js';
 import { CLOSURES, DESTINATIONS, DEVICES, PACK_MATERIAL_KINDS, PACK_TYPES, PRODUCT_TYPES, type MasterDoc, type Pack, type PackMaterial } from '../../../shared/master/schema.js';
 import { newKey, ownProducts } from './model.js';
-import { withMaterialSteps } from './skeletons.js';
+import { withMaterialSteps, withMaterialUnit } from './skeletons.js';
 import { unitName } from '../../../shared/engine/stock.js';
 import { Decimal, Order, Picker } from './ui.js';
 
@@ -80,7 +80,7 @@ export function PackMaterials({ doc, md, onChange }: { doc: MasterDoc; md: Maste
             <td><input type="checkbox" aria-label={`${m.name} is printed`} checked={m.printed} onChange={(e) => set(i, { printed: e.target.checked })} /></td>
             <td><input type="checkbox" aria-label={`${m.name} carries the batch coding`} checked={m.coded} onChange={(e) => set(i, { coded: e.target.checked })} /></td>
             <td><Decimal label={`${m.name} per pack`} value={m.perPack} onChange={(v) => set(i, { perPack: v })} width={5} />
-              <select aria-label={`Unit of ${m.name}`} value={m.unit} onChange={(e) => set(i, { unit: e.target.value as PackMaterial['unit'] })}>{['units', 'm', 'g'].map((u) => <option key={u} value={u}>{unitName(u, md.materials.find((x) => x.itemId === m.materialItemId)?.unit)}</option>)}</select></td>
+              <select aria-label={`Unit of ${m.name}`} value={m.unit} onChange={(e) => onChange(withMaterialUnit(doc, m.key, e.target.value))}>{['units', 'm', 'g'].map((u) => <option key={u} value={u}>{unitName(u, md.materials.find((x) => x.itemId === m.materialItemId)?.unit)}</option>)}</select></td>
             <td><Order index={i} count={pack.materials.length} what={m.name} onMove={(by) => { const l = [...pack.materials]; [l[i], l[i + by]] = [l[i + by]!, l[i]!]; put(l); }}
               onRemove={() => put(pack.materials.filter((_, j) => j !== i))} /></td>
           </tr>))}
