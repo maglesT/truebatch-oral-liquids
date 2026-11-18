@@ -83,7 +83,7 @@ describe('master designer', () => {
     for (const s of SKELETON_LIST) {
       const doc = masterSchema.parse({ header, formula: [], stages: skeletonStages(s.id, header) });
       expect(doc.stages.every((st) => st.steps.every((t) => findBlock(t.block)))).toBe(true);
-      expect(masterChecks(doc).filter((p) => !/not set|not checked|no materials|choose the rooms/.test(p.message))).toEqual([]);
+      expect(masterChecks(doc).filter((p) => !/not set|not checked|no materials|choose/i.test(p.message))).toEqual([]);
     }
     // TL-11: a master that weighs names its dispensing rooms; a new one starts with none (the author picks them).
     const bare = masterSchema.parse({ header: { ...header, dispensingRooms: undefined }, formula: [], stages: skeletonStages(SKELETON_LIST[0]!.id, header) });

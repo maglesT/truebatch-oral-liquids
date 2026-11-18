@@ -74,7 +74,7 @@ export const unplaced = <T extends { rule?: string; path: string }>(problems: T[
 /** A small master with the given stages; each step defaults to a "check a value" step without a checker. */
 export function small(stages: object[]): MasterDoc {
   return masterSchema.parse({
-    header: { productItemId: 'p', productCode: 'P', productName: 'P', type: 'solution', batchSize: '1', batchUnit: 'L', densityGPerMl: '1.000', dispensingRooms: ['DSP-01'] },
+    header: { productItemId: 'p', productCode: 'P', productName: 'P', type: 'solution', batchSize: '1', batchUnit: 'L', densityGPerMl: '1.000', densityAtC: '25', claimPer: 'mL', claimAs: 'M', dispensingRooms: ['DSP-01'] },
     formula: [{ key: 'x', materialItemId: 'm', code: 'M', name: 'M', mg: '100.0', role: 'excipient', place: 'intragranular' }],
     stages: stages.map((s, i) => ({ key: `s${i}`, name: `Stage ${i}`, kind: 'normal', ...s,
       steps: ((s as { steps?: object[] }).steps ?? [{}]).map((t, j) => ({ key: `t${j}`, block: { id: 'check', version: 1 }, checker: false,

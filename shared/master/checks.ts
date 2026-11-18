@@ -179,6 +179,64 @@ function formulaChecks(doc: MasterDoc, out: Problem[], error: (path: string, mes
   });
   formulaSums(doc, error);
   calculationChecks(doc, out);
+  liquidChecks(doc, out);
+}
+
+// The liquids master checks (library section 7, plan data change 4), from the 457-formulation test: error-proofing of
+// the header and the claim, not GMP rules (TL-01 asks for the header's content).
+const NON_AQUEOUS = /\b(oil|glycerol|glycerin|glycerine|syrup|sucrose|sugar|sorbitol|maltitol|propylene glycol|polyethylene glycol|macrogol|ethanol|alcohol|liquid paraffin)\b/i;
+const ETHANOL = /\b(ethanol|alcohol)\b/i;
+const ETHANOL_GRADE = /\b(absolute|anhydrous|dehydrated|9[0-9](\.\d+)?\s*%|rectified)/i;
+const DILUTED = /\b(diluted|dilution|premix|blend|with silica|adsorbate|triturate|\d+\s*%\s*(w\/w)?\s*(on|in|with))\b/i;
+const PRESERVATIVE = /\b(paraben|hydroxybenzoate|benzoate|benzoic acid|sorbate|sorbic acid|preservative)\b/i;
+function liquidChecks(doc: MasterDoc, out: Problem[]): void {
+  const h = doc.header;
+  const ask = asker(doc, out);
+  const error = (path: string, message: string) => out.push({ level: 'error', path, message, rule: 'TL-01' });
+  const powder = h.type === 'dry syrup';
+  if (!h.type) error('header.type', 'Choose the product type (solution, drops, suspension, emulsion or dry syrup)');
+  if (powder && h.batchUnit !== 'kg') error('header.batchUnit', 'A dry syrup powder is made in kg');
+  // A liquid batch has its density: a batch in kg, a make-up by weight and the fill weight need it (library 7).
+  if (!powder && !h.densityGPerMl) error('header.densityGPerMl', `The density of the ${h.batchUnit === 'kg' ? 'batch made in kg' : 'liquid'} is not set: a batch in kg, a make-up by weight and the fill weight need it`);
+  if (!powder && h.densityGPerMl && !h.densityAtC) error('header.densityAtC', 'The temperature the density is measured at is not set');
+  if (!h.claimPer) error('header.claimPer', 'Choose what the label claim is per');
+  if (h.claimPer && h.claimPer !== 'none' && !h.claimAs?.trim()) error('header.claimAs', 'Name what the label claim is of: the base, salt, ion or element, with its hydrate (KCl or K, pyrantel or its embonate)');
+  if (h.claimPer === 'drop' && !h.dropsPerMl) error('header.dropsPerMl', 'A claim per drop needs the drops per mL of the dropper (30 or 40 drops per mL is 25-33 % apart)');
+  if (h.claimPer === 'dose volume' && !h.doseVolumeMl) error('header.doseVolumeMl', 'A claim per dose volume needs the dose volume (5 mL, 10 mL …)');
+  if (h.claimPer === 'g of powder' && !powder) error('header.claimPer', 'A claim per g of powder is for a dry syrup powder');
+  if (powder) {
+    if (!h.fillWeightG) error('header.fillWeightG', 'The fill weight of powder per container is not set');
+    if (h.claimPer === 'g of powder') {
+      if (h.reconstitutedMl) error('header.reconstitutedMl', 'A powder claimed per g is not made up to a volume: leave the volume after reconstitution empty');
+      // Scoop-dosed powder: the scoop doses by volume, so the bulk density is checked (a scoop against a teaspoon is 4 times).
+      if (!doc.stages.some((s) => s.steps.some((t) => t.block.id === 'density-flow'))) error('stages', 'A powder claimed per g (dosed by scoop) needs a bulk density step (density-flow) with its limits');
+    } else if (h.claimPer !== 'container' && h.claimPer !== 'none' && !h.reconstitutedMl) {
+      error('header.reconstitutedMl', 'The volume after reconstitution is not set: the claim per mL uses the reconstituted (mixed) volume, never the water to add or the usable volume (31 % under-dose)');
+    }
+  }
+  if (h.claimPer === 'dose volume' && h.doseVolumeMl && !new Dec(h.doseVolumeMl).eq(5)) {
+    ask('header.doseVolumeMl', 'dose-volume', `The claim is per ${h.doseVolumeMl} mL. Is that the dose volume the label states the claim per? A claim per 10 mL keyed per 5 mL is 2 times the dose.`, ['the label states it per this volume']);
+  }
+  if (!powder && h.densityGPerMl && new Dec(h.densityGPerMl).eq(1)) {
+    const vehicle = doc.formula.find((l) => NON_AQUEOUS.test(l.name));
+    if (vehicle) ask('header.densityGPerMl', 'density-water', `The density is 1.000 g/mL, but the formula has ${vehicle.name}: an oil, sugar, polyol or alcohol vehicle is up to 24 % away from water. Confirm the measured density, with the reason, or correct it.`, ['measured 1.000 g/mL'], true);
+  }
+  doc.formula.forEach((l, i) => {
+    if (l.role !== 'api' || l.mg === undefined) return;
+    const per = claimMg(doc, l.mg);
+    if (typeof per !== 'string' && per.lte(1) && per.gt(0)) {
+      ask(`formula[${i}]`, `high-potent/${l.key}`, `${l.name} is ${per.toFixed(3, Dec.ROUND_HALF_UP)} mg ${claimWords(doc)}: confirm the label is in mg and not in µg (1000 times).`, ['mg is right']);
+    }
+    if (DILUTED.test(l.name) && !l.adjust?.potency && !l.adjust?.content) {
+      ask(`formula[${i}]`, `diluted-lot/${l.key}`, `${l.name} looks like a blend or dilution of the API: its quantity needs the lot's own content as is (a potency or content adjustment). Weighed as pure API it gives about half the dose. Is it pure API?`, ['pure API'], true);
+    }
+  });
+  doc.formula.forEach((l, i) => {
+    if (ETHANOL.test(l.name) && !ETHANOL_GRADE.test(l.name)) error(`formula[${i}]`, `Name the grade of ${l.name} (absolute, 96 % or 95 % v/v): 96 % ethanol is not absolute ethanol`);
+    if (powder && PRESERVATIVE.test(l.name)) {
+      ask(`formula[${i}]`, `preservative-basis/${l.key}`, `${l.name} in a dry syrup: a preservative % is of the reconstituted volume. Is its mg per g worked out from the % of the volume after reconstitution (per container ÷ the fill weight)?`, ['yes, from the reconstituted volume']);
+    }
+  });
 }
 
 const nominal = (l: FormulaLine) => (l.adjust?.content?.resultType === 'percent of theoretical' ? SAMPLE.assay : l.adjust?.content?.nominalContent ?? SAMPLE.assay);
@@ -222,13 +280,16 @@ const AID = /\b(polyethylene|camphor|menthol|thymol|ammonium (bi)?carbonate|proc
 const SIZE = /\b(d\s?\(?0?\.?[159]0?\)?|d10|d50|d90|dv\d+|particle size|surface area|polymorph|crystal form)\b/i;
 const RATIO = /\d+(\.\d+)?\s*(:\s*\d+(\.\d+)?|%(\s*w\/w)?)/;
 
+/** A warning the author answers (kept under its key while the warning reads the same); the choice once answered. */
+const asker = (doc: MasterDoc, out: Problem[]) => (path: string, key: string, message: string, options: string[], needsReason = false) => {
+  const a = doc.answers?.[key];
+  const ok = a && (a.about === message || a.about === plainWords(message)) && options.includes(a.choice) && (!needsReason || a.reason.trim() !== '');
+  out.push({ level: 'warning', path, message, question: { key, options, needsReason, ...(ok ? { answer: a } : {}) } });
+  return ok ? a.choice : undefined;
+};
+
 function calculationChecks(doc: MasterDoc, out: Problem[]): void {
-  const ask = (path: string, key: string, message: string, options: string[], needsReason = false) => {
-    const a = doc.answers?.[key];
-    const ok = a && (a.about === message || a.about === plainWords(message)) && options.includes(a.choice) && (!needsReason || a.reason.trim() !== '');
-    out.push({ level: 'warning', path, message, question: { key, options, needsReason, ...(ok ? { answer: a } : {}) } });
-    return ok ? a.choice : undefined;
-  };
+  const ask = asker(doc, out);
   const refuse = (path: string, message: string) => out.push({ level: 'error', path, message });
   const apis = doc.formula.filter((l) => l.role === 'api');
   // (d) the API adjusted for potency at dispensing, then set again from an in-process granule or blend assay

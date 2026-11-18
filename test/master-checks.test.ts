@@ -257,3 +257,57 @@ it('calculation check ⚠️ the messages say what to answer, in plain words', (
     'formula[0].adjust.salt: The salt factor 1.10 written for Examplol differs by 4.0 % from the molecular weights of base and sodium (factor 1.0574), which the batch quantity uses. Confirm with a reason, or correct the factor or the molecular weights.',
   ]);
 });
+
+describe('TL-01 the liquids master checks (library section 7, plan data change 4)', () => {
+  const powder = (d: MasterDoc) => { d.header = { ...d.header, type: 'dry syrup', batchUnit: 'kg', fillWeightG: '40.0', reconstitutedMl: '60', claimPer: 'dose volume', doseVolumeMl: '5' }; d.formula[1]!.mg = '862.5'; };
+  const keys = (change: (d: MasterDoc) => void) => { const d = tablet(); change(d); return checks(d).filter((p) => p.question).map((p) => p.question!.key); };
+
+  it('TL-01 a liquid batch has its density at a stated temperature; the product type and what the claim is per and of are chosen', () => {
+    expect(errors((d) => { delete d.header.densityGPerMl; })).toEqual(['error TL-01 header.densityGPerMl: The density of the liquid is not set: a batch in kg, a make-up by weight and the fill weight need it']);
+    expect(errors((d) => { delete d.header.densityAtC; })).toEqual(['error TL-01 header.densityAtC: The temperature the density is measured at is not set']);
+    expect(errors((d) => { delete d.header.type; })).toEqual([expect.stringMatching(/header.type: Choose the product type/)]);
+    expect(errors((d) => { delete d.header.claimPer; })).toEqual([expect.stringMatching(/header.claimPer: Choose what the label claim is per/)]);
+    expect(errors((d) => { delete d.header.claimAs; })).toEqual([expect.stringMatching(/header.claimAs: Name what the label claim is of: the base, salt, ion or element/)]);
+    expect(errors((d) => { d.header.claimPer = 'none'; delete d.header.claimAs; })).toEqual([]);
+  });
+
+  it('TL-01 a claim per drop needs the drops per mL; a claim per dose volume needs the volume, and one other than 5 mL is confirmed', () => {
+    expect(errors((d) => { d.header.claimPer = 'drop'; })).toEqual([expect.stringMatching(/header.dropsPerMl: A claim per drop needs the drops per mL/)]);
+    expect(errors((d) => { d.header.claimPer = 'drop'; d.header.dropsPerMl = '30'; })).toEqual([]);
+    expect(errors((d) => { d.header.claimPer = 'dose volume'; })).toEqual([expect.stringMatching(/header.doseVolumeMl: A claim per dose volume needs the dose volume/)]);
+    expect(keys((d) => { d.header.claimPer = 'dose volume'; d.header.doseVolumeMl = '5'; })).not.toContain('dose-volume');
+    expect(keys((d) => { d.header.claimPer = 'dose volume'; d.header.doseVolumeMl = '10'; })).toContain('dose-volume');
+  });
+
+  it('TL-01 a dry syrup: made in kg, its fill weight, and the claim on the reconstituted volume (never the water to add)', () => {
+    expect(errors(powder)).toEqual([]);
+    expect(errors((d) => { powder(d); delete d.header.reconstitutedMl; })).toEqual([expect.stringMatching(/header.reconstitutedMl: The volume after reconstitution is not set: the claim per mL uses the reconstituted \(mixed\) volume/)]);
+    expect(errors((d) => { powder(d); delete d.header.fillWeightG; })).toEqual([expect.stringMatching(/header.fillWeightG: The fill weight of powder per container is not set/)]);
+    expect(errors((d) => { powder(d); d.header.batchUnit = 'L'; })).toContain('error TL-01 header.batchUnit: A dry syrup powder is made in kg');
+    // 100 mg per g × 40 g in 60 mL = 66.667 mg/mL, × 5 mL = 333.333 mg per 5 mL: the claim check uses it.
+    expect(errors((d) => { powder(d); d.formula[0]!.labelClaim = '125 mg'; })).toEqual([expect.stringMatching(/100\.0 mg per g gives 333\.333 mg of Examplol per 5 mL after reconstitution, not the label claim 125 mg/)]);
+    expect(errors((d) => { powder(d); d.formula[0]!.labelClaim = '333.3 mg'; })).toEqual([]);
+  });
+
+  it('TL-01 a powder claimed per g has no reconstituted volume and needs a bulk density step (scoop dosing)', () => {
+    const perG = (d: MasterDoc) => { powder(d); d.header.claimPer = 'g of powder'; delete d.header.reconstitutedMl; };
+    expect(errors(perG)).toEqual([expect.stringMatching(/stages: A powder claimed per g \(dosed by scoop\) needs a bulk density step/)]);
+    expect(errors((d) => { perG(d); d.header.reconstitutedMl = '60'; })).toContain('error TL-01 header.reconstitutedMl: A powder claimed per g is not made up to a volume: leave the volume after reconstitution empty');
+    expect(errors((d) => { d.header.claimPer = 'g of powder'; })).toContain('error TL-01 header.claimPer: A claim per g of powder is for a dry syrup powder');
+  });
+
+  it('TL-01 density 1.000 on an oil, sugar or polyol vehicle is confirmed with a reason; a high-potent claim is confirmed in mg', () => {
+    expect(keys((d) => { d.header.densityGPerMl = '1.000'; d.formula[1]!.name = 'Sorbitol solution 70 %'; })).toContain('density-water');
+    expect(keys((d) => { d.header.densityGPerMl = '1.000'; })).not.toContain('density-water');
+    expect(keys((d) => { d.formula[0]!.mg = '0.050'; })).toContain('high-potent/api');
+    expect(keys(() => {})).not.toContain('high-potent/api');
+  });
+
+  it('TL-01 ethanol names its grade; a diluted API lot is confirmed; a preservative in a dry syrup is on the reconstituted volume', () => {
+    expect(errors((d) => { d.formula[3]!.name = 'Ethanol'; })).toEqual([expect.stringMatching(/formula\[3\]: Name the grade of Ethanol \(absolute, 96 % or 95 % v\/v\)/)]);
+    expect(errors((d) => { d.formula[3]!.name = 'Ethanol 96 %'; })).toEqual([]);
+    expect(keys((d) => { d.formula[0]!.name = 'Examplol diluted with silica'; delete d.formula[0]!.adjust; })).toContain('diluted-lot/api');
+    expect(keys((d) => { powder(d); d.formula[4]!.name = 'Sodium benzoate'; })).toContain('preservative-basis/mcc');
+    expect(keys((d) => { d.formula[4]!.name = 'Sodium benzoate'; })).not.toContain('preservative-basis/mcc');
+  });
+});
