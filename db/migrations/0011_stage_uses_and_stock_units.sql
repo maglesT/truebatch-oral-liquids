@@ -1,4 +1,4 @@
--- Published views, as the Logbook and MMS read them (owner, 15 Nov 2026, from the run of batch TB260004). Columns are
+-- Published views, as the Logbook and MMS read them (owner, 15 Nov 2026, from the run of batch TL260004). Columns are
 -- only added at the end (create or replace keeps the grants the platform's set_link gave).
 --
 -- equipment_use_v1: ONE use per batch and machine or room (its sub-batches included): cleaning is due between batches,

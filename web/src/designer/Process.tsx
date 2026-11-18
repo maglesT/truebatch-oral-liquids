@@ -132,7 +132,7 @@ function StageForm({ doc, si, stage, onChange, roles, machineTypes, md }: {
         <label>Responsible role<input list="roles" value={stage.role} onChange={(e) => onChange({ ...stage, role: e.target.value })} /></label>
         <datalist id="roles">{roles.map((r) => <option key={r} value={r} />)}</datalist>
       </div>
-      {/* TB-11: the machines and rooms the floor is offered stand in these rooms (balances also in a dispensing area). */}
+      {/* TL-11: the machines and rooms the floor is offered stand in these rooms (balances also in a dispensing area). */}
       <ChipSet label="Rooms this stage may run in (an area, or a room)" values={stage.roomTypes} options={rooms.options} groups={rooms.groups} text={rooms.text} onChange={(roomTypes) => onChange({ ...stage, roomTypes })}
         empty="None chosen yet: choose the rooms (needed when the stage works machines or names a room)" />
       <ChipSet label="Allowed machine types" values={stage.machineTypes} options={machineTypes} onChange={(machineTypes) => onChange({ ...stage, machineTypes })} empty="Any machine type" />

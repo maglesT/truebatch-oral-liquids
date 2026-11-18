@@ -19,7 +19,7 @@ describe('skeleton', () => {
   });
 
   it('health reports 503 when the database cannot be reached', async () => {
-    const nowhere = connect('postgres://truebatch_app:x@127.0.0.1:1/truebatch', {});
+    const nowhere = connect('postgres://truebatch_liquids_app:x@127.0.0.1:1/truebatch', {});
     const app = await buildApp({ sql: nowhere, signOn: fakeSignOn(), master: fakeMaster(), webRoot: '/nonexistent' });
     const res = await app.inject({ method: 'GET', url: '/api/health' });
     expect(res.statusCode).toBe(503);

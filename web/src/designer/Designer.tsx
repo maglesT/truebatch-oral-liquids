@@ -72,7 +72,7 @@ export function Designer({ me, versionId, onBack, onOpen }: { me: Me; versionId:
   const flush = async () => { if (timer.current && save.kind === 'pending' && latest.current) { window.clearTimeout(timer.current); await persist(latest.current); } };
 
   const parsed = useMemo(() => (doc ? masterSchema.safeParse(doc) : null), [doc]);
-  // The master's own checks, and (once master data is read) whether the floor finds a machine for each step (TB-11).
+  // The master's own checks, and (once master data is read) whether the floor finds a machine for each step (TL-11).
   const problems = useMemo(() => (parsed?.success ? [...masterChecks(parsed.data), ...(md ? placeChecks(parsed.data, md) : [])] : null), [parsed, md]);
   const go = (path: string) => { const p = placeOf(path); setPlace(p); setTab(p.tab); };
 

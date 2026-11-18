@@ -1,6 +1,6 @@
 import { PACKING_LINE, type Block } from './format.js';
 
-// Packing, TB-P3: line clearance before packing against a checklist, always checked by a second person (TB-08). The
+// Packing, TL-P3: line clearance before packing against a checklist, always checked by a second person (TL-08). The
 // line's cleaning facts come from the Logbook while its link answers (server/pull.ts).
 export const packClearance: Block = {
   id: 'pack-clearance', version: 1, name: 'Line clearance before packing', gmp: 'line-clearance', checker: true, packing: true,

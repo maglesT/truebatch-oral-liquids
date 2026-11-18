@@ -1,6 +1,6 @@
 import type { Block } from './format.js';
 
-// Release of compression (TB-15, every station at the start): tablets from every station, 20 weights (T7 mean, C3
+// Release of compression (TL-15, every station at the start): tablets from every station, 20 weights (T7 mean, C3
 // individual weights), hardness and thickness (T7) and appearance (C4), with the names of the compress block. The
 // master may make it a QA hold before compression continues.
 export const compressionRelease: Block = {

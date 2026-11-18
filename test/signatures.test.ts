@@ -14,7 +14,7 @@ beforeAll(async () => {
   // A record table as TrueBatch's domain migrations will make them: drafts editable, locked once signed.
   await t.owner`create table step (id bigint primary key, value text not null)`;
   await t.owner`create trigger step_locked_when_signed before update or delete on step for each row execute function refuse_change_when_signed('step')`;
-  await t.owner`grant select, insert, update, delete on step to truebatch_app`;
+  await t.owner`grant select, insert, update, delete on step to truebatch_liquids_app`;
 });
 afterAll(() => t.close());
 
@@ -43,7 +43,7 @@ async function signStep(user: SessionUser, proof: string, stepId: number, meanin
 
 describe('e-signatures', () => {
   it('PL-05: a signature with a proof from core is recorded with name, meaning, server time and content hash, and audited', async () => {
-    const { user, cookie } = await signer(['truebatch.batch.operate']);
+    const { user, cookie } = await signer(['truebatch_liquids.batch.operate']);
     await t.sql`insert into step (id, value) values (1, 'Granulation end point 12.5 kW')`;
     const s = await signStep(user, await proofThroughCore(cookie, 'performed'), 1, 'performed');
     const [row] = await t.owner`select * from signatures where id = ${s.id}`;
@@ -54,7 +54,7 @@ describe('e-signatures', () => {
   });
 
   it('PL-05: a proof is spent once; using it again is refused and audited', async () => {
-    const { user, cookie } = await signer(['truebatch.batch.operate']);
+    const { user, cookie } = await signer(['truebatch_liquids.batch.operate']);
     await t.sql`insert into step (id, value) values (2, 'a'), (3, 'b')`;
     const proof = await proofThroughCore(cookie, 'performed');
     await signStep(user, proof, 2, 'performed');
@@ -63,9 +63,9 @@ describe('e-signatures', () => {
   });
 
   it('PL-05: another person\'s proof, a proof without the meaning\'s permission, a stale proof or a forged one is refused', async () => {
-    const a = await signer(['truebatch.batch.operate']);
-    const b = await signer(['truebatch.batch.operate']);
-    const viewer = await signer(['truebatch.view']);
+    const a = await signer(['truebatch_liquids.batch.operate']);
+    const b = await signer(['truebatch_liquids.batch.operate']);
+    const viewer = await signer(['truebatch_liquids.view']);
     await t.sql`insert into step (id, value) values (4, 'c')`;
     await expect(signStep(a.user, proofFor(b.username), 4, 'performed')).rejects.toThrow('wrong_credentials');
     await expect(signStep(viewer.user, proofFor(viewer.username), 4, 'performed')).rejects.toThrow('wrong_credentials');
@@ -73,13 +73,13 @@ describe('e-signatures', () => {
     await expect(signStep(a.user, `${proofFor(a.username).split('.')[0]}.forged`, 4, 'performed')).rejects.toThrow('wrong_credentials');
     await expect(signStep(a.user, proofFor(a.username, undefined, ['verified']), 4, 'performed')).rejects.toThrow('wrong_credentials');
     const reasons = (await t.owner<{ reason: string }[]>`select reason from audit_log where action = 'signature.failed' and object_id = '4' order by id`).map((r) => r.reason);
-    expect(reasons).toEqual(['meaning performed: signed by another person', 'meaning performed: no truebatch.batch.operate at core',
+    expect(reasons).toEqual(['meaning performed: signed by another person', 'meaning performed: no truebatch_liquids.batch.operate at core',
       'meaning performed: proof expired', 'meaning performed: invalid proof', 'meaning performed: proof for another meaning']);
     expect(await t.owner`select 1 from signatures where object_id = 4`).toHaveLength(0);
   });
 
   it('PL-05: a signature is refused when the content changed since the signer saw it', async () => {
-    const { user, username } = await signer(['truebatch.batch.check']);
+    const { user, username } = await signer(['truebatch_liquids.batch.check']);
     await t.sql`insert into step (id, value) values (5, 'shown')`;
     const shown = contentHash('step', 5, { value: 'shown' });
     await t.sql`update step set value = 'changed' where id = 5`;
@@ -95,7 +95,7 @@ describe('e-signatures', () => {
   });
 
   it('PL-06: a signed record row is locked; an unsigned draft row can still be changed', async () => {
-    const { user, username } = await signer(['truebatch.batch.operate']);
+    const { user, username } = await signer(['truebatch_liquids.batch.operate']);
     await t.sql`insert into step (id, value) values (6, 'draft'), (7, 'to sign')`;
     await t.sql`update step set value = 'draft 2' where id = 6`;
     await signStep(user, proofFor(username), 7, 'performed');

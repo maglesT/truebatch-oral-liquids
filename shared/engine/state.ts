@@ -70,12 +70,12 @@ export interface ActionRule {
   // The signature meaning, for a signing action.
   meaning?: 'performed' | 'verified' | 'released';
   reason?: boolean;
-  // TB-08: nobody who started, recorded, corrected or signed the step as performed may do this.
+  // TL-08: nobody who started, recorded, corrected or signed the step as performed may do this.
   notInvolved?: boolean;
 }
 
-const OPERATE: Permission[] = ['truebatch.batch.operate'];
-const CHECK: Permission[] = ['truebatch.batch.check'];
+const OPERATE: Permission[] = ['truebatch_liquids.batch.operate'];
+const CHECK: Permission[] = ['truebatch_liquids.batch.check'];
 const ALL: State[] = ['waiting', 'open', 'in_progress', 'done_awaiting_check', 'done', 'checked', 'not_applicable'];
 
 /** Which action is allowed in which state, and by which permission. */
@@ -88,9 +88,9 @@ export const ACTIONS: Record<Action, ActionRule> = {
   'send-back': { event: 'sent_back', from: ['done_awaiting_check'], permissions: CHECK, reason: true, notInvolved: true },
   correct: { event: 'corrected', from: ['in_progress', 'done_awaiting_check', 'done', 'checked'], permissions: OPERATE, reason: true },
   'not-applicable': { event: 'not_applicable', from: ['open', 'in_progress'], permissions: OPERATE, meaning: 'performed', reason: true },
-  'release-hold': { event: 'qa_released_hold', from: ['done', 'checked'], permissions: ['truebatch.qa.release'], meaning: 'released' },
+  'release-hold': { event: 'qa_released_hold', from: ['done', 'checked'], permissions: ['truebatch_liquids.qa.release'], meaning: 'released' },
   // A deviation note; anyone working on the batch, in any state.
-  note: { event: 'note', from: ALL, permissions: ['truebatch.batch.operate', 'truebatch.batch.check', 'truebatch.batch.supervise', 'truebatch.qa.release'] },
+  note: { event: 'note', from: ALL, permissions: ['truebatch_liquids.batch.operate', 'truebatch_liquids.batch.check', 'truebatch_liquids.batch.supervise', 'truebatch_liquids.qa.release'] },
 };
 
 export interface Refused { status: 403 | 409; error: string; message: string }
@@ -102,7 +102,7 @@ export interface ActionContext {
 }
 
 const INVOLVING: EventKind[] = ['started', 'value', 'done', 'corrected', 'not_applicable'];
-/** The people who did the step: none of them may check it (TB-08). */
+/** The people who did the step: none of them may check it (TL-08). */
 export const involved = (events: readonly StepEvent[]) => new Set(events.filter((e) => INVOLVING.includes(e.kind)).map((e) => e.person));
 
 /** Whether the person may do the action on the step now; null when allowed. */

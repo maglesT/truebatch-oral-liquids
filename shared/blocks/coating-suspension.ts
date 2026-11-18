@@ -1,7 +1,7 @@
 import type { Block } from './format.js';
 
 // Coating suspension: as the binder solution, for a coating powder at its target solids (T17). The suspension is used
-// within the hold time of its preparation stage (TB-17).
+// within the hold time of its preparation stage (TL-17).
 export const coatingSuspension: Block = {
   id: 'coating-suspension', version: 1, name: 'Prepare the coating suspension', checker: true,
   instruction: 'Add the solvent shown to the vessel, stir to form a vortex and add the coating powder slowly. Stir for the time shown, then pass the suspension through the screen. Use it within its hold time.',

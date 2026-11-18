@@ -1,12 +1,12 @@
 // Process skeletons a new master may start from: the usual stages and steps of a process, as data. Settings that
 // depend on the product (which material a step weighs, its limits) are left for the author; the master check lists
 // them. Tablet-weight limits start at ± 5 % of the header's core weight. Every stage is worked in a room, so each
-// starts with line clearance (TB-10). A later stage's yield is on the actual input of the stage (the previous stage's
+// starts with line clearance (TL-10). A later stage's yield is on the actual input of the stage (the previous stage's
 // output), unless the stage adds materials (blending: on the core batch weight); the coating gain is on the batch's
 // actual core mean weight, and the granulation end point is checked by a second person. A new master names no
 // dispensing rooms: the author picks them (Header.tsx). A stage starts with the rooms it usually runs in, by the usual
 // area names; a stage whose rooms differ from plant to plant (a binder or coating suspension, blending) is left for
-// the author: the master check asks for its rooms (TB-11).
+// the author: the master check asks for its rooms (TL-11).
 import { findBlock } from '../../../shared/blocks/index.js';
 import { Dec } from '../../../shared/templates/index.js';
 import type { MasterDoc, Pack, SettingValue, Stage, Step } from '../../../shared/master/schema.js';
@@ -22,7 +22,7 @@ const yieldStep = (theoretical: SettingValue): StepPlan => ({ block: 'stage-yiel
 const weighStep = (key: string): StepPlan => ({ block: 'weigh', key });
 const compressStep: StepPlan = { block: 'compress', settings: (h) => ({
   meanLimit: { low: pct(h, h.coreWeightMg, '-5'), high: pct(h, h.coreWeightMg, '5'), unit: 'mg' }, weightBand: '5.0', weightOuterBand: '10.0' }) };
-// TB-16: the tooling is checked before and after compression; friability and disintegration are tested on the cores;
+// TL-16: the tooling is checked before and after compression; friability and disintegration are tested on the cores;
 // the tablets are reconciled at the end.
 const tooling = (key: string, name: string): StepPlan => ({ block: 'punch-die-check', key, name });
 const reconcile: StepPlan = { block: 'tablet-reconciliation', key: 'yield', settings: () => ({ theoretical: { header: 'batchSize' },
@@ -92,7 +92,7 @@ export function skeletonStages(id: string, h: Header): Stage[] {
   }));
 }
 
-// TrueBatch Tablets Packing: the packing record for a pack and its materials. Issue to the line (the bulk tablets and
+// TrueBatch Liquids Packing: the packing record for a pack and its materials. Issue to the line (the bulk tablets and
 // each packing material); packing (line clearance, set-up, the camera and serial numbers when serialisation is
 // checked, then the periodic checks alongside the line); and the end (finished goods and tablets, every printed
 // material, the serial numbers, destruction of coded leftovers, line clearance after). Limits that depend on the

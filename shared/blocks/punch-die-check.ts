@@ -1,6 +1,6 @@
 import type { Block } from './format.js';
 
-// TB-16: the punches and dies of the tooling set checked before use and again after use (one step each): every set
+// TL-16: the punches and dies of the tooling set checked before use and again after use (one step each): every set
 // present, clean and undamaged (C4), and the number damaged (C1, none allowed).
 export const punchDieCheck: Block = {
   id: 'punch-die-check', version: 1, name: 'Punch and die check', checker: true,

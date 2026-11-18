@@ -9,7 +9,7 @@ let t: TestApp;
 let userId: number;
 beforeAll(async () => {
   t = await freshApp();
-  userId = await seedUser(t.owner, 'auditor1', ['truebatch.view']);
+  userId = await seedUser(t.owner, 'auditor1', ['truebatch_liquids.view']);
   await login(t.app, 'auditor1');
 });
 afterAll(() => t.close());

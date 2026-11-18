@@ -1,6 +1,6 @@
 import type { Block } from './format.js';
 
-// Packing, TB-P5: cartons and leaflets checked alongside the line. The leaflet question applies only to a pack with a
+// Packing, TL-P5: cartons and leaflets checked alongside the line. The leaflet question applies only to a pack with a
 // leaflet among its materials (the step screen leaves it out otherwise; shared/engine/batch.ts names the step).
 export const cartonCheck: Block = {
   id: 'carton-check', version: 1, name: 'Carton and leaflet check', checker: false, packing: true, stop: 'finished',

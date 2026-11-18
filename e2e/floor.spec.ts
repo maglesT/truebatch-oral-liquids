@@ -7,7 +7,7 @@ import { clearOfActionBar, justAboveActionBar, logIn } from './helpers.js';
 
 // The floor screens, one stage of a small fixture master: a pH check (second-person check) and the stage yield.
 
-/** Writes the fixture master through the API, makes it effective (the database owner does it, as in the server tests) and issues a batch on the master records screen (TB-03). */
+/** Writes the fixture master through the API, makes it effective (the database owner does it, as in the server tests) and issues a batch on the master records screen (TL-03). */
 async function issueBatch(page: Page, step: object = {}): Promise<{ id: number; batchNo: string }> {
   await logIn(page, 'iss1');
   const doc = small([{ name: 'Blending', steps: [{ checker: true, ...step },
@@ -35,7 +35,7 @@ async function sign(page: Page) {
   await expect(page.getByRole('dialog')).toHaveCount(0);
 }
 
-test('TB-14 floor journey: start, a value out of limits needs a deviation note, done, checked by a second person on their own device, stage yield on My work', async ({ browser }) => {
+test('TL-14 floor journey: start, a value out of limits needs a deviation note, done, checked by a second person on their own device, stage yield on My work', async ({ browser }) => {
   const setup = await browser.newContext();
   const batch = await issueBatch(await setup.newPage());
   await setup.close();
@@ -109,7 +109,7 @@ test('TB-14 floor journey: start, a value out of limits needs a deviation note, 
   await expect(chk.getByRole('region', { name: 'Waiting for your check' })).toContainText('Stage yield');
   await expect(chk.getByRole('region', { name: 'Waiting for your check' })).toContainText(batch.batchNo);
 
-  // TB-06: a correction keeps the old value struck through; the new value and the reason are not struck.
+  // TL-06: a correction keeps the old value struck through; the new value and the reason are not struck.
   await op.getByRole('button', { name: `← Batch ${batch.batchNo}` }).click();
   await op.getByRole('button', { name: /^1 Check a value against limits: pH/ }).click();
   await op.getByRole('button', { name: 'Correct', exact: true }).click();
@@ -124,7 +124,7 @@ test('TB-14 floor journey: start, a value out of limits needs a deviation note, 
   await chkCtx.close();
 });
 
-test('TB-23 only trained people sign: the sign dialog shows the training from Recruitment, refuses an untrained checker, and asks for the tick while Recruitment is down', async ({ browser }) => {
+test('TL-23 only trained people sign: the sign dialog shows the training from Recruitment, refuses an untrained checker, and asks for the tick while Recruitment is down', async ({ browser }) => {
   const setup = await browser.newContext();
   const batch = await issueBatch(await setup.newPage(), { training: { code: 'SOP-STR-004', title: 'Operating the stirrer' } });
   await setup.close();
@@ -158,7 +158,7 @@ test('TB-23 only trained people sign: the sign dialog shows the training from Re
 
   // Recruitment down: the checker ticks "I am trained in …"; the signature says so, for QA.
   const owner = connect(TEST_DATABASE_URL);
-  await owner.unsafe(`revoke select on all tables in schema ${E2E_RECRUITMENT} from truebatch_app`);
+  await owner.unsafe(`revoke select on all tables in schema ${E2E_RECRUITMENT} from truebatch_liquids_app`);
   try {
     await chk.getByRole('button', { name: 'Checked', exact: true }).click();
     await expect(dialog).toContainText('Recruitment cannot be reached');
@@ -166,7 +166,7 @@ test('TB-23 only trained people sign: the sign dialog shows the training from Re
     await dialog.getByLabel('I am trained in SOP-STR-004 Operating the stirrer').check();
     await sign(chk);
   } finally {
-    await owner.unsafe(`grant select on all tables in schema ${E2E_RECRUITMENT} to truebatch_app`);
+    await owner.unsafe(`grant select on all tables in schema ${E2E_RECRUITMENT} to truebatch_liquids_app`);
     await owner.end();
   }
   await expect(chk.locator('.step-title')).toContainText('Checked');

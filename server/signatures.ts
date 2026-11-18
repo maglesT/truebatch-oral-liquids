@@ -8,16 +8,16 @@ import type { Identity } from './signon.js';
 // The meanings a TrueBatch signature can carry, and the permission code each one needs at core. The database checks
 // the same list (migration 0002).
 export const MEANING_NEEDS = {
-  prepared: 'truebatch.master.author',
-  checked: 'truebatch.master.check',
-  approved: 'truebatch.master.approve',
-  issued: 'truebatch.batch.issue',
-  performed: 'truebatch.batch.operate',
-  verified: 'truebatch.batch.check',
-  production_approved: 'truebatch.batch.supervise',
-  qc_approved: 'truebatch.qc.approve',
-  released: 'truebatch.qa.release',
-  rejected: 'truebatch.qa.release',
+  prepared: 'truebatch_liquids.master.author',
+  checked: 'truebatch_liquids.master.check',
+  approved: 'truebatch_liquids.master.approve',
+  issued: 'truebatch_liquids.batch.issue',
+  performed: 'truebatch_liquids.batch.operate',
+  verified: 'truebatch_liquids.batch.check',
+  production_approved: 'truebatch_liquids.batch.supervise',
+  qc_approved: 'truebatch_liquids.qc.approve',
+  released: 'truebatch_liquids.qa.release',
+  rejected: 'truebatch_liquids.qa.release',
 } as const satisfies Record<string, Permission>;
 export type Meaning = keyof typeof MEANING_NEEDS;
 export const MEANINGS = Object.keys(MEANING_NEEDS) as Meaning[];

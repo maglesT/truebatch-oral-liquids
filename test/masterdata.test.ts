@@ -15,7 +15,7 @@ beforeAll(async () => {
   t.master.materials_.push({ ...base('MAT-001'), category: 'API', unit: 'kg' }, { ...base('MAT-002', false), category: 'excipient', unit: 'kg' });
   t.master.equipment_.push({ ...base('RMG-01'), kind: 'equipment', type: 'rapid mixer granulator', room: 'GRN-01' });
   t.master.rooms_.push({ ...base('GRN-01'), area: 'granulation', grade: 'D' });
-  await seedUser(t.owner, 'md1', ['truebatch.view']);
+  await seedUser(t.owner, 'md1', ['truebatch_liquids.view']);
   cookie = (await login(t.app, 'md1')).cookie;
 });
 afterAll(() => t.close());

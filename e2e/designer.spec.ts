@@ -2,7 +2,7 @@ import { expect, test, type Browser, type Page } from '@playwright/test';
 import { logIn } from './helpers.js';
 
 // The master designer: a small master built from a skeleton, a master-check problem found and fixed, then the review
-// and approval workflow with three people, each in their own browser (TB-02).
+// and approval workflow with three people, each in their own browser (TL-02).
 
 async function as(browser: Browser, who: string, viewport?: { width: number; height: number }): Promise<Page> {
   const page = await (await browser.newContext(viewport ? { viewport } : {})).newPage();
@@ -23,7 +23,7 @@ async function sign(page: Page) {
   await expect(dialog).toBeHidden();
 }
 
-test('TB-02 build a master from a skeleton, fix a master-check problem, then check, approve and (another QA person) make it effective', async ({ browser }) => {
+test('TL-02 build a master from a skeleton, fix a master-check problem, then check, approve and (another QA person) make it effective', async ({ browser }) => {
   const author = await as(browser, 'author1');
   await author.getByRole('button', { name: 'New master' }).click();
   // Master data's bulk products (and those without a kind yet), never a pack.
@@ -49,7 +49,7 @@ test('TB-02 build a master from a skeleton, fix a master-check problem, then che
   await author.getByLabel('Role of Examplol').selectOption('api');
   await expect(author.locator('.total.ok')).toContainText('equals the theoretical core weight');
 
-  // The process: 2 stages, each starting with line clearance (TB-10); the dry-mix step of blending is removed, leaving 4.
+  // The process: 2 stages, each starting with line clearance (TL-10); the dry-mix step of blending is removed, leaving 4.
   await author.getByRole('button', { name: 'Process', exact: true }).click();
   await expect(author.locator('.steps-col .olist li').first()).toContainText('Line clearance');
   // Remove and move are there without selecting the step first.
@@ -84,7 +84,7 @@ test('TB-02 build a master from a skeleton, fix a master-check problem, then che
   await check.getByRole('button', { name: /Medium temperature is recorded but not checked/ }).click();
   await author.getByLabel('Medium temperature limits: lowest').fill('35');
   await author.getByLabel('Medium temperature limits: highest').fill('39');
-  // TB-11: blending names no rooms in the skeleton; the check opens its stage settings, where the rooms are picked.
+  // TL-11: blending names no rooms in the skeleton; the check opens its stage settings, where the rooms are picked.
   await check.getByRole('button', { name: /Stage Blending: choose the rooms/ }).click();
   await author.getByLabel('Add to rooms this stage may run in (an area, or a room)').selectOption('Blending');
   await expect(check).toContainText('No problems');

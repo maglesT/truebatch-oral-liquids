@@ -23,13 +23,13 @@ export type BatchStatus = (typeof BATCH_STATUSES)[number];
 
 export type BatchAction = 'production-approve' | 'qc-approve' | 'release' | 'reject' | 'terminate' | 'close-deviation';
 export const BATCH_ACTIONS: Record<BatchAction, { event: BatchEventKind; permission: Permission; from?: BatchStatus; meaning?: 'production_approved' | 'qc_approved' | 'released' | 'rejected' }> = {
-  'production-approve': { event: 'production_approved', permission: 'truebatch.batch.supervise', from: 'manufacturing complete', meaning: 'production_approved' },
-  'qc-approve': { event: 'qc_approved', permission: 'truebatch.qc.approve', from: 'production approved', meaning: 'qc_approved' },
-  release: { event: 'released', permission: 'truebatch.qa.release', from: 'QC approved', meaning: 'released' },
-  reject: { event: 'rejected', permission: 'truebatch.qa.release', from: 'QC approved', meaning: 'rejected' },
-  // QA stops a batch still in production that cannot be finished, with a reason (TB-21 rows in test/release.test.ts).
-  terminate: { event: 'rejected', permission: 'truebatch.qa.release', meaning: 'rejected' },
-  'close-deviation': { event: 'deviation_closed', permission: 'truebatch.qa.release' },
+  'production-approve': { event: 'production_approved', permission: 'truebatch_liquids.batch.supervise', from: 'manufacturing complete', meaning: 'production_approved' },
+  'qc-approve': { event: 'qc_approved', permission: 'truebatch_liquids.qc.approve', from: 'production approved', meaning: 'qc_approved' },
+  release: { event: 'released', permission: 'truebatch_liquids.qa.release', from: 'QC approved', meaning: 'released' },
+  reject: { event: 'rejected', permission: 'truebatch_liquids.qa.release', from: 'QC approved', meaning: 'rejected' },
+  // QA stops a batch still in production that cannot be finished, with a reason (TL-21 rows in test/release.test.ts).
+  terminate: { event: 'rejected', permission: 'truebatch_liquids.qa.release', meaning: 'rejected' },
+  'close-deviation': { event: 'deviation_closed', permission: 'truebatch_liquids.qa.release' },
 };
 
 /** "Terminated by … at …: reason", with what went back to stores unused of each lot the batch used (screens and PDF). */
@@ -40,7 +40,7 @@ export function terminatedText<T extends string | Date>(t: { personName: string;
 }
 
 /**
- * A note with a reference is a linked deviation. While the Deviations link answers, its status is Deviations' (TB-21):
+ * A note with a reference is a linked deviation. While the Deviations link answers, its status is Deviations' (TL-21):
  * open until closed (or rejected) there. Otherwise it is open until QA closes it by hand with a reason.
  * The number comes back too (owner, 17 Nov 2026): a note written without a number that Deviations filed a deviation
  * from (its deviation_v1.source_ref names the note, deviation_note_v1) is that deviation, read live while the link
@@ -82,17 +82,17 @@ export const deviationNumber = (d: Pick<Deviation, 'reference' | 'filed' | 'type
 
 /**
  * Packing (whole-suite run, S24): the deviations of the bulk batch packed that are still open, read for QA's review
- * through two links: TrueBatch Tablets' deviation notes of the bulk batch (deviation_note_v1) and, for their numbers
+ * through two links: TrueBatch Liquids' deviation notes of the bulk batch (deviation_note_v1) and, for their numbers
  * and status, the Deviations system (with the deviations that name the bulk batch there). `state` is the first link
  * that did not answer (`link`); then nothing was checked and QA confirms by hand at release, typed.
  */
 export interface BulkDeviation { number: string; status: string; title: string | null; step: string | null }
-export interface BulkDeviations { bulk: string; state: LinkState; link?: 'truebatch' | 'deviations'; open: BulkDeviation[] }
+export interface BulkDeviations { bulk: string; state: LinkState; link?: 'truebatch_liquids' | 'deviations'; open: BulkDeviation[] }
 /** What release recorded of the bulk batch's deviations: checked through the links, or QA's typed confirmation. */
-export type BulkChecked = { bulk: string; state: LinkState; link?: 'truebatch' | 'deviations'; typed?: string };
+export type BulkChecked = { bulk: string; state: LinkState; link?: 'truebatch_liquids' | 'deviations'; typed?: string };
 export const bulkOpenText = (bulk: string, d: BulkDeviation) =>
   `Deviation ${d.number} of the bulk batch ${bulk}${d.step ? ` (${d.step})` : ''} is still open in the Deviations system (${deviationStatusWords(d.status)}): it is closed there first`;
-export const bulkNotCheckedText = (b: { bulk: string; state: LinkState; link?: 'truebatch' | 'deviations' }) =>
+export const bulkNotCheckedText = (b: { bulk: string; state: LinkState; link?: 'truebatch_liquids' | 'deviations' }) =>
   `Bulk deviations not checked (${PROVIDER_NAME[b.link ?? 'deviations']} link ${b.state === 'down' ? 'down' : 'off'}): bulk batch ${b.bulk}`;
 /** The release line of the bulk batch's deviations, on screen and in the PDF. */
 export const bulkCheckedText = (c: BulkChecked) => (c.typed !== undefined
@@ -164,17 +164,17 @@ export function batchRefusal(action: BatchAction, v: BatchView, user: { id?: num
     if (d.by === user.id) return { status: 403, error: 'own_work', problems: ['You typed this deviation number: another QA person closes it.'] };
     return null;
   }
-  // TB-20: the record is complete before production signs.
+  // TL-20: the record is complete before production signs.
   if (action === 'production-approve' && v.status === 'in production') return no(...v.open);
   if (v.status !== rule.from) return no(`Not possible while the batch is ${words}.`);
   if (action === 'production-approve') return no(...v.late);
   if (action === 'qc-approve') return null;
-  // TB-21: release or rejection only with every linked deviation closed; TB-18: a yield out of limits blocks release.
+  // TL-21: release or rejection only with every linked deviation closed; TL-18: a yield out of limits blocks release.
   const open = v.deviations.filter((d) => d.open).map((d) => `Deviation ${d.reference} (${d.where ?? `step ${d.step}`}) is ${d.status ? `still open in the Deviations system (${deviationStatusWords(d.status)}): it is closed there first` : 'open'}`);
   return no(...open, ...(action === 'release' ? v.yieldOut : []));
 }
 
-/** What QA reviews before release (TB-21): every change, departure and finding of the batch. Signatures are the server's. */
+/** What QA reviews before release (TL-21): every change, departure and finding of the batch. Signatures are the server's. */
 export function review(doc: MasterDoc, events: readonly StepEvent[], batchEvents: readonly BatchEvent[], now: Date, read?: ReadonlyMap<string, DeviationStatus> | null) {
   const { steps } = openSteps(doc, events, now);
   const notes = (s: StepView) => s.events.filter((e) => e.kind === 'note');

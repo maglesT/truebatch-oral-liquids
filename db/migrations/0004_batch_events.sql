@@ -17,10 +17,10 @@ create unique index batch_events_closed_once on batch_events (batch_id, (payload
 create trigger batch_events_insert_only before update or delete or truncate on batch_events
   for each statement execute function refuse_change();
 
-revoke all on batch_events from truebatch_app;   -- the platform's default grants (0000)
-revoke all on sequence batch_events_id_seq from truebatch_app;
-grant select on batch_events to truebatch_app;
-grant insert (batch_id, kind, payload, person_id) on batch_events to truebatch_app;
+revoke all on batch_events from truebatch_liquids_app;   -- the platform's default grants (0000)
+revoke all on sequence batch_events_id_seq from truebatch_liquids_app;
+grant select on batch_events to truebatch_liquids_app;
+grant insert (batch_id, kind, payload, person_id) on batch_events to truebatch_liquids_app;
 
 -- QA's rejection is an e-signature too (server/signatures.ts).
 alter table signatures drop constraint signatures_meaning_check;

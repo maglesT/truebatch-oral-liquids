@@ -22,11 +22,11 @@ begin
 end $$;
 
 -- One row per batch. Ids are uuids made from TrueBatch's ids (Batchwright's columns are uuids). status: IN_PRODUCTION
--- until production approves the complete record (TB-20), then PRODUCTION_APPROVED, QC_APPROVED, RELEASED or REJECTED;
+-- until production approves the complete record (TL-20), then PRODUCTION_APPROVED, QC_APPROVED, RELEASED or REJECTED;
 -- completed_at is that production approval. strength is not in the master document (null). family_code: the master.
 create view batch_fact_v1 with (security_barrier) as
-select md5('truebatch:batch:' || b.id)::uuid as batch_id, b.batch_no as batch_number, v.doc->'header'->>'productCode' as product_code,
-  null::text as strength, md5('truebatch:master_version:' || v.id)::uuid as mbr_version_id, 'master-' || v.master_id as family_code,
+select md5('truebatch_liquids:batch:' || b.id)::uuid as batch_id, b.batch_no as batch_number, v.doc->'header'->>'productCode' as product_code,
+  null::text as strength, md5('truebatch_liquids:master_version:' || v.id)::uuid as mbr_version_id, 'master-' || v.master_id as family_code,
   'PROCESSING'::text as record_kind,
   case when e.released then 'RELEASED' when e.rejected then 'REJECTED' when e.qc then 'QC_APPROVED'
        when e.produced is not null then 'PRODUCTION_APPROVED' else 'IN_PRODUCTION' end as status,
@@ -62,7 +62,7 @@ cross join lateral (
 -- Every deviation note, for Deviations to file later (source_ref, as the Logbook's overdue_v1). status is TrueBatch's
 -- own: open until QA closes it by hand in TrueBatch, closed after; null for a note without a deviation number.
 create view deviation_note_v1 with (security_barrier) as
-select n.id as note_id, 'truebatch:note:' || n.id as source_ref, b.batch_no as batch_number, v.doc->'header'->>'productCode' as product_code,
+select n.id as note_id, 'truebatch_liquids:note:' || n.id as source_ref, b.batch_no as batch_number, v.doc->'header'->>'productCode' as product_code,
   (v.doc->'stages'->n.stage->>'key') || '/' || (v.doc->'stages'->n.stage->'steps'->n.step->>'key') as step, n.payload->>'text' as note, n.payload->>'reference' as reference,
   case when n.payload->>'reference' is null then null when c.at is not null then 'closed' else 'open' end as status,
   n.at as noted_at, now() as read_at, greatest(n.at, c.at) as data_as_of

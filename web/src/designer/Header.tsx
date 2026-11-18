@@ -47,7 +47,7 @@ export function HeaderFields({ header, onChange, md }: { header: Header; onChang
           onChange={(v) => onChange(v ? { ...header, dieAreaMm2: v } : (({ dieAreaMm2: _, ...h }) => h)(header))} /></label>
         <div className="calc-note">{core?.ok ? <>Theoretical core batch weight: <b>{grouped(core.shown)}</b></> : <span className="muted">The core batch weight shows once the batch size and core weight are set.</span>}</div>
       </div>
-      {/* TB-11: a balance is offered in these rooms or in a room the stage allows. */}
+      {/* TL-11: a balance is offered in these rooms or in a room the stage allows. */}
       <ChipSet label="Dispensing rooms (where the materials are weighed)" values={header.dispensingRooms ?? []} options={rooms.options} groups={rooms.groups} text={rooms.text}
         onChange={(dispensingRooms) => onChange({ ...header, dispensingRooms })} empty="None chosen yet: choose the rooms of master data where the materials are weighed" />
       <OtherStrengths header={header} onChange={onChange} />
@@ -88,7 +88,7 @@ export function NewMaster({ md, masters, copyOf, onCreated, onCancel }: {
     ...(copyOf?.header ?? { productItemId: '', productCode: '', productName: '', batchSize: '', coreWeightMg: '' }) });
   const skeletons = product.packing ? [{ id: 'packing', name: 'Packing record', text: 'Issue to the line, packing with the checks alongside the line, reconciliation and line clearance after, for this pack.' }] : SKELETON_LIST;
   const [start, setStart] = useState<Start>(copyOf ? { kind: 'copy', versionId: copyOf.id } : { kind: 'skeleton', id: skeletons[0]!.id });
-  // A packing master: the pack (TB-P1), copied with the master it is copied from.
+  // A packing master: the pack (TL-P1), copied with the master it is copied from.
   const [pack, setPack] = useState(product.packing ? NEW_PACK : undefined);
   const [source, setSource] = useState<MasterDoc | null>(null);
   const [error, setError] = useState('');

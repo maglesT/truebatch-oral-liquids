@@ -35,11 +35,11 @@ await rc.unsafe(`drop schema if exists ${E2E_RECRUITMENT} cascade; create schema
     valid_until date, qualified boolean, approved_at timestamptz, read_at timestamptz default now(), data_as_of timestamptz default now());
   insert into ${E2E_RECRUITMENT}.training_v1 (person_login, person_name, skill_code, skill_title, trained_on, valid_until, qualified) values
     ('op1', 'Operator One', 'SOP-STR-004', 'Operating the stirrer', '2026-01-10', '2099-01-09', true);
-  grant usage on schema ${E2E_RECRUITMENT} to truebatch_app; grant select on all tables in schema ${E2E_RECRUITMENT} to truebatch_app;`);
+  grant usage on schema ${E2E_RECRUITMENT} to truebatch_liquids_app; grant select on all tables in schema ${E2E_RECRUITMENT} to truebatch_liquids_app;`);
 await rc.end();
 
-const sql = connect(TEST_DATABASE_URL, { role: 'truebatch_app', searchPath: E2E_SCHEMA });
+const sql = connect(TEST_DATABASE_URL, { role: 'truebatch_liquids_app', searchPath: E2E_SCHEMA });
 const app = await buildApp({ sql, signOn: fakeSignOn(), proofKey: TEST_PROOF_KEY, master,
-  links: links({ recruitment: connect(TEST_DATABASE_URL, { role: 'truebatch_app', link: true }) }, { recruitment: E2E_RECRUITMENT }),
+  links: links({ recruitment: connect(TEST_DATABASE_URL, { role: 'truebatch_liquids_app', link: true }) }, { recruitment: E2E_RECRUITMENT }),
   webRoot: new URL('../dist/web', import.meta.url).pathname, cookieSecure: false });
 await app.listen({ port: E2E_PORT, host: '127.0.0.1' });

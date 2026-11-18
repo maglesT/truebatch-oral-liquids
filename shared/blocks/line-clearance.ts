@@ -1,6 +1,6 @@
 import type { Block } from './format.js';
 
-// TB-10: line clearance before each stage, by the performer and checked by a second person. The cleaning facts come
+// TL-10: line clearance before each stage, by the performer and checked by a second person. The cleaning facts come
 // from the Logbook while its link answers (server/pull.ts); without it they are typed from the room's status label.
 export const lineClearance: Block = {
   id: 'line-clearance', version: 1, name: 'Line clearance', gmp: 'line-clearance', checker: true,

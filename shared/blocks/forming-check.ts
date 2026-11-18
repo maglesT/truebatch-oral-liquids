@@ -1,6 +1,6 @@
 import type { Block } from './format.js';
 
-// Packing, TB-P3: blister or strip forming and sealing (C1 against the master's limits), and the pockets and seal
+// Packing, TL-P3: blister or strip forming and sealing (C1 against the master's limits), and the pockets and seal
 // inspected, alongside the line.
 export const formingCheck: Block = {
   id: 'forming-check', version: 1, name: 'Blister or strip forming and sealing', checker: false, packing: true, stop: 'finished',

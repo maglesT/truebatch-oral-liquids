@@ -187,6 +187,6 @@ export function dispensingRoomChoices(md: Pick<MasterData, 'rooms' | 'equipment'
 }
 
 /** The products of master data this product makes: those whose dosage form names it (tablets), and none without one;
- *  of those, the bulk products (TrueBatch Tablets) or the packs (Packing), plus those master data gives no kind yet. */
+ *  of those, the bulk products (TrueBatch Liquids) or the packs (Packing), plus those master data gives no kind yet. */
 export const ownProducts = <P extends { dosageForm: string | null; kind?: 'bulk' | 'pack' | null }>(products: readonly P[], kind: 'bulk' | 'pack'): P[] =>
   products.filter((p) => p.dosageForm?.toLowerCase().includes(product.dosageForm) && (p.kind ?? kind) === kind);

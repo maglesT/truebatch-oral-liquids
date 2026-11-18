@@ -1,6 +1,6 @@
 import type { Block } from './format.js';
 
-// Packing, TB-P5: on-line inspection of the packs' appearance and completeness, alongside the line; line samples are
+// Packing, TL-P5: on-line inspection of the packs' appearance and completeness, alongside the line; line samples are
 // never returned to the line.
 export const onlineInspection: Block = {
   id: 'online-inspection', version: 1, name: 'On-line inspection', checker: false, packing: true, stop: 'finished',

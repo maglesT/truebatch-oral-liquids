@@ -8,9 +8,9 @@ import { findBlock } from '../../../shared/blocks/index.js';
 import { handFields, type Source } from '../../../shared/engine/links.js';
 import { emptyNote, inLogbook, machineRefusal } from '../../../shared/engine/picks.js';
 
-// TB-03: issue a batch from the effective master version, signed "issued". A packing master's first step is recorded
-// at issue: the line, the released bulk batch (picked from TrueBatch Tablets; typed from its labels without the link)
-// and the tablets issued (what is left of its good tablets, pulled with it when TrueBatch Tablets gives them: all of it,
+// TL-03: issue a batch from the effective master version, signed "issued". A packing master's first step is recorded
+// at issue: the line, the released bulk batch (picked from TrueBatch Liquids; typed from its labels without the link)
+// and the tablets issued (what is left of its good tablets, pulled with it when TrueBatch Liquids gives them: all of it,
 // or less typed for a part issue). A value the server finds typed by hand (a link absent or down) asks its label questions.
 export function IssueDialog({ row, onCancel }: { row: MasterRow; onCancel: () => void }) {
   const [v, setV] = useState<Version | null>(null);
@@ -39,7 +39,7 @@ export function IssueDialog({ row, onCancel }: { row: MasterRow; onCancel: () =>
   // The label questions of a value the server found typed by hand ("… is not recorded").
   const asked = handFields(block?.fields ?? [], Object.fromEntries((block?.fields ?? []).map((f) => [f.name, { from: 'hand', link: 'mms', state: 'absent' } as Source])))
     .filter((f) => problems.some((p) => p.startsWith(`${f.label} is not recorded`)));
-  // The date of manufacture comes with the bulk batch while TrueBatch Tablets answers, and so do the tablets issued
+  // The date of manufacture comes with the bulk batch while TrueBatch Liquids answers, and so do the tablets issued
   // when it gives them (pull, don't type): what is left of its good tablets, offered; less may be typed (a part issue).
   const picked = bulk?.link === 'ok' ? bulk.batches.find((x) => x.batchNo === String(values.bulk ?? '').trim()) : undefined;
   const offered = picked?.goodQuantity ? picked.left ?? picked.goodQuantity : undefined;
@@ -66,8 +66,8 @@ export function IssueDialog({ row, onCancel }: { row: MasterRow; onCancel: () =>
           <FieldInput key={f.name === 'tablets' ? `tablets-${picked?.batchNo ?? ''}` : f.name} f={f} unit={f.unit ?? ''} saved={f.name === 'tablets' && offered ? { value: offered, unit: f.unit ?? 'tablets' } : undefined} picks={f.kind === 'machine' ? offer.offered : []} note={[f.kind === 'machine' && machines.length && !lines.length ? emptyNote(doc.stages[0]!, f, machines, rooms) : null, f.kind === 'machine' ? offer.note : null]} onChange={set(f.name)}
             options={f.kind === 'bulk' ? (bulk?.batches ?? []).map((x) => x.batchNo) : []} />
         ))}
-        {picked?.goodQuantity && <p className="notice">Left to issue of {picked.batchNo}: {Number(offered).toLocaleString('en-IN')} tablets ({Number(picked.goodQuantity).toLocaleString('en-IN')} good tablets in TrueBatch Tablets{Number(picked.issued ?? 0) > 0 ? `, ${Number(picked.issued).toLocaleString('en-IN')} already issued to other packing batches` : ''}). Issue all of it, or type less for a part issue.</p>}
-        {doc.pack && bulk && bulk.link !== 'ok' && <p className="notice warn">TrueBatch Tablets is not linked or not answering: type the bulk batch from its container labels; a second person checks it.</p>}
+        {picked?.goodQuantity && <p className="notice">Left to issue of {picked.batchNo}: {Number(offered).toLocaleString('en-IN')} tablets ({Number(picked.goodQuantity).toLocaleString('en-IN')} good tablets in TrueBatch Liquids{Number(picked.issued ?? 0) > 0 ? `, ${Number(picked.issued).toLocaleString('en-IN')} already issued to other packing batches` : ''}). Issue all of it, or type less for a part issue.</p>}
+        {doc.pack && bulk && bulk.link !== 'ok' && <p className="notice warn">TrueBatch Liquids is not linked or not answering: type the bulk batch from its container labels; a second person checks it.</p>}
         {problems.length > 0 && <div className="notice bad" role="alert">{problems.map((p, i) => <p key={i}>{p}</p>)}</div>}
         <div className="actions">
           <button type="button" className="big" onClick={onCancel}>Cancel</button>

@@ -1,4 +1,4 @@
-// TrueBatch Tablets Packing, demo installations only: node dist/packing/server/demo-skip.js <batch no.> [stage] --as <username>
+// TrueBatch Liquids Packing, demo installations only: node dist/packing/server/demo-skip.js <batch no.> [stage] --as <username>
 import { demoSkipCommand } from '../../server/demo.js';
 import { PACKING } from '../product.js';
 

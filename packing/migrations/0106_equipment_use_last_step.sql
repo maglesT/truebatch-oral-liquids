@@ -1,4 +1,4 @@
--- equipment_use_v1 of TrueBatch Tablets Packing, as TrueBatch Tablets' (db/migrations/0013, owner 17 Nov 2026): `step`
+-- equipment_use_v1 of TrueBatch Liquids Packing, as TrueBatch Liquids' (db/migrations/0013, owner 17 Nov 2026): `step`
 -- and step_name are the step that names the line or room last (the latest started), so the Logbook names where it was
 -- last used. Everything else as packing/migrations/0103 (the line named at issue and in the line clearance after
 -- packing starts no use).

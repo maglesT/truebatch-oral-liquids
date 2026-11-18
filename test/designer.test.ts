@@ -70,26 +70,26 @@ describe('master designer', () => {
     expect(workedExample(d, 2, 1, { output: { value: '20.000', unit: 'kg' } }).results.yield).toMatchObject({ ok: true, check: { pass: false } });
   });
 
-  it('TB-13 the calculation preview adjusts the API for the lot and compensates the filler', () => {
+  it('TL-13 the calculation preview adjusts the API for the lot and compensates the filler', () => {
     const rows = dispensing(tablet(), { api: { assay: '98.0', lod: '2.0' } });
     expect(rows[0]!.adjusted).toMatchObject({ ok: true, value: expect.stringMatching(/^10\.41232/) });
     expect(rows[1]!.adjusted).toMatchObject({ ok: true, value: expect.stringMatching(/^11\.58767/) });
     expect(rows[2]!.adjusted).toBeUndefined();
   });
 
-  it('TB-10 the process skeletons are valid drafts and start every stage with line clearance; what they leave open is listed by the master check', () => {
+  it('TL-10 the process skeletons are valid drafts and start every stage with line clearance; what they leave open is listed by the master check', () => {
     const header = { productItemId: 'p', productCode: 'P', productName: 'P', batchSize: '100000', coreWeightMg: '250.0', coatedWeightMg: '257.5', dispensingRooms: ['RM-101'] };
     for (const s of SKELETON_LIST) {
       const doc = masterSchema.parse({ header, formula: [], stages: skeletonStages(s.id, header) });
       expect(doc.stages.every((st) => st.steps.every((t) => findBlock(t.block)))).toBe(true);
       expect(masterChecks(doc).every((p) => /not set|not checked|no core materials|choose the rooms/.test(p.message))).toBe(true);
     }
-    // TB-11: a master that weighs names its dispensing rooms; a new one starts with none (the author picks them).
+    // TL-11: a master that weighs names its dispensing rooms; a new one starts with none (the author picks them).
     const bare = masterSchema.parse({ header: { ...header, dispensingRooms: undefined }, formula: [], stages: skeletonStages(SKELETON_LIST[0]!.id, header) });
-    expect(masterChecks(bare).filter((p) => p.path === 'header.dispensingRooms')).toEqual([{ level: 'error', path: 'header.dispensingRooms', rule: 'TB-11',
+    expect(masterChecks(bare).filter((p) => p.path === 'header.dispensingRooms')).toEqual([{ level: 'error', path: 'header.dispensingRooms', rule: 'TL-11',
       message: 'The master weighs but names no dispensing rooms: choose them in the header (rooms of master data)' }]);
-    // The rooms: the usual areas where every plant has them; a preparation and blending are left for the author (TB-11).
-    const rooms = (id: string) => masterChecks(masterSchema.parse({ header, formula: [], stages: skeletonStages(id, header) })).filter((p) => p.rule === 'TB-11').map((p) => p.message.split(':')[0]);
+    // The rooms: the usual areas where every plant has them; a preparation and blending are left for the author (TL-11).
+    const rooms = (id: string) => masterChecks(masterSchema.parse({ header, formula: [], stages: skeletonStages(id, header) })).filter((p) => p.rule === 'TL-11').map((p) => p.message.split(':')[0]);
     expect(rooms('wet-granulation-film-coated')).toEqual(['Stage Binder solution', 'Stage Blending', 'Stage Coating suspension']);
     expect(skeletonStages('wet-granulation-film-coated', header).map((s) => s.roomTypes.join())).toEqual(['', 'Granulation', '', 'Compression', '', 'Coating']);
     const dc = skeletonStages('direct-compression-uncoated', header);
@@ -137,7 +137,7 @@ describe('master designer', () => {
     expect(describeMaster(prev).map((s) => s.title)).toEqual(['Header', 'Formula', 'Stage 1: Binder solution', 'Stage 2: Granulation', 'Stage 3: Compression', 'Stage 4: Coating']);
   });
 
-  it('TB-P1 a packing master reads in packing words: the pack and its packing materials, no formula and no coating', () => {
+  it('TL-P1 a packing master reads in packing words: the pack and its packing materials, no formula and no coating', () => {
     const [top, materials] = describeMaster(packing());
     expect([top!.title, materials!.title]).toEqual(['Pack', 'Packing materials']);
     const text = [top, materials].flatMap((s) => s!.lines.map((l) => l.text)).join(' ');
@@ -146,7 +146,7 @@ describe('master designer', () => {
     expect(materials!.lines.length).toBe(packing().pack!.materials.length);
   });
 
-  it('TB-P1 the plain view names a step\'s packing material by its name and code, and a count in master data\'s unit (nos), as the floor does', () => {
+  it('TL-P1 the plain view names a step\'s packing material by its name and code, and a count in master data\'s unit (nos), as the floor does', () => {
     const units = new Map([['pm-foil', 'm'], ['pm-ctn', 'nos']]);
     const sections = describeMaster(packing(), units);
     const all = sections.flatMap((s) => s.lines.map((l) => l.text)).join(' ');

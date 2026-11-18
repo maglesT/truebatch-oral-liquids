@@ -1,6 +1,6 @@
 import type { Block } from './format.js';
 
-// Compression with periodic in-process checks: one round every N minutes (at most 30, TB-15) until compression is
+// Compression with periodic in-process checks: one round every N minutes (at most 30, TL-15) until compression is
 // finished. Each round: 20 tablet weights (T7 mean, C3 individual weights), hardness and thickness (T7).
 export const compress: Block = {
   id: 'compress', version: 1, name: 'Compress with periodic checks', checker: false, stop: 'finished',

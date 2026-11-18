@@ -26,12 +26,12 @@ const MD = {
 const uncoated = () => masterSchema.parse({ header, formula: [], stages: skeletonStages('wet-granulation-uncoated', header) });
 
 describe('designer findings of the 17 Nov 2026 run', () => {
-  it('TB-11 the master check warns when no machine of a step\'s type stands in the rooms its stage allows, and says where it stands (F17)', () => {
+  it('TL-11 the master check warns when no machine of a step\'s type stands in the rooms its stage allows, and says where it stands (F17)', () => {
     const doc = uncoated();
     const compression = doc.stages.findIndex((s) => s.key === 'compression');
     const di = doc.stages[compression]!.steps.findIndex((t) => t.block.id === 'disintegration');
     const warned = placeChecks(doc, MD).find((p) => p.path === `stages[${compression}].steps[${di}]`);
-    expect(warned).toMatchObject({ level: 'warning', rule: 'TB-11' });
+    expect(warned).toMatchObject({ level: 'warning', rule: 'TL-11' });
     expect(warned!.message).toBe('No disintegration tester stands in a room this stage allows (Compression): IN-DT-01 stands in RM-110. Allow its room in the stage settings, or engineering moves it in master data');
     // The press and the friabilator stand in the compression room: no warning for them; with the tester moved, none.
     expect(placeChecks(doc, MD).filter((p) => p.path.startsWith(`stages[${compression}]`)).map((p) => p.path)).toEqual([`stages[${compression}].steps[${di}]`]);

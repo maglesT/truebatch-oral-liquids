@@ -1,7 +1,8 @@
-# TrueBatch Tablets
+# TrueBatch Liquids
 
-An electronic batch record for tablet manufacturing, from dispensing to QA release of bulk tablets, on the Medhanta
-platform. Built the way the Medhanta Logbook is built: one app, plain SQL, a small set of rules checked once in the app.
+An electronic batch record for non-sterile oral liquids (solutions, syrups, elixirs, drops, suspensions, emulsions and
+dry syrups), from dispensing to QA release of the bulk, and TrueBatch Liquids Packing (filling, capping, labelling,
+cartoning) on the Medhanta platform. It is a copy of the TrueBatch Tablets engine. Built the way the Medhanta Logbook is built: one app, plain SQL, a small set of rules checked once in the app.
 
 - Design decisions: `docs/design.md`
 - The TrueBatch rules and their tests: `docs/rules.md`
@@ -24,14 +25,14 @@ name and master version, 0008), `equipment_use_v1`, `deviation_note_v1` (`db/mig
 unit; a machine or room is in use by its batch until the last stage of the batch that names it (or may run in its room) closes, a balance is never in use by a batch, and both views name the step in words
 (`step_name`, 0010 and 0011).
 
-## TrueBatch Tablets Packing
+## TrueBatch Liquids Packing
 The packing batch record is a separate product on the platform, built from this repository on the same engine and
-screens: `docs/packing-design.md`, its rules TB-P1 to TB-P9 in `docs/rules.md`. Its own parts are in `packing/` (entry
+screens: `docs/packing-design.md`, its rules TL-P1 to TL-P9 in `docs/rules.md`. Its own parts are in `packing/` (entry
 points, migrations, the views it publishes) and `ops/packing.*`.
 
 ```sh
-export DATABASE_URL=postgres://truebatch_owner:dev@localhost:5432/truebatch_packing_dev DB_APP_ROLE=truebatch_packing_app
-export TRUEBATCH_DATABASE_URL=postgres://...   # optional: TrueBatch Tablets' published views (released bulk batches)
+export DATABASE_URL=postgres://truebatch_liquids_owner:dev@localhost:5432/truebatch_liquids_packing_dev DB_APP_ROLE=truebatch_liquids_packing_app
+export TRUEBATCH_LIQUIDS_DATABASE_URL=postgres://...   # optional: TrueBatch Liquids' published views (released bulk batches)
 npm run migrate:packing
 npm run dev:packing        # API on :3001
 npm run dev:packing-web    # UI on :5174 (proxies /api)
@@ -42,9 +43,9 @@ Needs Node 22 and PostgreSQL 16.
 
 ```sh
 npm install
-export DATABASE_URL=postgres://truebatch_owner:dev@localhost:5432/truebatch_dev DB_APP_ROLE=truebatch_app
+export DATABASE_URL=postgres://truebatch_liquids_owner:dev@localhost:5432/truebatch_liquids_dev DB_APP_ROLE=truebatch_liquids_app
 # Medhanta core: people, sign-in, TrueBatch permissions and master data are managed there
-export MASTER_DATA_DATABASE_URL=postgres://truebatch_app:...@<core db>:5432/master_data   # read through its report views
+export MASTER_DATA_DATABASE_URL=postgres://truebatch_liquids_app:...@<core db>:5432/master_data   # read through its report views
 # Optional links, each set by the platform only while the link is on:
 # DEVIATIONS_DATABASE_URL, QMS_DATABASE_URL, LOGBOOK_DATABASE_URL, MMS_DATABASE_URL
 export OIDC_ISSUER=https://<core domain>/oidc OIDC_CLIENT_SECRET=... OIDC_REDIRECT_URI=http://localhost:3000/cb
@@ -55,24 +56,24 @@ npm run ci         # typecheck, tests, build, rule-to-test check — run before 
 npm run test:e2e   # browser tests (Playwright; once: npx playwright install chromium)
 ```
 
-Tests use `TEST_DATABASE_URL` (default `postgres://truebatch_owner:dev@localhost:5432/truebatch_test`); each test file
+Tests use `TEST_DATABASE_URL` (default `postgres://truebatch_liquids_owner:dev@localhost:5432/truebatch_liquids_test`); each test file
 gets its own schema. The test login must be able to create roles and databases (the platform test makes its own).
 
 ## On the platform
 `ops/manifest.draft.json` is the draft of the product's platform manifest (permissions, back-channel logout, the
-views it reads from master data and the four linked products, and the views it publishes). The app reads its database from `TRUEBATCH_DATABASE_URL` and runs as the restricted login
-`truebatch_app`, which cannot change or delete audit rows or signatures. Migrations run as the database owner.
+views it reads from master data and the four linked products, and the views it publishes). The app reads its database from `TRUEBATCH_LIQUIDS_DATABASE_URL` and runs as the restricted login
+`truebatch_liquids_app`, which cannot change or delete audit rows or signatures. Migrations run as the database owner.
 
 ## Demo installations
 The platform sets `TRUEBATCH_DEMO=1` only for the demo customer's installation of either product, never for a plant's
-(`server/demo.ts`). Then every screen shows a DEMO banner, and a person with `truebatch.demo.skip` (packing:
-`truebatch_packing.demo.skip`) sees "Skip wait (demo)" on a step that waits (a minimum time, the next periodic check, a
+(`server/demo.ts`). Then every screen shows a DEMO banner, and a person with `truebatch_liquids.demo.skip` (packing:
+`truebatch_liquids_packing.demo.skip`) sees "Skip wait (demo)" on a step that waits (a minimum time, the next periodic check, a
 hold time running, a mixing time below its lower limit), which ends that wait at once. To prepare a demo from a
 terminal in the product's container:
 
 ```sh
-node dist/server/demo-skip.js TB260004 [stage] --as <username>           # TrueBatch Tablets
-node dist/packing/server/demo-skip.js TP260001 [stage] --as <username>   # TrueBatch Tablets Packing
+node dist/server/demo-skip.js TL260004 [stage] --as <username>           # TrueBatch Liquids
+node dist/packing/server/demo-skip.js TLP260001 [stage] --as <username>   # TrueBatch Liquids Packing
 ```
 
 It skips every wait running now in the batch, or in one stage (its key, name or number), as the named demo person
@@ -83,7 +84,7 @@ counts that wait as satisfied, nothing else changes. Without `TRUEBATCH_DEMO=1` 
 
 ## Conventions
 - One app: `server/` (Fastify), `web/` (React), `db/migrations/` (plain SQL), `test/`, `e2e/` (browser tests), `ops/`, `docs/`;
-  `packing/` for TrueBatch Tablets Packing's own entry points and migrations.
-- A test that proves a rule starts its name with the rule ID: `TB-xx` for TrueBatch rules, `PL-xx` for platform rules.
+  `packing/` for TrueBatch Liquids Packing's own entry points and migrations.
+- A test that proves a rule starts its name with the rule ID: `TL-xx` for TrueBatch Liquids rules, `PL-xx` for platform rules.
 - Paraphrase regulations; never paste more than a short phrase.
 - Work on a branch, CI green, one review pass, then merge.

@@ -1,4 +1,4 @@
--- equipment_use_v1 (owner, 17 Nov 2026, from the run of TB260006): `step` and step_name are the step that names the
+-- equipment_use_v1 (owner, 17 Nov 2026, from the run of TL260006): `step` and step_name are the step that names the
 -- machine or room LAST (the latest started), not the first, so the Logbook's "Last used by batch … (stage › step)"
 -- names where it was last used: the granulator in "Granulate to an end point", not "Charge a material"; a room in the
 -- line clearance of the last stage that ran in it. Everything else as db/migrations/0011 (one use per batch and item,

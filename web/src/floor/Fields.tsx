@@ -5,7 +5,7 @@ type Raw = string | string[];
 
 /**
  * One field as the block describes it. Live (onSave): a typed value is saved when the person leaves the field, a tap
- * on yes/no, a choice or a machine saves at once (TB-04). In a dialog (onChange) it only reports the value.
+ * on yes/no, a choice or a machine saves at once (TL-04). In a dialog (onChange) it only reports the value.
  */
 export function FieldInput({ f, unit, saved, picks = [], note, options = [], disabled, out, onSave, onChange }: {
   f: BlockField; unit: string; saved?: Value; picks?: PickItem[]; disabled?: boolean;

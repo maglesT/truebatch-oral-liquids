@@ -5,7 +5,7 @@ import type { Sql } from './db.js';
 // name and version as at signing (PL-07); that copy belongs to the record, not to a master-data cache.
 
 interface Base { itemId: string; code: string; name: string; version: number; active: boolean }
-// kind: 'bulk' (made in TrueBatch Tablets) or 'pack' (packed in TrueBatch Tablets Packing); null when master data does
+// kind: 'bulk' (made in TrueBatch Liquids) or 'pack' (packed in TrueBatch Liquids Packing); null when master data does
 // not say (not set yet, or an older platform whose view has no kind column).
 export interface MasterProduct extends Base { strength: string | null; dosageForm: string | null; kind?: 'bulk' | 'pack' | null }
 export interface MasterMaterial extends Base { category: string | null; unit: string | null }

@@ -1,5 +1,5 @@
 -- The date of manufacture of a batch (owner, 15 Nov 2026): the plant-time date its FIRST processing step started (the
--- earliest `started` step event), for TrueBatch Tablets Packing's expiry (T27) and the dates printed on the packs.
+-- earliest `started` step event), for TrueBatch Liquids Packing's expiry (T27) and the dates printed on the packs.
 -- Null until a step has started.
 --
 -- batch_fact_v1 keeps every column of 0006, in the same order, with the same names and types: manufactured_on is
@@ -16,8 +16,8 @@ begin
 end $$;
 
 create or replace view batch_fact_v1 with (security_barrier) as
-select md5('truebatch:batch:' || b.id)::uuid as batch_id, b.batch_no as batch_number, v.doc->'header'->>'productCode' as product_code,
-  null::text as strength, md5('truebatch:master_version:' || v.id)::uuid as mbr_version_id, 'master-' || v.master_id as family_code,
+select md5('truebatch_liquids:batch:' || b.id)::uuid as batch_id, b.batch_no as batch_number, v.doc->'header'->>'productCode' as product_code,
+  null::text as strength, md5('truebatch_liquids:master_version:' || v.id)::uuid as mbr_version_id, 'master-' || v.master_id as family_code,
   'PROCESSING'::text as record_kind,
   case when e.released then 'RELEASED' when e.rejected then 'REJECTED' when e.qc then 'QC_APPROVED'
        when e.produced is not null then 'PRODUCTION_APPROVED' else 'IN_PRODUCTION' end as status,

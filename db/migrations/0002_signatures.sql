@@ -39,10 +39,10 @@ begin
   return case when tg_op = 'DELETE' then old else new end;
 end $$;
 
-revoke all on signatures, signing_proofs from truebatch_app;   -- the platform's default grants (0000)
-revoke all on sequence signatures_id_seq from truebatch_app;   -- identity columns need no sequence right
+revoke all on signatures, signing_proofs from truebatch_liquids_app;   -- the platform's default grants (0000)
+revoke all on sequence signatures_id_seq from truebatch_liquids_app;   -- identity columns need no sequence right
 -- Signature time and id come only from the database.
-grant select on signatures to truebatch_app;
-grant insert (object_type, object_id, user_id, printed_name, meaning, content_hash) on signatures to truebatch_app;
-grant select, insert on signing_proofs to truebatch_app;
-grant update (used_at) on signing_proofs to truebatch_app;
+grant select on signatures to truebatch_liquids_app;
+grant insert (object_type, object_id, user_id, printed_name, meaning, content_hash) on signatures to truebatch_liquids_app;
+grant select, insert on signing_proofs to truebatch_liquids_app;
+grant update (used_at) on signing_proofs to truebatch_liquids_app;

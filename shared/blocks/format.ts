@@ -14,7 +14,7 @@ import { TEMPLATES } from '../engine/templates.js';
 
 const name = z.string().regex(/^[a-z][a-zA-Z0-9]{0,39}$/);
 
-// bulk: a bulk tablet batch of TrueBatch Tablets (packing; pulled from its batch_fact_v1, server/pull.ts).
+// bulk: a bulk tablet batch of TrueBatch Liquids (packing; pulled from its batch_fact_v1, server/pull.ts).
 export const FIELD_KINDS = ['number', 'text', 'yes-no', 'choice', 'timer', 'lot', 'machine', 'room', 'bulk'] as const;
 export const fieldSchema = z.object({
   name,
@@ -59,7 +59,7 @@ export const blockSchema = z.object({
   version: z.number().int().min(1),
   name: z.string().min(1),
   instruction: z.string().min(1),
-  // TB-08: weighing, charge-in, yield and line clearance always need a second-person check.
+  // TL-08: weighing, charge-in, yield and line clearance always need a second-person check.
   gmp: z.enum(['weighing', 'charge-in', 'yield', 'line-clearance']).optional(),
   // Default signatures: the performer always signs; a second person checks when true.
   checker: z.boolean(),
@@ -68,13 +68,13 @@ export const blockSchema = z.object({
   calcs: z.array(calcSchema),
   // For repeat-until: the calculation whose check stops the rounds (the master step may name another).
   stop: name.optional(),
-  // Rounds every N minutes (periodic in-process checks); the master may not set more than maxMinutes (TB-15).
+  // Rounds every N minutes (periodic in-process checks); the master may not set more than maxMinutes (TL-15).
   // alongside: the steps after it open once its first round is done, and its rounds go on beside them; the stage
   // closes only when its stop check passes (packing: the periodic checks of a running line).
   periodic: z.object({ maxMinutes: z.number().int().positive(), alongside: z.boolean().optional() }).strict().optional(),
-  // Packing: the fields recorded when the batch is issued, as the first step of the record (TB-P2, TB-P7).
+  // Packing: the fields recorded when the batch is issued, as the first step of the record (TL-P2, TL-P7).
   atIssue: z.array(name).min(1).optional(),
-  // A block of TrueBatch Tablets Packing (a packing master uses these and the general ones; a tablet master never).
+  // A block of TrueBatch Liquids Packing (a packing master uses these and the general ones; a tablet master never).
   packing: z.boolean().optional(),
   // A new master step from this block starts as a QA hold (the master may change it).
   qaHold: z.boolean().optional(),

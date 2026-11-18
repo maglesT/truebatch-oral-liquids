@@ -1,10 +1,10 @@
 import { PACKING_LINE, type Block } from './format.js';
 
-// Packing, TB-P2 and TB-P7: the batch facts, recorded when the packing batch is issued (server/routes/batches.ts): the
-// line (one active packing order per line), the RELEASED bulk batch of TrueBatch Tablets (pulled from its
+// Packing, TL-P2 and TL-P7: the batch facts, recorded when the packing batch is issued (server/routes/batches.ts): the
+// line (one active packing order per line), the RELEASED bulk batch of TrueBatch Liquids (pulled from its
 // batch_fact_v1 with its date of manufacture, manufactured_on: the date its first processing step started; or typed
 // from the bulk labels with a second-person check, never a future date) and the tablets issued. The expiry comes
-// from the date of manufacture and the approved shelf life (T27, TB-P8). On the floor the operator confirms receipt.
+// from the date of manufacture and the approved shelf life (T27, TL-P8). On the floor the operator confirms receipt.
 export const bulkIssue: Block = {
   id: 'bulk-issue', version: 1, name: 'Bulk tablets issued to the line', checker: true, packing: true,
   atIssue: ['line', 'bulk', 'mfgDate', 'tablets'],

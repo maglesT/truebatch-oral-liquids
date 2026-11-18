@@ -1,4 +1,4 @@
--- equipment_use_v1 of TrueBatch Tablets Packing, as TrueBatch Tablets' (db/migrations/0014, owner 17 Nov 2026): the
+-- equipment_use_v1 of TrueBatch Liquids Packing, as TrueBatch Liquids' (db/migrations/0014, owner 17 Nov 2026): the
 -- line or room named only in line clearance steps was used by the stage, so step_name is the stage's name ("Packing"):
 -- the Logbook says "Last used by batch … in TrueBatch Packing (Packing)", not "(Packing › Line clearance before
 -- packing)". Everything else as packing/migrations/0106.

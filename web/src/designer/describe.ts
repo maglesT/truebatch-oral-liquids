@@ -75,7 +75,7 @@ export function stepText(doc: MasterDoc, t: Step, j: number, units?: Units): str
 export function describeMaster(doc: MasterDoc, units?: Units): Section[] {
   const h = doc.header;
   const p = doc.pack;
-  // A packing master (TB-P1) in packing words: the pack and its packing materials, no formula or coating.
+  // A packing master (TL-P1) in packing words: the pack and its packing materials, no formula or coating.
   const top: Section[] = p ? [
     { key: 'header', title: 'Pack', lines: [
       { key: 'product', text: `Pack product ${h.productCode}, ${h.productName}.` },

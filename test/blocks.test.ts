@@ -6,7 +6,7 @@ import { readValue } from '../shared/engine/values.js';
 import { masterChecks } from '../shared/master/checks.js';
 import type { MasterDoc } from '../shared/master/schema.js';
 import { at, ev, small, unplaced } from './engine-fixture.js';
-// The problems, without the rooms a stage must name (TB-11): the fixtures name none.
+// The problems, without the rooms a stage must name (TL-11): the fixtures name none.
 const checks = (d: Parameters<typeof masterChecks>[0]) => unplaced(masterChecks(d));
 
 // The standard tablet blocks: each is a description that the format accepts and that a small master can use without
@@ -127,7 +127,7 @@ describe('the engine runs the new blocks like any other', () => {
     expect(steps.map((s) => s.state)).toEqual(['checked', 'checked', 'done', 'checked', 'checked', 'checked', 'checked', 'checked', 'checked']);
   });
 
-  it('TB-16 a new batch reads the punches or dies damaged in nos, as the floor reads the typed count (17 Nov 2026 run, F22)', () => {
+  it('TL-16 a new batch reads the punches or dies damaged in nos, as the floor reads the typed count (17 Nov 2026 run, F22)', () => {
     const f = findBlock({ id: 'punch-die-check', version: 1 })!.fields.find((x) => x.name === 'damaged')!;
     const damaged = readValue(f, '0', f.unit!) as Value;
     expect(damaged).toEqual({ value: '0', unit: 'nos' });
@@ -138,7 +138,7 @@ describe('the engine runs the new blocks like any other', () => {
     expect(JSON.stringify(r.damagedCheck)).not.toContain('units');
   });
 
-  it('TB-16 punches and dies: a damaged punch after use fails the check, so the step needs a deviation note', () => {
+  it('TL-16 punches and dies: a damaged punch after use fails the check, so the step needs a deviation note', () => {
     const after = { ...intact, upperPunches: 'no', damaged: { value: '1', unit: 'units' } };
     const r = evaluate(doc, [], parseKey('2.1.3.1')!, after);
     expect(r.toolingCheck).toMatchObject({ ok: true, check: { pass: false } });

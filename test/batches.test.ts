@@ -8,8 +8,8 @@ import { small, tablet } from './engine-fixture.js';
 import { findBlock } from '../shared/blocks/index.js';
 import { machineRefusal, roomRefusal } from '../shared/engine/picks.js';
 
-// Master versions (draft, locked once out of draft), issuing a batch from an effective version (TB-03), walking a
-// stage through the step routes, refused actions (TB-08), insert-only step events and the timer job (TB-17).
+// Master versions (draft, locked once out of draft), issuing a batch from an effective version (TL-03), walking a
+// stage through the step routes, refused actions (TL-08), insert-only step events and the timer job (TL-17).
 
 let t: TestApp;
 const cookies: Record<string, string> = {};
@@ -26,9 +26,9 @@ beforeAll(async () => {
     { ...item('eq-prs', 'PRS-01', 'Tablet press'), kind: 'equipment', type: 'tablet press', room: 'CMP-01' },
   );
   const people = {
-    author: ['truebatch.master.author', 'truebatch.view'], issuer: ['truebatch.batch.issue'], viewer: ['truebatch.view'],
-    asha: ['truebatch.batch.operate', 'truebatch.batch.check'], ravi: ['truebatch.batch.check'], meera: ['truebatch.qa.release'],
-    sam: ['truebatch.batch.supervise'], quinn: ['truebatch.qc.approve'],
+    author: ['truebatch_liquids.master.author', 'truebatch_liquids.view'], issuer: ['truebatch_liquids.batch.issue'], viewer: ['truebatch_liquids.view'],
+    asha: ['truebatch_liquids.batch.operate', 'truebatch_liquids.batch.check'], ravi: ['truebatch_liquids.batch.check'], meera: ['truebatch_liquids.qa.release'],
+    sam: ['truebatch_liquids.batch.supervise'], quinn: ['truebatch_liquids.qc.approve'],
   } as const;
   for (const [name, perms] of Object.entries(people)) {
     await seedUser(t.owner, name, [...perms]);
@@ -61,7 +61,7 @@ const act = (who: string, id: number, key: string, action: string, body: object 
 const sign = async (who: string, id: number, key: string, action: string, extra: object = {}) =>
   act(who, id, key, action, { proof: proofFor(who), contentHash: (await stepOf(id, key, who)).contentHash, ...extra });
 
-// The text of a PDF document definition, in order: page header, content, and the footer of page 1 of 3 (TB-22).
+// The text of a PDF document definition, in order: page header, content, and the footer of page 1 of 3 (TL-22).
 function pdfText(def: TDocumentDefinitions): string {
   const walk = (c: unknown): string => {
     if (typeof c === 'string') return c;
@@ -87,7 +87,7 @@ describe('master versions', () => {
     doc.header.batchSize = '50000';
     expect((await as('author', 'PUT', `/api/master-versions/${id}`, { doc })).statusCode).toBe(200);
     expect(((await as('viewer', 'GET', `/api/master-versions/${id}`)).json() as { doc: typeof doc }).doc.header.batchSize).toBe('50000');
-    // The fixture names no rooms for its stages (TB-11): only that is left to fix.
+    // The fixture names no rooms for its stages (TL-11): only that is left to fix.
     expect((await as('viewer', 'GET', `/api/master-versions/${id}/checks`)).json().problems.map((p: { path: string }) => p.path)).toEqual([0, 1, 2, 3].map((i) => `stages[${i}].roomTypes`));
     expect(await t.owner`select 1 from audit_log where action = 'master.updated' and object_id = ${String(id)}`).toHaveLength(1);
     expect((await as('viewer', 'PUT', `/api/master-versions/${id}`, { doc })).statusCode).toBe(403);
@@ -115,11 +115,11 @@ describe('master versions', () => {
 });
 
 describe('issuing a batch', () => {
-  it('TB-03 batch numbers come from the year counter with the fixed prefix, in order, never reused', async () => {
+  it('TL-03 batch numbers come from the year counter with the fixed prefix, in order, never reused', async () => {
     const mv = await effectiveMaster();
     const a = await issue(mv);
     const b = await issue(mv);
-    expect(a.batchNo).toMatch(/^TB\d{2}\d{4}$/);
+    expect(a.batchNo).toMatch(/^TL\d{2}\d{4}$/);
     expect(Number(b.batchNo.slice(4))).toBe(Number(a.batchNo.slice(4)) + 1);
     expect(await code(t.sql`insert into batches (batch_no, master_version_id, issued_by) values (${a.batchNo}, ${mv}, 1)`)).toBe('23505');
     expect(await t.owner`select 1 from signatures where object_type = 'batch' and object_id = ${a.id} and meaning = 'issued'`).toHaveLength(1);
@@ -145,7 +145,7 @@ describe('walking a stage', () => {
     expect(b.steps.find((s) => s.id === '1.1.0.1')!.blocked).toBe('Waits for the preparation Binder solution to close');
   });
 
-  it('TB-07 start → record (the templates compute) → done (signed performed) → checked by another person (signed verified)', async () => {
+  it('TL-07 start → record (the templates compute) → done (signed performed) → checked by another person (signed verified)', async () => {
     expect((await act('asha', id, '0.1.0.1', 'start')).statusCode).toBe(200);
     // 10.0 mg × 100 000 = 1.000 kg target; 1.350 − 0.350 = 1.000 kg net.
     const rec = await act('asha', id, '0.1.0.1', 'record', { values: { lot: 'PVP-2611', ...handLabels('lot', 'lot'), balance: 'eq-bal', ...handLabels('balance', 'machine'), gross: '1.350', tare: '0.350' } });
@@ -164,7 +164,7 @@ describe('walking a stage', () => {
     expect(await t.owner`select 1 from audit_log where action = 'step.checked' and object_id = ${String(id)}`).toHaveLength(1);
   });
 
-  it('TB-10 the line clearance offers the previous product and batch of a room or machine from the batches that used it (pull, don\'t type)', async () => {
+  it('TL-10 the line clearance offers the previous product and batch of a room or machine from the batches that used it (pull, don\'t type)', async () => {
     const later = await issue(await effectiveMaster());
     const r = (await as('asha', 'GET', `/api/batches/${later.id}/previous-use?item=eq-bal`)).json() as { previous: { batchNo: string; text: string } | null };
     const first = ((await as('asha', 'GET', `/api/batches/${id}`)).json() as { batch: { batchNo: string } }).batch.batchNo;
@@ -208,13 +208,13 @@ describe('walking a stage', () => {
     expect(stale.json()).toMatchObject({ error: 'content_changed' });
   });
 
-  it('TB-11 a machine not active in master data, or of a type the stage does not allow, is refused', async () => {
+  it('TL-11 a machine not active in master data, or of a type the stage does not allow, is refused', async () => {
     t.master.equipment_.push({ ...item('eq-old', 'BAL-09', 'Old balance'), active: false, kind: 'instrument', type: 'balance', room: 'DSP-01' });
     expect((await act('asha', id, '1.1.0.1', 'record', { values: { balance: 'eq-old' } })).json()).toMatchObject({ error: 'inactive_item' });
     expect((await act('asha', id, '1.1.0.1', 'record', { values: { balance: 'eq-prs' } })).json()).toMatchObject({ error: 'invalid_values' });
   });
 
-  it('TB-11 a machine field takes only the type it asks for, in a room the stage allows; a room only of the stage\'s areas or rooms', () => {
+  it('TL-11 a machine field takes only the type it asks for, in a room the stage allows; a room only of the stage\'s areas or rooms', () => {
     const stage = { ...tablet().stages[1]!, machineTypes: ['Balance', 'Vessel'], roomTypes: ['Granulation', 'DSP-01'] };
     const balance = findBlock({ id: 'weigh', version: 1 })!.fields.find((f) => f.name === 'balance')!;
     const rooms = [{ code: 'GRN-01', area: 'Granulation' }, { code: 'DSP-01', area: 'Dispensing' }, { code: 'QCL-02', area: 'QC laboratory' }, { code: 'BL-GRN', area: 'Beta-lactam' }];
@@ -229,14 +229,14 @@ describe('walking a stage', () => {
     expect(rooms.map((r) => roomRefusal(stage, r))).toEqual([null, null, 'QCL-02 is not one of the rooms this stage allows (Granulation, DSP-01)', 'BL-GRN is not one of the rooms this stage allows (Granulation, DSP-01)']);
   });
 
-  it('TB-04 each entry is saved at once, with the person and the server time', async () => {
+  it('TL-04 each entry is saved at once, with the person and the server time', async () => {
     const [e] = await t.owner<{ person: string; fresh: boolean }[]>`
       select u.username as person, now() - e.at < interval '1 minute' as fresh from step_events e join users u on u.id = e.person_id
       where e.batch_id = ${id} order by e.id desc limit 1`;
     expect(e).toEqual({ person: 'asha', fresh: true });
   });
 
-  it('TB-08 the person who performed a step cannot check it', async () => {
+  it('TL-08 the person who performed a step cannot check it', async () => {
     expect((await sign('asha', id, '1.1.0.1', 'done')).statusCode).toBe(200);
     expect((await stepOf(id, '1.1.0.1')).actions).not.toContain('check');
     const own = await sign('asha', id, '1.1.0.1', 'check');
@@ -260,7 +260,7 @@ describe('walking a stage', () => {
     expect((await sign('ravi', id, '1.1.0.1', 'check')).statusCode).toBe(200);
   });
 
-  it('TB-06 a correction reaches the step that used the value: it shows the new result and who changed it, and is signed and checked again', async () => {
+  it('TL-06 a correction reaches the step that used the value: it shows the new result and who changed it, and is signed and checked again', async () => {
     expect((await act('asha', id, '1.1.1.1', 'start')).statusCode).toBe(200);
     await act('asha', id, '1.1.1.1', 'record', { values: { lot: 'LAC-2611', ...handLabels('lot', 'lot'), balance: 'eq-bal', ...handLabels('balance', 'machine'), gross: '12.700', tare: '0.850' } });
     expect((await sign('asha', id, '1.1.1.1', 'done')).statusCode).toBe(200);
@@ -284,9 +284,9 @@ describe('walking a stage', () => {
     expect([after.inputChanged, after.results.target.value]).toEqual([[], s.results.target.value]);
   });
 
-  it('TB-22 the batch record PDF shows the corrected value struck through with its reason, the worked lines, limits, notes and who did what', async () => {
+  it('TL-22 the batch record PDF shows the corrected value struck through with its reason, the worked lines, limits, notes and who did what', async () => {
     const text = await recordText(id);
-    expect(text).toMatch(/^TrueBatch Tablets · Batch record TB\d{6} · PRD-001 Examplol 100 mg film-coated tablets/);
+    expect(text).toMatch(/^TrueBatch Liquids · Batch record TL\d{6} · PRD-001 Examplol 100 mg film-coated tablets/);
     expect(text).toContain('Status | In production');
     expect(text).toContain('Changed values | marked CHANGED');
     expect(text).toContain('Tare weight: 0.849 kg  CHANGED');
@@ -318,7 +318,7 @@ describe('walking a stage', () => {
     expect((await as('viewer', 'GET', `/api/batches/${id}/steps/9.1.0.1/events`)).statusCode).toBe(404);
   });
 
-  it('TB-06 step events are insert-only: the app role cannot change or delete them, nor can the owner', async () => {
+  it('TL-06 step events are insert-only: the app role cannot change or delete them, nor can the owner', async () => {
     expect(await code(t.sql`update step_events set kind = 'checked'`)).toBe('42501');
     expect(await code(t.sql`delete from step_events`)).toBe('42501');
     expect(await code(t.owner`update step_events set payload = '{}'`)).toBe('42501');
@@ -341,7 +341,7 @@ describe('production approval, QC approval and QA release', () => {
     id = (await issue(await effectiveMaster(undefined, doc))).id;
   });
 
-  it('TB-20 production cannot sign while anything in the record is open', async () => {
+  it('TL-20 production cannot sign while anything in the record is open', async () => {
     expect((await batchSign('sam', 'production-approve')).json()).toMatchObject({ error: 'not_ready', problems: ['Stage 0 › Check a value against limits: pH is not started', 'Stage 0 › Stage yield is not started', 'Stage Stage 0 is not closed'] });
     await act('asha', id, '0.1.0.1', 'start');
     await act('asha', id, '0.1.0.1', 'record', { values: { reading: '6.0' } });
@@ -354,7 +354,7 @@ describe('production approval, QC approval and QA release', () => {
     expect((await full()).batch).toMatchObject({ status: 'manufacturing complete', open: [] });
   });
 
-  it('TB-07 production approval is an e-signature on the record as shown; the record is then closed to changes', async () => {
+  it('TL-07 production approval is an e-signature on the record as shown; the record is then closed to changes', async () => {
     expect((await batchAct('sam', 'production-approve', { proof: proofFor('sam'), contentHash: '0'.repeat(64) })).json()).toMatchObject({ error: 'content_changed' });
     const ok = await batchSign('sam', 'production-approve');
     expect(ok.statusCode).toBe(200);
@@ -368,13 +368,13 @@ describe('production approval, QC approval and QA release', () => {
   });
 
   const toReview = async (who: string) => ((await as(who, 'GET', '/api/batches/to-review')).json() as { id: number; waiting: string; openDeviations: number }[]).filter((b) => b.id === id);
-  it('TB-21 the To review list: QC sees the production-approved batch, QA only once QC has approved; others may not look', async () => {
+  it('TL-21 the To review list: QC sees the production-approved batch, QA only once QC has approved; others may not look', async () => {
     expect(await toReview('quinn')).toMatchObject([{ waiting: 'QC', openDeviations: 1 }]);
     expect(await toReview('meera')).toEqual([]);
     expect((await as('asha', 'GET', '/api/batches/to-review')).statusCode).toBe(403);
   });
 
-  it('TB-21 QC approves with its report number; QA releases only once the linked deviations are closed', async () => {
+  it('TL-21 QC approves with its report number; QA releases only once the linked deviations are closed', async () => {
     expect((await batchSign('quinn', 'qc-approve')).statusCode).toBe(400);
     expect((await batchSign('meera', 'release')).json()).toMatchObject({ problems: ['Not possible while the batch is production approved.'] });
     expect((await batchSign('quinn', 'qc-approve', { reportNo: 'QC-26-0042' })).statusCode).toBe(200);
@@ -392,18 +392,18 @@ describe('production approval, QC approval and QA release', () => {
     expect(f).toEqual({ status: 'RELEASED', released: true, released_at: ev!.at, released_by: 'MEERA' });
   });
 
-  it('TB-21 the review list shows the deviations with their status and every signature of the batch', async () => {
+  it('TL-21 the review list shows the deviations with their status and every signature of the batch', async () => {
     const r = (await as('viewer', 'GET', `/api/batches/${id}/review`)).json() as { status: string; deviations: unknown[]; signatures: { meaning: string; printedName: string }[] };
     expect(r.status).toBe('released');
     expect(r.deviations).toMatchObject([{ reference: 'DEV-26-010', open: false, closed: { personName: 'MEERA' } }]);
     expect(r.signatures.map((x) => `${x.meaning} ${x.printedName}`)).toEqual(['issued ISSUER', 'performed ASHA', 'performed ASHA', 'verified RAVI', 'production_approved SAM', 'qc_approved QUINN', 'released MEERA']);
   });
 
-  it('TB-22 the batch record PDF is produced, with the QC report, the release decision and every signature with its meaning', async () => {
+  it('TL-22 the batch record PDF is produced, with the QC report, the release decision and every signature with its meaning', async () => {
     const res = await as('viewer', 'GET', `/api/batches/${id}/pdf`);
     expect(res.statusCode).toBe(200);
     expect(res.headers['content-type']).toBe('application/pdf');
-    expect(res.headers['content-disposition']).toMatch(/^attachment; filename="batch-record-TB\d{6}\.pdf"$/);
+    expect(res.headers['content-disposition']).toMatch(/^attachment; filename="batch-record-TL\d{6}\.pdf"$/);
     expect(res.rawPayload.subarray(0, 5).toString()).toBe('%PDF-');
     expect((await as('viewer', 'GET', '/api/batches/999999/pdf')).statusCode).toBe(404);
     const text = await recordText(id);
@@ -416,13 +416,13 @@ describe('production approval, QC approval and QA release', () => {
     expect(text).not.toContain('not a released record');
   });
 
-  it('TB-05 every step and batch action is in TrueBatch\'s own audit trail', async () => {
+  it('TL-05 every step and batch action is in TrueBatch\'s own audit trail', async () => {
     const rows = await t.owner<{ action: string }[]>`select distinct action from audit_log where object_type = 'batch' and object_id = ${String(id)} order by action`;
     expect(rows.map((r) => r.action)).toEqual(['batch.deviation_closed', 'batch.issued', 'batch.production_approved', 'batch.qc_approved', 'batch.released', 'batch.stage_closed', 'signed.issued',
       'step.checked', 'step.done', 'step.note', 'step.started', 'step.value']);
   });
 
-  it('TB-19 a released batch takes no more entries or decisions: rework is a new batch from an effective master', async () => {
+  it('TL-19 a released batch takes no more entries or decisions: rework is a new batch from an effective master', async () => {
     expect((await act('asha', id, '0.1.0.1', 'note', { text: 'x' })).json()).toMatchObject({ error: 'batch_closed', problems: ['The batch is released.'] });
     expect((await batchSign('meera', 'reject', { reason: 'x' })).json()).toMatchObject({ problems: ['Not possible while the batch is released.'] });
     const [m] = await t.owner<{ id: string }[]>`select id from users where username = 'meera'`;
@@ -451,7 +451,7 @@ describe('QA terminates a batch that cannot be finished (owner, 16 Nov 2026)', (
     await act('asha', id, '0.1.1.1', 'record', { values: { machine: 'eq-str', ...handLabels('machine', 'machine'), speed: '300' } });
   });
 
-  it('TB-21 QA sees the batch in production on its To review list and may terminate it, with a reason; nobody else may', async () => {
+  it('TL-21 QA sees the batch in production on its To review list and may terminate it, with a reason; nobody else may', async () => {
     const rows = ((await as('meera', 'GET', '/api/batches/to-review')).json() as { id: number; waiting: string; actions: string[] }[]).filter((b) => b.id === id);
     expect(rows).toMatchObject([{ waiting: 'production', actions: ['terminate'] }]);
     expect((await full('meera')).batch.actions).toEqual(['terminate']);
@@ -462,7 +462,7 @@ describe('QA terminates a batch that cannot be finished (owner, 16 Nov 2026)', (
     expect(await uses()).toEqual([{ equipment_code: 'STR-01', ended_at: null }]);
   });
 
-  it('TB-21 terminating asks how much of each lot the batch used went back to stores unused: 0 up to what was used', async () => {
+  it('TL-21 terminating asks how much of each lot the batch used went back to stores unused: 0 up to what was used', async () => {
     expect((await full('meera')).batch.issued).toEqual([{ lot: 'PVP-2611', material: expect.stringContaining('Povidone'), value: '1', unit: 'kg' }]);
     const refused = async (returns?: object[]) => (await terminate('meera', { reason: 'x', ...(returns ? { returns } : {}) })).json() as { error: string; problems: string[] };
     expect(await refused()).toMatchObject({ error: 'invalid_values', problems: ['Say how much of lot PVP-2611 (MAT-003 · Povidone K30) went back to stores unused: 0 if none.'] });
@@ -475,7 +475,7 @@ describe('QA terminates a batch that cannot be finished (owner, 16 Nov 2026)', (
     for (const t of ['not weighed yet · 2.1 Weigh a material: Examplol', '1.2 Mix for a time\nin progress |', '2.1 Weigh a material: Examplol\nnot started |']) expect(live).toContain(t);
   });
 
-  it('TB-21 terminate frees the uses: a signed rejection; equipment_use_v1 ends every open use then, batch_fact_v1 says REJECTED', async () => {
+  it('TL-21 terminate frees the uses: a signed rejection; equipment_use_v1 ends every open use then, batch_fact_v1 says REJECTED', async () => {
     const res = await terminate('meera');
     expect(res.statusCode).toBe(200);
     const { eventId } = res.json() as { eventId: number };
@@ -495,7 +495,7 @@ describe('QA terminates a batch that cannot be finished (owner, 16 Nov 2026)', (
     expect(b.timers).toEqual([]);
   });
 
-  it('TB-21 actions are refused after termination; the record is kept and leaves My work and the To review list', async () => {
+  it('TL-21 actions are refused after termination; the record is kept and leaves My work and the To review list', async () => {
     expect((await act('asha', id, '0.1.1.1', 'record', { values: { speed: '310' } })).json()).toMatchObject({ error: 'batch_closed', problems: ['The batch is terminated.'] });
     expect((await act('asha', id, '0.1.1.1', 'note', { text: 'x' })).json()).toMatchObject({ error: 'batch_closed' });
     expect((await terminate('meera')).json()).toMatchObject({ error: 'not_ready', problems: ['The batch is rejected.'] });
@@ -505,7 +505,7 @@ describe('QA terminates a batch that cannot be finished (owner, 16 Nov 2026)', (
     expect(await t.owner`select 1 from step_events where batch_id = ${id}`).not.toHaveLength(0);
   });
 
-  it('TB-22 the PDF and the review show "Terminated by … at …: reason"', async () => {
+  it('TL-22 the PDF and the review show "Terminated by … at …: reason"', async () => {
     const text = await recordText(id);
     expect(text).toContain('Status | Rejected');
     expect(text.match(/Terminated by MEERA at \d{1,2} \w{3} 20\d\d, \d\d:\d\d IST: The stirrer broke down; the binder cannot be made/g)).toHaveLength(2);
@@ -519,7 +519,7 @@ describe('QA terminates a batch that cannot be finished (owner, 16 Nov 2026)', (
 });
 
 describe('the timer job', () => {
-  it('TB-17 a hold time that ran out is recorded late once, and blocks the using stage until a deviation note', async () => {
+  it('TL-17 a hold time that ran out is recorded late once, and blocks the using stage until a deviation note', async () => {
     const { id } = await issue(await effectiveMaster());
     // The binder solution was made 25 hours ago (hold time 24 h).
     const [p] = await t.owner<{ id: string }[]>`select id from users where username = 'asha'`;
