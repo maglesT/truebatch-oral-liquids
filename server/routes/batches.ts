@@ -311,11 +311,13 @@ function myWork(l: LoadedBatch, user: SessionUser) {
   const bv = view(l);
   const title = (v: StepView) => stepTitle(l.doc, l.doc.stages[v.key.stage]!.steps[v.key.step]!);
   const stageName = (i: number) => l.doc.stages[i]?.name ?? '';
-  const badges: { kind: 'check' | 'resign' | 'due' | 'late' | 'approve'; step?: string; stage: string; title: string; at?: Date; timer?: string }[] = [];
+  const badges: { kind: 'check' | 'resign' | 'hold' | 'due' | 'late' | 'approve'; step?: string; stage: string; title: string; at?: Date; timer?: string }[] = [];
   for (const v of steps) {
     // TL-08: the checker's own list holds only steps the person was not involved in.
     if (!refusal('check', context(l.doc, v, user))) badges.push({ kind: 'check', step: v.id, stage: stageName(v.key.stage), title: title(v) });
     if (v.needsResign && user.permissions.includes('truebatch_liquids.batch.operate')) badges.push({ kind: 'resign', step: v.id, stage: stageName(v.key.stage), title: title(v) });
+    // A QA hold done and waiting for QA: on QA's own list (the next step waits for it).
+    if (!refusal('release-hold', context(l.doc, v, user))) badges.push({ kind: 'hold', step: v.id, stage: stageName(v.key.stage), title: title(v) });
   }
   // A periodic check's badge names the check: "Coding check due in 59 min".
   const check = (t: Timer) => (t.kind === 'periodic' ? stepTitle(l.doc, l.doc.stages[t.key.stage]!.steps[t.key.step]!) : t.label);

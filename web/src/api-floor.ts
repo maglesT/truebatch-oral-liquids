@@ -35,7 +35,7 @@ export interface BatchDetail {
   stages: StageRow[]; timers: TimerRow[]; steps: StepRow[];
 }
 export interface History { events: FloorEvent[]; replaced: { field: string; was: Value; now: Value; reason: string; person: number | null; at: string }[] }
-export interface WorkBadge { kind: 'check' | 'resign' | 'due' | 'late' | 'approve'; step?: string; stage: string; title: string; at?: string; timer?: string }
+export interface WorkBadge { kind: 'check' | 'resign' | 'hold' | 'due' | 'late' | 'approve'; step?: string; stage: string; title: string; at?: string; timer?: string }
 export interface WorkItem {
   id: number; batchNo: string; productCode: string; productName: string; status: string; issuedAt: string; stagesClosed: number; stageCount: number;
   current: { step: string; stage: string; title: string; state: State } | null; badges: WorkBadge[];

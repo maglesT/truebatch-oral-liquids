@@ -173,3 +173,39 @@ test('TL-23 only trained people sign: the sign dialog shows the training from Re
   await expect(chk.getByRole('region', { name: 'History' })).toContainText('Signed: verified (second person) · training typed by hand (Recruitment not reachable): SOP-STR-004 Operating the stirrer');
   await chkCtx.close();
 });
+
+test('a QA hold step: QA releases it on the step screen, then the next step opens (found 18 Nov 2026)', async ({ browser }) => {
+  const setup = await browser.newContext();
+  const batch = await issueBatch(await setup.newPage(), { checker: false, flow: { kind: 'qa-hold' } });
+  await setup.close();
+  const opCtx = await browser.newContext();
+  const op = await opCtx.newPage();
+  await logIn(op, 'op1');
+  await op.goto(`/#/batch/${batch.id}`);
+  await op.getByRole('button', { name: /^1 Check a value against limits: pH/ }).click();
+  await op.getByRole('button', { name: 'Start', exact: true }).click();
+  await op.getByLabel('Reading').fill('6.0');
+  await op.getByLabel('Reading').press('Enter');
+  await op.getByRole('button', { name: 'Done', exact: true }).click();
+  await sign(op);
+  await expect(op.getByRole('button', { name: 'Release the hold' })).toHaveCount(0);
+  await op.getByRole('button', { name: `← Batch ${batch.batchNo}` }).click();
+  await expect(op.locator('.step-row').nth(1)).toContainText('Waits for QA to release the hold');
+
+  const qaCtx = await browser.newContext();
+  const qa = await qaCtx.newPage();
+  await logIn(qa, 'qa1');
+  // On QA's My work: the hold waits for their release.
+  await expect(qa.getByRole('button', { name: new RegExp(batch.batchNo) })).toContainText('QA hold: waiting for your release');
+  await qa.goto(`/#/batch/${batch.id}`);
+  await qa.getByRole('button', { name: /^1 Check a value against limits: pH/ }).click();
+  await expect(qa.locator('.action-bar')).not.toContainText('This step is finished.');
+  await qa.getByRole('button', { name: 'Release the hold' }).click();
+  await expect(qa.getByRole('dialog')).toContainText('QA hold released, the batch goes on.');
+  await sign(qa);
+  await expect(qa.getByRole('region', { name: 'History' })).toContainText('QA released the hold');
+  await expect(qa.getByRole('button', { name: 'Release the hold' })).toHaveCount(0);
+  await op.reload();
+  await expect(op.locator('.step-row').nth(1)).not.toContainText('Waits for QA');
+  await opCtx.close(); await qaCtx.close();
+});

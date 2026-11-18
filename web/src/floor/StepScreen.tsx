@@ -19,7 +19,7 @@ import { materialLines } from '../../../shared/master/schema.js';
 import { perPackText, unitName } from '../../../shared/engine/stock.js';
 import { neededText, tickText, trainingOf, trainingText, type Skill, type Training } from '../../../shared/engine/training.js';
 
-type Dialog = { kind: 'done' | 'repeat' | 'check' | 'na' | 'send-back' | 'note' } | { kind: 'na-sign'; reason: string } | { kind: 'correct'; field: BlockField };
+type Dialog = { kind: 'done' | 'repeat' | 'check' | 'na' | 'send-back' | 'note' | 'release-hold' } | { kind: 'na-sign'; reason: string } | { kind: 'correct'; field: BlockField };
 const INVOLVING = ['started', 'value', 'done', 'corrected', 'not_applicable'];
 const same = (a: StepRow['key'], b: StepRow['key']) => a.stage === b.stage && a.sub === b.sub && a.step === b.step;
 
@@ -330,7 +330,12 @@ export function StepScreen({ me, d, blocks, row, now, reload }: { me: Me; d: Bat
           <button className="big ok" disabled={busy} onClick={() => setDialog({ kind: 'check' })}>Checked</button>
         </>)}
         {next && next.actions.includes('start') && row.id !== next.id && <button className="big primary" onClick={() => go(stepLink(d.batch.id, next.id))}>Repeat: round {next.key.round} →</button>}
-        {['done', 'checked', 'not_applicable'].includes(row.state) && !next && <p className="why">This step is finished.</p>}
+        {['done', 'checked', 'not_applicable'].includes(row.state) && !next && !can('release-hold') && <p className="why">This step is finished.</p>}
+        {/* A QA hold: QA releases it before the next step (the engine had the action, with no button: found 18 Nov 2026). */}
+        {can('release-hold') && (<>
+          <p className="why">QA hold: look at the sample and the record, then release the hold so the batch can go on.</p>
+          <button className="big ok" disabled={busy} onClick={() => setDialog({ kind: 'release-hold' })}>Release the hold</button>
+        </>)}
         <span className="spacer" />
         {can('not-applicable') && <button className="big" disabled={busy} onClick={() => setDialog({ kind: 'na' })}>Not applicable</button>}
         {can('note') && <button className={noteNeeded ? 'big attn' : 'big'} disabled={busy} onClick={() => setDialog({ kind: 'note' })}>Add deviation note</button>}
@@ -347,6 +352,9 @@ export function StepScreen({ me, d, blocks, row, now, reload }: { me: Me; d: Bat
           <Summary row={row} block={block} mdUnit={mdUnit} />
           {st.training && <TrainingCheck skill={st.training} read={training} ticked={trained} onTick={setTrained} />}
         </SignDialog>
+      )}
+      {dialog?.kind === 'release-hold' && (
+        <SignDialog meaning="released" what={`${title} · batch ${d.batch.batchNo}: QA hold released, the batch goes on.`} onCancel={() => setDialog(null)} onSign={signed('release-hold')} />
       )}
       {dialog?.kind === 'send-back' && (
         <ReasonDialog title="Send back to the performer" label="What must be looked at again" submit="Send back" onCancel={() => setDialog(null)}
