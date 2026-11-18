@@ -407,6 +407,30 @@ describe('TL-12 MMS: only released, in-date lots of the material; certificate va
       await t.owner.unsafe(`alter table ${S.mms}.lot_v1 drop column if exists stock_after_use`);
     }
   });
+
+  it('TL-12 a lot from MMS after a lot typed by hand: the label answers of the typed lot are not asked of it, so the step can be signed; they stay in its history', async () => {
+    const c = await issue(granulation());
+    await act('asha', c.id, '0.1.0.1', 'start');
+    await cut(S.mms);
+    try {
+      const r = await record(c.id, '0.1.0.1', { lot: 'API-A', ...handLabels('lot', 'lot'), 'lot.report': 'QC-HAND-1', assay: '99.0', lod: '0.4', balance: 'eq-bal', gross: '11.000', tare: '0.850' });
+      expect(r.statusCode, r.body).toBe(200);
+    } finally { await restore(S.mms); }
+    // MMS answers again: the lot is picked from it; its assay and LOD come with it.
+    { const r = await record(c.id, '0.1.0.1', { lot: 'API-OK' }); expect(r.statusCode, r.body).toBe(200); }
+    const s = await stepOf(c.id, '0.1.0.1');
+    expect(s.source.lot).toMatchObject({ from: 'mms' });
+    expect(s.source.assay).toMatchObject({ from: 'mms' });
+    expect(s.handFields).toEqual([]);
+    // The label answers are not asked for a lot from MMS: the step takes none.
+    expect(await problems(record(c.id, '0.1.0.1', { 'lot.released': 'yes' }))).toEqual(['There is no field lot.released']);
+    const done = await sign('asha', c.id, '0.1.0.1', 'done');
+    expect(done.statusCode, done.body).toBe(200);
+    // The typed lot and its label answers stay in the step's history (and the record).
+    const h = (await as('asha', 'GET', `/api/batches/${c.id}/steps/0.1.0.1/events`)).json() as { events: { kind: string; payload: { values?: Record<string, unknown> } }[] };
+    expect(h.events.find((e) => e.payload.values?.lot === 'API-A')?.payload.values).toMatchObject({ 'lot.released': 'yes', 'lot.expiry': '2099-12-31', 'lot.report': 'QC-HAND-1', assay: { value: '99.0', unit: '%' } });
+    expect((await stepOf(c.id, '0.1.0.1')).values).toMatchObject({ lot: 'API-OK', 'lot.released': 'yes', assay: { value: '99.1', unit: '%' } });
+  });
 });
 
 describe('TL-21 Deviations: the deviation number and its status come from the Deviations system', () => {
