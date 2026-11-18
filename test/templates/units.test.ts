@@ -80,3 +80,26 @@ describe('units: same-kind conversion', () => {
     expect(findUnit('furlong')).toBeUndefined();
   });
 });
+
+describe('units: the liquids units (library section 3)', () => {
+  it.each([
+    ['120', 'mg/5 mL', 'mg/mL', '24'], // 120 mg in 5 mL = 24 mg/mL
+    ['2.4', '%w/v', 'mg/mL', '24'], // 2.4 g per 100 mL
+    ['400', 'µg/mL', 'mg/mL', '0.4'],
+    ['1.2', 'N·m', 'N·cm', '120'],
+    ['60', 'bottles/min', 'units/h', '3600'],
+    ['1500', 'cP', 'mPa·s', '1500'],
+  ])('%s %s is %s %s', (v, from, to, want) => {
+    expect(c(v, from, to)).toBe(want);
+  });
+
+  it('an alcohol strength in % v/v, a viscosity, a torque, IU per mL or per drop never convert to another kind', () => {
+    for (const [a, b] of [['%v/v', '%w/w'], ['%v/v', '%w/v'], ['mPa·s', 'Pa'], ['N·m', 'N'], ['IU/mL', 'mg/mL'], ['IU/drop', 'IU/mL'], ['drops', 'mL']] as const) {
+      expect(() => convert(new Dec(1), unit(a), unit(b)), `${a} → ${b}`).toThrow(Refused);
+    }
+  });
+
+  it('the usual spellings are read: % v/v, cP, mcg/mL, bottle, drop, Nm', () => {
+    expect(['% v/v', 'cP', 'mcg/mL', 'bottle', 'drop', 'Nm', 'mg/5mL'].map((s) => findUnit(s)?.symbol)).toEqual(['%v/v', 'mPa·s', 'µg/mL', 'bottles', 'drops', 'N·m', 'mg/5 mL']);
+  });
+});
