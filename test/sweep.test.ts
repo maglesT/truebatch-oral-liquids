@@ -52,6 +52,7 @@ const SETTINGS: Record<string, Step['settings']> = {
   'bulk-yield-weight': { density: '1.000 g/mL', theoretical: '1.0 L', yieldLimit: pct('97.0', '101.0'), accountabilityLimit: pct('99.0', '101.0') },
   'room-status': { temperatureLimit: { high: '30', unit: '°C' }, humidityLimit: { high: '60', unit: '%RH' }, pressureLimit: { low: '10', high: '20', unit: 'Pa' } },
   'bottle-wash': { what: 'bottles' },
+  'liquid-fill-stirred': { fillUnit: 'g', meanLimit: { low: '0.9', high: '1.1', unit: 'g' }, eachLimit: { low: '0.8', high: '1.2', unit: 'g' } },
   'liquid-fill': { fillUnit: 'g', meanLimit: { low: '0.9', high: '1.1', unit: 'g' }, eachLimit: { low: '0.8', high: '1.2', unit: 'g' } },
   'liquid-fill-unit': { container: 'sachet', fillUnit: 'g', meanLimit: { low: '0.9', high: '1.1', unit: 'g' }, eachLimit: { low: '0.8', high: '1.2', unit: 'g' } },
   'powder-fill': { meanLimit: { low: '0.9', high: '1.1', unit: 'g' }, eachLimit: { low: '0.8', high: '1.2', unit: 'g' }, humidityLimit: { high: '40', unit: '%RH' } },
@@ -63,11 +64,11 @@ const SETTINGS: Record<string, Step['settings']> = {
   check: { what: 'Weight', unit: 'mg', limit: { low: '95', high: '105', unit: 'mg' } },
   'qa-sample': { sampleLimit: { low: '50', high: '60', unit: 'tablets' } },
   'stage-yield': { theoretical: { header: 'batchMass' }, yieldLimit: pct('97.0', '100.5'), accountabilityLimit: pct('99.0', '100.5') },
-  'tablet-reconciliation': { theoretical: { header: 'batchSize' }, meanWeight: '100.0 mg', yieldLimit: pct('97.0', '100.5'), accountabilityLimit: pct('99.0', '100.5') },
   'pack-material-issue': { material: { formula: 'foil' }, unit: 'm' },
   'forming-check': { sealLimit: { low: '160', high: '190', unit: '°C' }, formLimit: { low: '110', high: '140', unit: '°C' } },
   'leak-test': { vacuumUnit: 'mbar', vacuumLimit: { low: '400', high: '600', unit: 'mbar' }, level: 'S-1', aql: '0' },
-  'finished-goods': { meanWeight: '250.0 mg', yieldLimit: pct('98.0', '100.5'), accountabilityLimit: pct('99.5', '100.5') },
+  'liquid-finished-goods': { yieldLimit: pct('98.0', '100.5'), accountabilityLimit: pct('99.5', '100.5') },
+  'powder-finished-goods': { yieldLimit: pct('98.0', '100.5'), accountabilityLimit: pct('99.5', '100.5') },
   'printed-reconciliation': { material: { formula: 'foil' }, unit: 'm', issued: '100 m' },
   'serial-reconciliation': { received: '1000 nos' },
 };
@@ -116,8 +117,8 @@ const formula = [{ key: 'x', materialItemId: 'm', code: 'M', name: 'M', mg: '100
 /** A small master of one block with all its settings set; a packing block after the bulk issue (its batch facts). */
 function using(b: Block): MasterDoc {
   const step = (x: Block) => ({ key: x.id, block: { id: x.id, version: x.version }, checker: x.checker, settings: SETTINGS[x.id] ?? {} });
-  const bulk = findBlock({ id: 'bulk-issue', version: 1 })!;
-  const steps = b.packing && b.id !== bulk.id ? [step(bulk), step(b)] : [step(b)];
+  const bulk = findBlock({ id: b.id.startsWith('powder') ? 'powder-bulk-issue' : 'liquid-bulk-issue', version: 1 })!;
+  const steps = b.packing && !b.atIssue ? [step(bulk), step(b)] : [step(b)];
   return masterSchema.parse({ header, formula, stages: [{ key: 's', name: 'Stage', kind: 'normal', steps }], ...(b.packing ? { pack: pack({ gtin: GTIN, serialisation: true }) } : {}) });
 }
 
@@ -130,7 +131,8 @@ describe('the sweep: no template crashes on any block or test master', () => {
   });
 
   it.each([['tablet', tablet()], ['packing', packing()], ['packing, serialised', packing({ gtin: GTIN, serialisation: true })],
-    ['packing, bottles', packing({ type: 'bottle' })]] as const)('the %s test master', (_name, doc) => {
+    ['packing, suspension', packing({}, 'suspension')], ['packing, sachets', packing({ type: 'sachet', closure: 'none' })],
+    ['packing, dry syrup', packing({ fillWeightG: '25.0' }, 'dry syrup')]] as const)('the %s test master', (_name, doc) => {
     for (const all of [false, true]) expect(crashes(doc, all)).toEqual([]);
     expect(masterChecks(doc).filter((p) => /every reading would be refused/.test(p.message))).toEqual([]);
   });

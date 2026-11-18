@@ -53,7 +53,7 @@ export function Masters({ me }: { me: Me }) {
               {shown.map((r) => (
                 <tr key={r.id} className="clickable" onClick={() => setOpen(r.id)}>
                   <td><b>{r.header.productCode}</b><span className="cell-sub">{r.header.productName}</span></td>
-                  <td className="nowrap">{Number(r.header.batchSize).toLocaleString('en-IN')} tablets</td>
+                  <td className="nowrap">{Number(r.header.batchSize).toLocaleString('en-IN')} {r.header.batchUnit}</td>
                   <td>{r.versionNo}</td>
                   <td><span className={STATE_CHIP[r.state]}>{STATE_LABEL[r.state]}</span></td>
                   <td>{r.createdByName}<span className="cell-sub">{plantTime(r.createdAt)}</span></td>

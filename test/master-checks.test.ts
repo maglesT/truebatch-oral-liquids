@@ -133,9 +133,9 @@ describe('master checks', () => {
 
   it('periodic rounds (test block compress, TL-15 unused): compression checks more than 30 minutes apart, or with no interval, are an error', () => {
     expect(after((d) => { step(d, 'compression', 'compress').everyMinutes = 45; }))
-      .toEqual(['error TL-15 stages[2].steps[0].everyMinutes: Periodic checks every 45 min: they must be at least every 30 min']);
+      .toEqual(['error TL-14 stages[2].steps[0].everyMinutes: Periodic checks every 45 min: they must be at least every 30 min']);
     expect(after((d) => { delete step(d, 'compression', 'compress').everyMinutes; }))
-      .toEqual(['error TL-15 stages[2].steps[0].everyMinutes: Compress with periodic checks needs the interval of its periodic checks']);
+      .toEqual(['error TL-14 stages[2].steps[0].everyMinutes: Compress with periodic checks needs the interval of its periodic checks']);
     expect(after((d) => { step(d, 'compression', 'compress').everyMinutes = 30; })).toEqual([]);
   });
 

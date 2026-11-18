@@ -87,7 +87,7 @@ export function Designer({ me, versionId, onBack, onOpen }: { me: Me; versionId:
         <button className="link dark" onClick={async () => { await flush(); onBack(); }}>← {product.masters}</button>
         <div className="d-title">
           <h1>{doc.header.productCode} · {doc.header.productName}</h1>
-          <span className="muted">Version {v.versionNo} · {Number(doc.header.batchSize || 0).toLocaleString('en-IN')} tablets</span>
+          <span className="muted">Version {v.versionNo} · {Number(doc.header.batchSize || 0).toLocaleString('en-IN')} {doc.header.batchUnit}</span>
           <span className={STATE_CHIP[v.state]}>{STATE_LABEL[v.state]}</span>
           {!editable && <span className="muted small">Read only{v.state === 'draft' ? '' : `: this version is ${STATE_LABEL[v.state].toLowerCase()}`}</span>}
         </div>

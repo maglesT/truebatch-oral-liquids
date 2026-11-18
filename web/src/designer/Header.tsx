@@ -88,7 +88,7 @@ export function NewMaster({ md, masters, copyOf, onCreated, onCancel }: {
   // listed first); every room of an area called Dispensing could be a segregated block's booth. A copy: those it names.
   const [header, setHeader] = useState<Header>({
     ...(copyOf?.header ?? { productItemId: '', productCode: '', productName: '', batchSize: '', batchUnit: product.packing ? 'packs' : 'L' }) });
-  const skeletons = product.packing ? [{ id: 'packing', name: 'Packing record', text: 'Issue to the line, packing with the checks alongside the line, reconciliation and line clearance after, for this pack.' }] : SKELETON_LIST;
+  const skeletons = product.packing ? [{ id: 'packing', name: 'Filling and packing record', text: 'Issue to the line; container wash, filling with its rounds, capping, coding and cartons; reconciliation of the bulk and line clearance after, for this pack and bulk type.' }] : SKELETON_LIST;
   const [start, setStart] = useState<Start>(copyOf ? { kind: 'copy', versionId: copyOf.id } : { kind: 'skeleton', id: skeletons[0]!.id });
   // A packing master: the pack (TL-P1), copied with the master it is copied from.
   const [pack, setPack] = useState(product.packing ? NEW_PACK : undefined);
@@ -108,7 +108,7 @@ export function NewMaster({ md, masters, copyOf, onCreated, onCancel }: {
     e.preventDefault();
     setError('');
     let doc: MasterDoc = { header, formula: [], stages: [], ...(pack ? { pack } : {}) };
-    if (start.kind === 'skeleton') doc.stages = pack ? packingStages(pack) : skeletonStages(start.id, header);
+    if (start.kind === 'skeleton') doc.stages = pack ? packingStages(pack, header.type) : skeletonStages(start.id, header);
     if (start.kind === 'copy' && source) doc = { ...scaleDoc(source, header.batchSize), header, ...(pack ? { pack } : {}) };
     const parsed = masterSchema.safeParse(doc);
     if (!header.productItemId) return setError('Pick the product.');

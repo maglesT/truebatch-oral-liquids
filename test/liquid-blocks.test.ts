@@ -70,6 +70,7 @@ describe('the liquids blocks (library sections 5.2-5.4)', () => {
     const r = run('bulk-transfer', { unit: 'L', quantityLimit: { low: '990', high: '1010', unit: 'L' } }, { connected: 'no', quantity: q('1000', 'L'), stirring: 'yes' });
     expect(r.connectedCheck).toMatchObject({ check: { pass: false } });
     expect(r.quantityCheck).toMatchObject({ check: { pass: true } });
-    expect(r.stirringCheck).toMatchObject({ check: { pass: true } });
+    expect(run('bulk-transfer', { unit: 'L' }, { connected: 'yes', quantity: q('1000', 'L') }).connectedCheck).toMatchObject({ check: { pass: true } });
+    expect(run('bulk-transfer', { unit: 'L' }, { connected: 'yes', quantity: q('1000', 'L'), stirring: 'no' }).connectedCheck).toMatchObject({ check: { pass: false } });
   });
 });

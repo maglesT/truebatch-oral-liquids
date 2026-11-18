@@ -207,10 +207,19 @@ export function batchText(doc: MasterDoc): string {
     h.fillWeightG ? `fill ${h.fillWeightG} g per container` : '', h.reconstitutedMl ? `${h.reconstitutedMl} mL after reconstitution` : ''].filter(Boolean).join(' · ');
 }
 
+/** The pack in words: "bottle, child-resistant cap, measuring cup; fill 60 mL + 1.5 mL excess". */
+export function packText(p: Pack): string {
+  const fill = p.fillWeightG ? `fill ${p.fillWeightG} g` : p.fillVolumeMl ? `fill ${p.fillVolumeMl} mL${p.fillExcessMl ? ` + ${p.fillExcessMl} mL excess` : ''}` : 'fill not set';
+  return [p.type, p.closure !== 'none' ? p.closure : '', p.device !== 'none' ? p.device : ''].filter(Boolean).join(', ') + `; ${fill}`;
+}
+
 /** The pack facts a packing block's calculations read as "$pack.name" (shared/blocks/format.ts PACK_FACTS). */
 export function packFacts(p: Pack): Record<string, string> {
-  return Object.fromEntries(Object.entries({ unitsPerPack: `${p.unitsPerPack} tablets`, packsPerCarton: `${p.packsPerCarton} packs`, shelfLifeMonths: String(p.shelfLifeMonths),
-    expiryRule: p.expiryRule, type: p.type, destination: p.destination, gtin: p.gtin, mrp: p.mrp }).filter(([, v]) => v !== undefined).map(([k, v]) => [`pack.${k}`, v!]));
+  // The fill target: the nominal fill + its excess (I18 fill target, as a volume).
+  const target = p.fillVolumeMl ? new Dec(p.fillVolumeMl).plus(p.fillExcessMl ?? '0').toString() : undefined;
+  return Object.fromEntries(Object.entries({ packsPerCarton: `${p.packsPerCarton} packs`, shelfLifeMonths: String(p.shelfLifeMonths),
+    expiryRule: p.expiryRule, type: p.type, destination: p.destination, gtin: p.gtin, mrp: p.mrp,
+    fillTarget: target && `${target} mL`, fillWeight: p.fillWeightG && `${p.fillWeightG} g` }).filter(([, v]) => v !== undefined).map(([k, v]) => [`pack.${k}`, v!]));
 }
 
 /** A header value: as written, or worked out from it (the volume, the mass, the containers of a dry syrup). */

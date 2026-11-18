@@ -110,7 +110,7 @@ export function Review({ me, version, doc, blocked, onChanged, onGo }: {
             await done();
           }}>
           <div className="signbox">
-            <p><b>{doc.header.productCode} {doc.header.productName}</b>, version {version.versionNo}, {doc.header.batchSize} tablets</p>
+            <p><b>{doc.header.productCode} {doc.header.productName}</b>, version {version.versionNo}, {doc.header.batchSize} {doc.header.batchUnit}</p>
             {doing === 'approve' && <p>Change control number: <b>{cc}</b></p>}
           </div>
         </SignDialog>

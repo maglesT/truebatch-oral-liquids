@@ -166,8 +166,13 @@ export const answerSchema = z.object({ about: text(1000), choice: text().min(1),
 // names the finished pack product and the standard packing batch in packs (batchSize, batchUnit "packs"); `pack` holds
 // the rest (the bottle, its fill and closure). Its formula is empty: the packing materials
 // are `pack.materials`, and a step setting { formula: key } names one of them.
-export const PACK_TYPES = ['blister', 'strip', 'bottle'] as const;
-export const PACK_MATERIAL_KINDS = ['foil', 'forming film', 'carton', 'leaflet', 'label', 'shipper', 'bottle', 'closure', 'desiccant', 'other'] as const;
+// Plan data change 3: one pack is one filled container in its carton. The container, its closure and measuring device,
+// and the fill: the nominal fill volume and its excess (a liquid), or the fill weight (a dry syrup powder). A kit's
+// second part (a solvent bottle) is a "kit component" packing material (owner, 18 Nov 2026).
+export const PACK_TYPES = ['bottle', 'sachet', 'unit-dose cup', 'glass ampoule'] as const;
+export const CLOSURES = ['plain screw cap', 'child-resistant cap', 'dropper', 'child-resistant cap with syringe plug', 'aluminium tear-off seal', 'none'] as const;
+export const DEVICES = ['measuring cup', 'spoon', 'dropper', 'oral syringe', 'none'] as const;
+export const PACK_MATERIAL_KINDS = ['bottle', 'closure', 'dropper', 'measuring device', 'carton', 'leaflet', 'label', 'shipper', 'sachet foil', 'kit component', 'desiccant', 'other'] as const;
 export const DESTINATIONS = ['India domestic', 'Export'] as const;
 export const packMaterialSchema = z.object({
   key: keySchema,
@@ -187,8 +192,13 @@ export const packSchema = z.object({
   bulkCode: text(),
   bulkName: text(),
   type: z.enum(PACK_TYPES),
-  // Tablets in one blister, strip or bottle, and packs in one carton.
-  unitsPerPack: z.number().int().min(1).max(10_000),
+  closure: z.enum(CLOSURES),
+  device: z.enum(DEVICES),
+  // A liquid: the nominal fill and the fill excess (mL); a dry syrup: the powder per container (g).
+  fillVolumeMl: decimal.optional(),
+  fillExcessMl: decimal.optional(),
+  fillWeightG: decimal.optional(),
+  // Packs (filled containers in their cartons) in one shipper carton.
   packsPerCarton: z.number().int().min(1).max(1000),
   // The approved shelf life (TL-P8): the expiry is worked out from it, never typed.
   shelfLifeMonths: z.number().int().min(1).max(120),

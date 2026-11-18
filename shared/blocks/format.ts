@@ -35,7 +35,7 @@ export const fieldSchema = z.object({
   notTypes: z.array(z.string().regex(/^[a-z][a-z ]*$/)).optional(),
 }).strict();
 // A packing line: master data's blister and strip packers, forming machines and bottle lines' tablet counters.
-export const PACKING_LINE = ['blister', 'strip pack', 'forming', 'tablet counter', 'packing line'];
+export const PACKING_LINE = ['filling line', 'bottle filling', 'filling and capping', 'sachet', 'packing line'];
 
 export const SETTING_KINDS = ['quantity', 'limit', 'number', 'text', 'material'] as const;
 export const settingSchema = z.object({
@@ -88,8 +88,8 @@ export type Block = z.infer<typeof blockSchema>;
 
 // Packing: "$pack.name" is the master's pack fact, "$batch.name" a batch fact recorded at issue, "$earlier.name" this
 // field in the earlier rounds of the step (shared/engine/values.ts).
-export const PACK_FACTS = ['unitsPerPack', 'packsPerCarton', 'shelfLifeMonths', 'expiryRule', 'type', 'destination', 'gtin', 'mrp'];
-export const BATCH_FACTS = ['line', 'bulk', 'mfgDate', 'tablets', 'packs'];
+export const PACK_FACTS = ['packsPerCarton', 'shelfLifeMonths', 'expiryRule', 'type', 'destination', 'gtin', 'mrp', 'fillTarget', 'fillWeight'];
+export const BATCH_FACTS = ['line', 'bulk', 'mfgDate', 'quantity', 'readyAt', 'holdHours', 'packs'];
 
 /** The names inside "$name" strings of calculation arguments ("$name?" optional, "$prev.name" the previous round). */
 export function refsIn(x: unknown): string[] {

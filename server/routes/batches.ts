@@ -137,22 +137,22 @@ export async function bulkDeviations(app: FastifyInstance, l: LoadedBatch): Prom
 
 /**
  * Packing (bug fix, 17 Nov 2026): the issues of a bulk batch to the OTHER packing batches of this product (all but
- * `except`): the tablets each was issued (its first step's current values) less what went back unused when QA
+ * `except`): the bulk each was issued (its first step's current values) less what went back unused when QA
  * terminated it (the terminate event's returns, stock.ts bulkIssued). Locked per bulk batch for the transaction, so
  * two issues at once cannot both take what is left.
  */
 export async function bulkIssues(tx: Tx | Sql, bulk: string, except = '', lock = false): Promise<BulkIssue[]> {
   if (lock) await tx`select pg_advisory_xact_lock(hashtext(${`bulk:${bulk.toLowerCase()}`}))`;
   return await tx<BulkIssue[]>`
-    select b.batch_no as "batchNo", t.tablets, r.returned
+    select b.batch_no as "batchNo", t.quantity, r.returned
     from batches b
     cross join lateral (select e.payload->'values'->>'bulk' as bulk from step_events e where e.batch_id = b.id and e.stage = 0 and e.step = 0 and e.round = 1
       and e.kind in ('value', 'corrected') and e.payload->'values' ? 'bulk' order by e.id desc limit 1) k
-    cross join lateral (select e.payload->'values'->'tablets'->>'value' as tablets from step_events e where e.batch_id = b.id and e.stage = 0 and e.step = 0 and e.round = 1
-      and e.kind in ('value', 'corrected') and e.payload->'values' ? 'tablets' order by e.id desc limit 1) t
+    cross join lateral (select e.payload->'values'->'quantity'->>'value' as quantity from step_events e where e.batch_id = b.id and e.stage = 0 and e.step = 0 and e.round = 1
+      and e.kind in ('value', 'corrected') and e.payload->'values' ? 'quantity' order by e.id desc limit 1) t
     left join lateral (select x->>'value' as returned from batch_events e cross join jsonb_array_elements(e.payload->'returns') x
-      where e.batch_id = b.id and e.kind = 'rejected' and e.payload ? 'returns' and lower(x->>'lot') = lower(k.bulk) and x->>'unit' = 'tablets' limit 1) r on true
-    where lower(k.bulk) = ${bulk.toLowerCase()} and b.batch_no <> ${except} and t.tablets is not null`;
+      where e.batch_id = b.id and e.kind = 'rejected' and e.payload ? 'returns' and lower(x->>'lot') = lower(k.bulk) and x->>'unit' in ('L', 'kg') limit 1) r on true
+    where lower(k.bulk) = ${bulk.toLowerCase()} and b.batch_no <> ${except} and t.quantity is not null`;
 }
 
 // What a signer is shown of a step, and its hash: the signature is refused if the step changed since (PL-05).
@@ -168,12 +168,12 @@ async function readValues(app: FastifyInstance, tx: Tx, doc: MasterDoc, key: Ste
   const stage = doc.stages[key.stage]!;
   const step = stage.steps[key.step]!;
   const block = findBlock(step.block)!;
-  // Packing: tablets typed while the bulk batch's good tablets come from TrueBatch Liquids (a part issue) are read
-  // with the bulk batch again, up to what is left of it (pullBulk).
+  // Packing: a bulk quantity typed while the bulk batch's good quantity comes from TrueBatch Liquids (a part issue) is
+  // read with the bulk batch again, up to what is left of it (pullBulk).
   const bulkField = block.fields.find((f) => f.kind === 'bulk');
-  const tabletsPulled = (s?: Source) => !!s && !isHand(s);
+  const quantityPulled = (s?: Source) => !!s && !isHand(s);
   const taken = new Set<string>();
-  if (bulkField && 'tablets' in raw && !(bulkField.name in raw) && tabletsPulled(current.source.tablets) && typeof current.values[bulkField.name] === 'string') {
+  if (bulkField && 'quantity' in raw && !(bulkField.name in raw) && quantityPulled(current.source.quantity) && typeof current.values[bulkField.name] === 'string') {
     raw = { [bulkField.name]: current.values[bulkField.name], ...raw };
   }
   const out: Record<string, Value> = {};
@@ -199,7 +199,7 @@ async function readValues(app: FastifyInstance, tx: Tx, doc: MasterDoc, key: Ste
       const v = readValue(f, x, '');
       if (typeof v !== 'string') { problems.push((v as { error: string }).error); continue; }
       out[name] = v;
-      pulled = f.kind === 'bulk' ? await pullBulk(app, doc, block, v, raw.tablets, () => bulkIssues(tx, v, batchNo, true)) : await pullLot(app, doc, step, block, v, current.values, now, PLANT_TZ);
+      pulled = f.kind === 'bulk' ? await pullBulk(app, doc, block, v, raw.quantity, () => bulkIssues(tx, v, batchNo, true), now) : await pullLot(app, doc, step, block, v, current.values, now, PLANT_TZ);
     }
     problems.push(...pulled.problems);
     for (const n of pulled.taken ?? []) taken.add(n);
@@ -215,7 +215,7 @@ async function readValues(app: FastifyInstance, tx: Tx, doc: MasterDoc, key: Ste
     const f = fields.find((y) => y.name === name);
     if (!f) { problems.push(`There is no field ${name}`); continue; }
     if (LINK_OF[f.kind]) continue;
-    // The tablets issued, read with the bulk batch above (a part issue, up to what is left).
+    // The bulk issued, read with the bulk batch above (a part issue, up to what is left).
     if (taken.has(name)) continue;
     const was = source[name] ?? current.source[name];
     // While the step's lot is typed by hand (its link off or down), the lot's date and certificate values are typed from
@@ -614,8 +614,8 @@ export function batchRoutes(app: FastifyInstance, sql: Sql) {
   // Packing: the bulk batches TrueBatch Liquids has released of a product, for the issue's pick list (pull, don't type).
   app.get<{ Querystring: { product?: string } }>('/api/bulk-batches', { preHandler: requirePermission('truebatch_liquids.batch.issue') }, async (req) => {
     const r = await app.links.truebatch_liquids.released(String(req.query.product ?? ''));
-    // With the good tablets: what the other packing batches were already issued of each, and what is left to issue.
-    const batches = r.state !== 'ok' ? [] : await Promise.all(r.value.map(async (b) => ({ batchNo: b.batchNo, mfgDate: b.mfgDate, goodQuantity: b.goodQuantity,
+    // With the good quantity: what the other packing batches were already issued of each, and what is left to issue.
+    const batches = r.state !== 'ok' ? [] : await Promise.all(r.value.map(async (b) => ({ batchNo: b.batchNo, mfgDate: b.mfgDate, goodQuantity: b.goodQuantity, goodUnit: b.goodUnit,
       ...(b.goodQuantity ? bulkLeft(b.goodQuantity, await bulkIssues(sql, b.batchNo)) : {}) })));
     return { link: r.state, batches };
   });

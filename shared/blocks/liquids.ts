@@ -16,7 +16,8 @@ const observe = (name: string, label: string, answers: string[]) => ({ name, lab
 const duration = (name: string, label: string, start: string, end: string, lim: string) => ({ name, label, template: 'T13', args: { mode: 'duration', start: `$${start}`, end: `$${end}`, ...(lim ? { limit: `$${lim}` } : {}) } });
 const going = (name: string, label: string) => ({ name, label, kind: 'choice' as const, options: ['going on', 'finished'] });
 const finished = (field: string, what: string) => ({ name: 'done', label: `${what} finished`, template: 'C4', args: { question: what, answers: [`$${field}`], expected: ['finished'], options: ['going on', 'finished'] } });
-const vessel = { name: 'machine', label: 'Vessel', kind: 'machine' as const, types: ['vessel', 'tank', 'mix', 'stirrer'] };
+// A vessel, tank, mixer or stirrer; never a granulator ("Rapid mixer granulator") or a dry mill.
+const vessel = { name: 'machine', label: 'Vessel', kind: 'machine' as const, types: ['vessel', 'tank', 'mixer', 'stirrer'], notTypes: ['granulat'] };
 const FILLS = 10;
 
 // ---------------------------------------------------------------- Manufacturing (library 5.2, 5.3)
@@ -133,7 +134,7 @@ export const phasePrep: Block = {
 export const homogenise: Block = {
   id: 'homogenise', version: 1, name: 'Homogenise or mill', checker: false,
   instruction: 'Run one pass (or period) at the settings shown and record the pressure or speed, the temperature and the time.',
-  fields: [{ name: 'machine', label: 'Homogeniser, colloid mill or mixer', kind: 'machine', types: ['homogen', 'mill', 'shear', 'mixer'] },
+  fields: [{ name: 'machine', label: 'Homogeniser, colloid mill or mixer', kind: 'machine', types: ['homogen', 'colloid mill', 'shear', 'mixer'], notTypes: ['granulat'] },
     num('pressure', 'Pressure (first stage)', 'bar', true), num('pressure2', 'Pressure (second stage)', 'bar', true), num('speed', 'Speed', 'rpm', true),
     num('temperature', 'Temperature', '°C', true), time('start', 'Start'), time('end', 'End')],
   settings: [limit('pressureLimit', 'Pressure limits (first stage)'), limit('pressure2Limit', 'Pressure limits (second stage)'), limit('speedLimit', 'Speed limits'), limit('temperatureLimit', 'Temperature limits')],
@@ -145,9 +146,9 @@ export const homogenise: Block = {
 export const sizeCheck: Block = {
   id: 'size-check', version: 1, name: 'Particle or droplet size', checker: false, stop: 'sizeOk',
   instruction: 'Measure the particle or droplet size as the master says (d50 and d90, or by microscope); look for settling.',
-  fields: [num('size', 'd50 or mean size', 'µm'), num('d90', 'd90', 'µm', true), yes('redisperses', 'No caking; redisperses on shaking', true)],
+  fields: [num('size', 'd50 or mean size', 'µm'), num('d90', 'd90', 'µm', true), yes('redisperses', 'No caking or separation; redisperses on shaking')],
   settings: [limit('sizeLimit', 'Size limits', false), limit('d90Limit', 'd90 limit')],
-  calcs: [within('sizeOk', 'Size', 'size', 'sizeLimit'), within('d90Check', 'd90', 'd90?', 'd90Limit?'), observe('redisperseCheck', 'Redisperses', ['redisperses?'])],
+  calcs: [within('sizeOk', 'Size', 'size', 'sizeLimit'), within('d90Check', 'd90', 'd90?', 'd90Limit?'), observe('redisperseCheck', 'Redisperses', ['redisperses'])],
 };
 
 // The bulk sample to QC, held for its results (a QA hold): pH, density, viscosity, assay, alcohol and preservative
@@ -197,8 +198,8 @@ export const bulkTransfer: Block = {
     num('quantity', 'Quantity in the holding tank', '$unit'), yes('stirring', 'Stirrer on', true),
   ],
   settings: [{ name: 'unit', label: 'Read in', kind: 'text', options: ['L', 'kg'] }, limit('quantityLimit', 'Quantity limits')],
-  calcs: [observe('connectedCheck', 'Connected to the right tank', ['connected']), within('quantityCheck', 'Quantity in the tank', 'quantity', 'quantityLimit?'),
-    observe('stirringCheck', 'Stirrer on', ['stirring?']), duration('time', 'Transfer time', 'start', 'end', '')],
+  calcs: [observe('connectedCheck', 'Connected to the right tank, stirrer on where asked', ['connected', 'stirring?']), within('quantityCheck', 'Quantity in the tank', 'quantity', 'quantityLimit?'),
+    duration('time', 'Transfer time', 'start', 'end', '')],
 };
 
 // The bulk yield (TL-18), as stage-yield: the bulk read in the tank (dip or level, in L; or kg), the samples and the
@@ -259,42 +260,55 @@ const fillRound = { name: 'round', label: 'Round', kind: 'choice' as const, opti
 const fillCalcs = [
   { name: 'mean', label: 'Mean fill', template: 'T7', args: { readings: '$fills', limit: '$meanLimit' } },
   { name: 'each', label: 'Each fill', template: 'C3', args: { readings: '$fills', band: { limit: '$eachLimit' } } },
+  // TL-17: the bulk hold runs from the end of manufacturing to the end of filling (CHECK-L3); a round after it is out of
+  // limits and needs a deviation note.
+  { name: 'holdCheck', label: 'Time since the bulk was ready', template: 'T13', args: { mode: 'duration', start: '$batch.readyAt', end: '$checkedAt', unit: 'h', limit: { high: '$batch.holdHours', unit: 'h' } } },
 ];
+const checkedAt = time('checkedAt', 'Round checked at');
 export const liquidFill: Block = {
-  id: 'liquid-fill', version: 1, name: 'Fill bottles with periodic fill checks', checker: false, packing: true, periodic: { maxMinutes: 1440 }, stop: 'done',
-  instruction: 'At each round take 10 filled bottles and record each fill (net weight or volume as shown); check the stirrer and read the counter.',
-  fields: [{ name: 'machine', label: 'Filling machine', kind: 'machine', types: ['fill'] }, fillRound,
+  id: 'liquid-fill', version: 1, name: 'Fill bottles with periodic fill checks', checker: false, packing: true, periodic: { maxMinutes: 1440, alongside: true }, stop: 'done',
+  instruction: 'At each round take 10 filled bottles and record each fill (net weight or volume as shown) and read the counter.',
+  fields: [{ name: 'machine', label: 'Filling machine', kind: 'machine', types: ['fill'] }, fillRound, checkedAt,
     { name: 'fills', label: `Fill of ${FILLS} bottles`, kind: 'number', unit: '$fillUnit', count: FILLS },
-    yes('stirring', 'Bulk stirred during filling', true), num('counter', 'Counter', 'units'), going('filling', 'Filling')],
+    num('counter', 'Counter', 'units'), going('filling', 'Filling')],
   settings: [{ name: 'fillUnit', label: 'Fill checked in', kind: 'text', options: ['g', 'mL'] }, limit('meanLimit', 'Mean fill limits', false), limit('eachLimit', 'Each fill limits', false)],
-  calcs: [...fillCalcs, observe('stirringCheck', 'Bulk stirred', ['stirring?']), finished('filling', 'Filling')],
+  calcs: [...fillCalcs, finished('filling', 'Filling')],
+};
+
+// A suspension or emulsion: as liquid-fill, the bulk stirred continuously during filling, confirmed every round
+// (TL-P10; A9 8, SCHM-IX 4.3).
+export const liquidFillStirred: Block = {
+  ...liquidFill, id: 'liquid-fill-stirred', name: 'Fill bottles with the bulk stirred, with periodic fill checks',
+  instruction: 'Keep the bulk stirred. At each round take 10 filled bottles and record each fill (net weight or volume as shown), confirm the stirrer is on and read the counter.',
+  fields: [...liquidFill.fields.slice(0, -2), yes('stirring', 'Bulk stirred during filling'), ...liquidFill.fields.slice(-2)],
+  calcs: [...fillCalcs, observe('stirringCheck', 'Bulk stirred', ['stirring']), finished('filling', 'Filling')],
 };
 
 // Fill a liquid into single-dose units (sachet, unit-dose cup or glass ampoule): as liquid-fill, each unit sealed.
 export const liquidFillUnit: Block = {
-  id: 'liquid-fill-unit', version: 1, name: 'Fill single-dose units with periodic fill checks', checker: false, packing: true, periodic: { maxMinutes: 1440 }, stop: 'done',
+  id: 'liquid-fill-unit', version: 1, name: 'Fill single-dose units with periodic fill checks', checker: false, packing: true, periodic: { maxMinutes: 1440, alongside: true }, stop: 'done',
   instruction: 'At each round take 10 filled units and record each net fill; check that they are sealed and read the counter.',
-  fields: [{ name: 'machine', label: 'Filling machine', kind: 'machine', types: ['fill', 'sachet', 'cup', 'ampoule'] }, fillRound,
+  fields: [{ name: 'machine', label: 'Filling machine', kind: 'machine', types: ['fill', 'sachet', 'cup', 'ampoule'] }, fillRound, checkedAt,
     { name: 'fills', label: `Net fill of ${FILLS} units`, kind: 'number', unit: '$fillUnit', count: FILLS },
     yes('sealed', 'Units sealed'), yes('stirring', 'Bulk stirred during filling', true), num('counter', 'Counter', 'units'), going('filling', 'Filling')],
   settings: [{ name: 'container', label: 'Unit', kind: 'text', options: ['sachet', 'unit-dose cup', 'glass ampoule'] }, { name: 'fillUnit', label: 'Fill checked in', kind: 'text', options: ['g', 'mL'] },
     limit('meanLimit', 'Mean fill limits', false), limit('eachLimit', 'Each fill limits', false)],
-  calcs: [...fillCalcs, observe('sealedCheck', 'Units sealed', ['sealed']), observe('stirringCheck', 'Bulk stirred', ['stirring?']), finished('filling', 'Filling')],
+  calcs: [...fillCalcs, observe('sealedCheck', 'Units sealed, bulk stirred where asked', ['sealed', 'stirring?']), finished('filling', 'Filling')],
 };
 
 // Fill a dry syrup powder into bottles by weight: 10 bottles per round, the room's humidity, caps on.
-const powderFields = [{ name: 'machine', label: 'Powder filling machine', kind: 'machine' as const, types: ['powder fill', 'auger', 'fill'] }, fillRound,
+const powderFields = [{ name: 'machine', label: 'Powder filling machine', kind: 'machine' as const, types: ['powder fill', 'auger', 'fill'] }, fillRound, checkedAt,
   { name: 'fills', label: `Net fill weight of ${FILLS} containers`, kind: 'number' as const, unit: 'g', count: FILLS }, num('humidity', 'Room relative humidity', '%RH')];
 const powderSettings = [limit('meanLimit', 'Mean fill weight limits', false), limit('eachLimit', 'Each fill weight limits', false), limit('humidityLimit', 'Room humidity limit', false)];
 export const powderFill: Block = {
-  id: 'powder-fill', version: 1, name: 'Fill powder into bottles with periodic fill checks', checker: false, packing: true, periodic: { maxMinutes: 1440 }, stop: 'done',
+  id: 'powder-fill', version: 1, name: 'Fill powder into bottles with periodic fill checks', checker: false, packing: true, periodic: { maxMinutes: 1440, alongside: true }, stop: 'done',
   instruction: 'At each round weigh the net powder of 10 filled bottles, read the room humidity, check the caps and read the counter.',
   fields: [...powderFields, yes('capped', 'Caps on'), num('counter', 'Counter', 'units'), going('filling', 'Filling')],
   settings: powderSettings,
   calcs: [...fillCalcs, within('humidityCheck', 'Room humidity', 'humidity', 'humidityLimit'), observe('cappedCheck', 'Caps on', ['capped']), finished('filling', 'Filling')],
 };
 export const powderFillSachet: Block = {
-  id: 'powder-fill-sachet', version: 1, name: 'Fill powder into sachets with periodic fill checks', checker: false, packing: true, periodic: { maxMinutes: 1440 }, stop: 'done',
+  id: 'powder-fill-sachet', version: 1, name: 'Fill powder into sachets with periodic fill checks', checker: false, packing: true, periodic: { maxMinutes: 1440, alongside: true }, stop: 'done',
   instruction: 'At each round weigh the net powder of 10 filled sachets, read the room humidity, check the seals and read the counter.',
   fields: [...powderFields, yes('sealed', 'Sachets sealed'), num('counter', 'Counter', 'units'), going('filling', 'Filling')],
   settings: powderSettings,
@@ -304,15 +318,15 @@ export const powderFillSachet: Block = {
 // Capping (Inj. seal-check version 2): the capping machine; per round the caps checked, defects, and where the master
 // asks the removal torque, the induction seal and the child-resistant closure.
 export const capCheck: Block = {
-  id: 'cap-check', version: 1, name: 'Cap and check the closures', checker: false, packing: true, periodic: { maxMinutes: 1440 }, stop: 'done',
+  id: 'cap-check', version: 1, name: 'Cap and check the closures', checker: false, packing: true, periodic: { maxMinutes: 1440, alongside: true }, stop: 'done',
   instruction: 'At each round check the closures of the bottles shown; record defects and, where the master asks, the removal torque, the induction seal and the child-resistant closure.',
   fields: [
     { name: 'capper', label: 'Capping machine', kind: 'machine', types: ['capping', 'capper'] },
     { name: 'closure', label: 'Closure', kind: 'choice', options: ['plain screw cap', 'child-resistant cap', 'dropper', 'child-resistant cap with syringe plug', 'aluminium tear-off seal'] },
-    num('checked', 'Bottles checked', 'units'), num('defects', 'Defective closures', 'units'), num('torque', 'Removal torque', 'N·cm', true),
+    num('checked', 'Bottles checked', 'units'), num('defects', 'Defective closures', 'units'), yes('seated', 'Caps seated and tight'), num('torque', 'Removal torque', 'N·cm', true),
     yes('inductionSeal', 'Induction seal present', true), yes('crc', 'Child-resistant closure engages', true), going('capping', 'Capping'),
   ],
   settings: [limit('defectLimit', 'Defective closures allowed per round', false), limit('torqueLimit', 'Removal torque limits')],
   calcs: [within('defectCheck', 'Defective closures', 'defects', 'defectLimit'), within('torqueCheck', 'Removal torque', 'torque?', 'torqueLimit?'),
-    observe('sealCheck', 'Induction seal present', ['inductionSeal?']), observe('crcCheck', 'Child-resistant closure engages', ['crc?']), finished('capping', 'Capping')],
+    observe('closureCheck', 'Closures as they should be', ['seated', 'inductionSeal?', 'crc?']), finished('capping', 'Capping')],
 };

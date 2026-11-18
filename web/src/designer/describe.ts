@@ -5,7 +5,7 @@ import { masterChecks } from '../../../shared/master/checks.js';
 import { materialLines, type FormulaLine, type MasterDoc, type Stage, type Step } from '../../../shared/master/schema.js';
 import { perPackText, unitName } from '../../../shared/engine/stock.js';
 import { stepTitle } from '../../../shared/engine/batch.js';
-import { batchText, claimWords } from '../../../shared/engine/values.js';
+import { batchText, claimWords, packText } from '../../../shared/engine/values.js';
 import { neededText } from '../../../shared/engine/training.js';
 import { grouped, placeLabel } from './model.js';
 import { sentence, sentenceText, settingText, slotsOf } from './sentences.js';
@@ -83,7 +83,7 @@ export function describeMaster(doc: MasterDoc, units?: Units): Section[] {
       { key: 'product', text: `Pack product ${h.productCode}, ${h.productName}.` },
       { key: 'bulk', text: `Fills and packs the bulk ${p.bulkCode}, ${p.bulkName}.` },
       { key: 'batch', text: `Standard packing batch ${grouped(h.batchSize)} packs.` },
-      { key: 'pack', text: `${p.type[0]!.toUpperCase()}${p.type.slice(1)} of ${p.unitsPerPack} tablets; ${p.packsPerCarton} packs per carton.` },
+      { key: 'pack', text: `${packText(p)[0]!.toUpperCase()}${packText(p).slice(1)}; ${p.packsPerCarton} packs per shipper.` },
       { key: 'expiry', text: `Approved shelf life ${p.shelfLifeMonths} months; expiry ${p.expiryRule === 'same month' ? 'month of manufacture + shelf life' : 'month of manufacture + shelf life − 1'}.` },
       { key: 'market', text: `For ${p.destination}${p.mrp ? `; MRP Rs. ${p.mrp} per pack` : ''}.` },
       ...(p.serialisation ? [{ key: 'serialisation', text: `Serialisation checked${p.gtin ? `; pack GTIN ${p.gtin}` : ''}.` }] : []),

@@ -49,7 +49,7 @@ export function Preview({ doc: raw }: { doc: MasterDoc }) {
         ) : <p className="muted">No material is adjusted for its lot: the dispensing quantities are the batch quantities.</p>}
       </div>
       <div className="card">
-        <h2>Dispensing quantities for {Number(doc.header.batchSize).toLocaleString('en-IN')} tablets</h2>
+        <h2>Dispensing quantities for {Number(doc.header.batchSize).toLocaleString('en-IN')} {doc.header.batchUnit}</h2>
         <div className="table-wrap">
           <table className="plain-table">
             <thead><tr><th>Material</th><th>Batch quantity</th><th>To dispense</th><th>Worked out</th></tr></thead>

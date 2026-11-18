@@ -46,8 +46,9 @@ export function stepTitle(doc: MasterDoc, st: Step): string {
 }
 /** The fields a step asks for: a pack without a leaflet is not asked about a leaflet. */
 export function askedFields(doc: MasterDoc, block: Block): Block['fields'] {
-  const noLeaflet = block.id === 'carton-check' && doc.pack && !doc.pack.materials.some((x) => x.kind === 'leaflet');
-  return noLeaflet ? block.fields.filter((f) => f.name !== 'leaflet') : block.fields;
+  if (block.id !== 'carton-check' || !doc.pack) return block.fields;
+  const has = (kind: string) => doc.pack!.materials.some((x) => x.kind === kind);
+  return block.fields.filter((f) => (f.name !== 'leaflet' || has('leaflet')) && (f.name !== 'device' || has('measuring device')));
 }
 /** Where a step instance is, in words: "Granulation › Dry to an LOD limit (round 2)". */
 export function stepLabel(doc: MasterDoc, k: StepKey): string {
