@@ -5,6 +5,7 @@ import { evaluate, type StepEvent, type Value } from '../shared/engine/index.js'
 import { masterChecks } from '../shared/master/checks.js';
 import { neededKind } from '../shared/master/kinds.js';
 import { durations } from '../shared/engine/values.js';
+import { placeChecks } from '../shared/master/places.js';
 import { ev, small, unplaced } from './engine-fixture.js';
 
 // The liquids blocks (shared/blocks/liquids.ts): what each works out from recorded values, with the templates.
@@ -73,6 +74,18 @@ describe('the liquids blocks (library sections 5.2-5.4)', () => {
     expect(p).toEqual(['Final batch volume: a formula line gives its batch quantity (a mass), but this setting is a volume. Type the value instead',
       'Density at the make-up temperature: a formula line gives its batch quantity (a mass), but this setting is a density. Type the value instead']);
     expect(masterChecks(one('make-up', { volume: { header: 'batchVolume' }, density: '1.250 g/mL', tolerance: '0.5' })).filter((x) => /settings\.(volume|density)$/.test(x.path))).toEqual([]);
+  });
+
+  it('TL-10 the holding tank of the bulk transfer is a tank: a stage whose rooms hold only vessels is warned (Phase E)', () => {
+    const doc = one('bulk-transfer', { unit: 'L' });
+    doc.stages[0]!.roomTypes = ['RM-302'];
+    const rooms = [{ code: 'RM-302', area: 'Liquid manufacturing' }, { code: 'RM-312', area: 'Liquid storage' }];
+    const vessel = { code: 'EQL-MFV-01', type: 'Manufacturing vessel', room: 'RM-302' };
+    const tank = { code: 'EQL-JHT-01', type: 'Jacketed holding tank', room: 'RM-312' };
+    const warned = (equipment: object[]) => placeChecks(doc, { equipment, rooms } as never).map((x) => x.message).filter((m) => /holding tank/.test(m));
+    expect(warned([vessel, tank])).toEqual(['No holding tank stands in a room this stage allows (RM-302): EQL-JHT-01 stands in RM-312. Allow its room in the stage settings, or engineering moves it in master data']);
+    doc.stages[0]!.roomTypes = ['RM-302', 'RM-312'];
+    expect(warned([vessel, tank])).toEqual([]);
   });
 
   it('drying to constant weight: the largest change is a tolerance, typed only (Tablets round 31)', () => {

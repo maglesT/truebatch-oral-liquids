@@ -290,7 +290,8 @@ describe('a packing batch from a released bulk batch', () => {
       and batch_number = (select batch_no from batches where id = $1)`, [id]))[0];
     expect(await t.owner`select 1 from batch_events where batch_id = ${id} and kind = 'stage_closed' and payload->>'stage' = '1'`).toHaveLength(1);
     expect(await lineUse()).toEqual({ ended: false });
-    const fg = await step('2.1.0.1', { packs: '9800', cartons: '205', shippers: '205', samples: '40', rejects: '60', left: '5.0' });
+    // The optional shippers field left empty, as on the floor: the view gives the finished shipper cartons (Phase F).
+    const fg = await step('2.1.0.1', { packs: '9800', cartons: '205', samples: '40', rejects: '60', left: '5.0' });
     expect(fg.results.packed).toMatchObject({ ok: true, value: '602.7', unit: 'L' });
     expect(fg.results.yield).toMatchObject({ check: { pass: true } });
     expect(fg.results.accountability).toMatchObject({ check: { pass: true } });

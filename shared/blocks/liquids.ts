@@ -193,7 +193,9 @@ export const bulkTransfer: Block = {
   id: 'bulk-transfer', version: 1, name: 'Transfer the bulk to the holding tank', checker: true,
   instruction: 'Connect the transfer line or hose to the holding tank shown, check the connection, transfer the bulk and read the quantity in the tank.',
   fields: [
-    { name: 'from', label: 'From vessel', kind: 'machine', types: ['vessel', 'tank'] }, { name: 'to', label: 'Holding tank', kind: 'machine', types: ['vessel', 'tank'] },
+    { name: 'from', label: 'From vessel', kind: 'machine', types: ['vessel', 'tank'] }, // The holding tank is a tank (a holding or storage tank), never a manufacturing vessel: the master check then warns
+    // when no tank stands in a room the stage allows (found in the Phase E run).
+    { name: 'to', label: 'Holding tank', kind: 'machine', types: ['tank'] },
     yes('connected', 'Line or hose connected to this holding tank'), time('start', 'Start'), time('end', 'End'),
     num('quantity', 'Quantity in the holding tank', '$unit'), yes('stirring', 'Stirrer on', true),
   ],

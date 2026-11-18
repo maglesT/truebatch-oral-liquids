@@ -27,7 +27,7 @@ const OFFERS: Record<string, string[]> = {
   // The liquids: vessels and tanks (never a granulator), mills and homogenisers for homogenising.
   'sugar-syrup.machine': ['Manufacturing vessel', 'Holding tank', 'Stirrer'], 'dissolve.machine': ['Manufacturing vessel', 'Holding tank', 'Stirrer'],
   'hydrate.machine': ['Manufacturing vessel', 'Holding tank', 'Stirrer'], 'phase-prep.machine': ['Manufacturing vessel', 'Holding tank', 'Stirrer'],
-  'make-up.machine': ['Manufacturing vessel', 'Holding tank'], 'bulk-transfer.from': ['Manufacturing vessel', 'Holding tank'], 'bulk-transfer.to': ['Manufacturing vessel', 'Holding tank'],
+  'make-up.machine': ['Manufacturing vessel', 'Holding tank'], 'bulk-transfer.from': ['Manufacturing vessel', 'Holding tank'], 'bulk-transfer.to': ['Holding tank'],
   'homogenise.machine': ['Colloid mill', 'Homogeniser'], 'mix.machine': ['Bin blender', 'Blender', 'Rapid mixer granulator', 'Manufacturing vessel', 'Stirrer'],
 };
 
