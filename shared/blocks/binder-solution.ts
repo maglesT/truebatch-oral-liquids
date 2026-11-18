@@ -2,7 +2,7 @@ import type { Block } from './format.js';
 
 // Binder solution: the solvent to add for the target solids (T17, worked out from the binder quantity, and the
 // quantities of up to two more dissolved materials such as a surfactant, before the batch), the solvent added within ± tolerance of it (C1), the mixing time (T13) and a clear solution (C4). The hold
-// time is the preparation stage's (TB-17).
+// time is the preparation stage's (TL-17).
 export const binderSolution: Block = {
   id: 'binder-solution', version: 1, name: 'Prepare the binder solution', checker: true,
   instruction: 'Add the solvent shown to the vessel, start the stirrer, add the binder slowly and stir until it has dissolved. Check that the solution is clear and has no lumps.',

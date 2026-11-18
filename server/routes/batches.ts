@@ -82,7 +82,7 @@ async function materialUnits(master: FastifyInstance['master']): Promise<Map<str
 const batchHash = (l: LoadedBatch) => contentHash('batch', l.batch.id, batchContent(l));
 const view = (l: LoadedBatch, read?: ReadonlyMap<string, DeviationStatus> | null) => batchView(l.doc, l.events, l.batchEvents, l.now, read);
 /**
- * TB-21: the batch's deviation references as the Deviations system has them now, and (owner, 17 Nov 2026) the
+ * TL-21: the batch's deviation references as the Deviations system has them now, and (owner, 17 Nov 2026) the
  * deviation filed from each note written without one, found by the note's source_ref (keyed filedKey(note)); null when
  * the link does not answer.
  */
@@ -104,7 +104,7 @@ async function deviationsRead(app: FastifyInstance, l: LoadedBatch): Promise<{ r
 }
 
 /**
- * Packing (whole-suite run, S24): the open deviations of the bulk batch packed, read through TrueBatch Tablets' deviation
+ * Packing (whole-suite run, S24): the open deviations of the bulk batch packed, read through TrueBatch Liquids' deviation
  * notes of that batch (their number, or the deviation Deviations filed from a note without one) and the Deviations
  * system (their status, and the deviations naming the bulk batch there). null for a manufacturing batch or before the
  * bulk batch is recorded; a link that does not answer: state absent or down, and QA confirms by hand at release.
@@ -112,8 +112,8 @@ async function deviationsRead(app: FastifyInstance, l: LoadedBatch): Promise<{ r
 export async function bulkDeviations(app: FastifyInstance, l: LoadedBatch): Promise<BulkDeviations | null> {
   const bulk = l.doc.pack ? l.events.map((e) => e.payload.values?.bulk).filter((x): x is string => typeof x === 'string').at(-1) : undefined;
   if (!bulk) return null;
-  const notes = await app.links.truebatch.notes(bulk);
-  if (notes.state !== 'ok') return { bulk, state: notes.state, link: 'truebatch', open: [] };
+  const notes = await app.links.truebatch_liquids.notes(bulk);
+  if (notes.state !== 'ok') return { bulk, state: notes.state, link: 'truebatch_liquids', open: [] };
   const numbered = notes.value.filter((n) => n.reference);
   const bare = notes.value.filter((n) => !n.reference);
   const dv = app.links.deviations;
@@ -124,7 +124,7 @@ export async function bulkDeviations(app: FastifyInstance, l: LoadedBatch): Prom
   const all = new Map<string, BulkDeviation>();
   for (const n of numbered) {
     const d = byNo.value.get(n.reference!);
-    // A number typed in TrueBatch Tablets that Deviations does not know: its status is TrueBatch Tablets' (closed by QA there).
+    // A number typed in TrueBatch Liquids that Deviations does not know: its status is TrueBatch Liquids' (closed by QA there).
     all.set(n.reference!, { number: n.reference!, status: d?.status ?? n.status ?? 'open', title: d?.title ?? n.note, step: n.step });
   }
   for (const n of bare) {
@@ -168,7 +168,7 @@ async function readValues(app: FastifyInstance, tx: Tx, doc: MasterDoc, key: Ste
   const stage = doc.stages[key.stage]!;
   const step = stage.steps[key.step]!;
   const block = findBlock(step.block)!;
-  // Packing: tablets typed while the bulk batch's good tablets come from TrueBatch Tablets (a part issue) are read
+  // Packing: tablets typed while the bulk batch's good tablets come from TrueBatch Liquids (a part issue) are read
   // with the bulk batch again, up to what is left of it (pullBulk).
   const bulkField = block.fields.find((f) => f.kind === 'bulk');
   const tabletsPulled = (s?: Source) => !!s && !isHand(s);
@@ -273,7 +273,7 @@ const flowOf = (doc: MasterDoc, k: StepKey) => doc.stages[k.stage]!.steps[k.step
 const context = (doc: MasterDoc, v: StepView, user: SessionUser) => ({ state: v.state, events: v.events, flow: flowOf(doc, v.key), user });
 const FIRST: StepKey = { stage: 0, sub: 1, step: 0, round: 1 };
 /**
- * Packing (TB-P2, TB-P7): a master whose first step is recorded at issue (the line, the released bulk batch, the
+ * Packing (TL-P2, TL-P7): a master whose first step is recorded at issue (the line, the released bulk batch, the
  * tablets issued) is issued with those values, read as any step's values are (pulled while a link answers, else
  * typed with the label questions and checked by a second person). One active packing order per line: a line with a
  * batch still in production takes no other.
@@ -313,9 +313,9 @@ function myWork(l: LoadedBatch, user: SessionUser) {
   const stageName = (i: number) => l.doc.stages[i]?.name ?? '';
   const badges: { kind: 'check' | 'resign' | 'due' | 'late' | 'approve'; step?: string; stage: string; title: string; at?: Date; timer?: string }[] = [];
   for (const v of steps) {
-    // TB-08: the checker's own list holds only steps the person was not involved in.
+    // TL-08: the checker's own list holds only steps the person was not involved in.
     if (!refusal('check', context(l.doc, v, user))) badges.push({ kind: 'check', step: v.id, stage: stageName(v.key.stage), title: title(v) });
-    if (v.needsResign && user.permissions.includes('truebatch.batch.operate')) badges.push({ kind: 'resign', step: v.id, stage: stageName(v.key.stage), title: title(v) });
+    if (v.needsResign && user.permissions.includes('truebatch_liquids.batch.operate')) badges.push({ kind: 'resign', step: v.id, stage: stageName(v.key.stage), title: title(v) });
   }
   // A periodic check's badge names the check: "Coding check due in 59 min".
   const check = (t: Timer) => (t.kind === 'periodic' ? stepTitle(l.doc, l.doc.stages[t.key.stage]!.steps[t.key.step]!) : t.label);
@@ -327,7 +327,7 @@ function myWork(l: LoadedBatch, user: SessionUser) {
   }
   if (!batchRefusal('production-approve', bv, user)) badges.push({ kind: 'approve', stage: '', title: 'Production approval' });
   const now = steps.find((s) => s.state === 'in_progress') ?? steps.find((s) => s.state === 'open');
-  const operates = user.permissions.includes('truebatch.batch.operate') && bv.status === 'in production';
+  const operates = user.permissions.includes('truebatch_liquids.batch.operate') && bv.status === 'in production';
   if (!operates && !badges.length) return null;
   return {
     id: l.batch.id, batchNo: l.batch.batchNo, productCode: l.doc.header.productCode, productName: l.doc.header.productName, status: bv.status,
@@ -397,8 +397,8 @@ async function recordClosedStages(tx: Tx, id: number, before: readonly StageView
 export function batchRoutes(app: FastifyInstance, sql: Sql) {
   const anyUser = { preHandler: requirePermission() };
 
-  // TB-03: issue a batch from an effective master version, with the next number of the year (never reused).
-  app.post('/api/batches', { preHandler: requirePermission('truebatch.batch.issue') }, async (req, reply) => {
+  // TL-03: issue a batch from an effective master version, with the next number of the year (never reused).
+  app.post('/api/batches', { preHandler: requirePermission('truebatch_liquids.batch.issue') }, async (req, reply) => {
     const b = z.object({ masterVersionId: z.number().int().positive(), proof: z.string().min(1).max(2000), values: z.record(z.unknown()).optional() }).safeParse(req.body);
     if (!b.success) return reply.code(400).send({ error: 'invalid' });
     const user = req.user!;
@@ -408,9 +408,9 @@ export function batchRoutes(app: FastifyInstance, sql: Sql) {
         const v = await masterVersion(tx, b.data.masterVersionId, true);
         if (v?.state !== 'effective') throw new StepError(409, 'not_effective', ['Only an effective master version can be issued.']);
         // Approval will refuse a version with errors; until that workflow exists, issuing checks it too.
-        // A version approved before its stages had to name their rooms (TB-11) still issues: its stages allow any room.
+        // A version approved before its stages had to name their rooms (TL-11) still issues: its stages allow any room.
         // So does one approved before it had to name its dispensing rooms: its balances are those of the Dispensing area.
-        const errors = masterChecks(v.doc).filter((p) => blocking(p) && !(p.rule === 'TB-11' && (p.path.endsWith('.roomTypes') || p.path === 'header.dispensingRooms')));
+        const errors = masterChecks(v.doc).filter((p) => blocking(p) && !(p.rule === 'TL-11' && (p.path.endsWith('.roomTypes') || p.path === 'header.dispensingRooms')));
         if (errors.length) throw new StepError(409, 'master_has_errors', errors.map((p) => `${p.path}: ${p.message}`));
         const atIssue = findBlock(v.doc.stages[0]?.steps[0]?.block ?? { id: '', version: 0 })?.atIssue;
         const facts = atIssue ? await issueValues(app, tx, v.doc, b.data.values, (await tx<{ now: Date }[]>`select now() as now`)[0]!.now) : null;
@@ -472,10 +472,10 @@ export function batchRoutes(app: FastifyInstance, sql: Sql) {
     return out;
   });
 
-  // To review: for QC the production-approved batches, for QA the QC-approved ones (TB-21), oldest decision first; for
+  // To review: for QC the production-approved batches, for QA the QC-approved ones (TL-21), oldest decision first; for
   // QA also the batches still in production, which QA may terminate.
-  app.get('/api/batches/to-review', { preHandler: requirePermission('truebatch.qc.approve', 'truebatch.qa.release') }, async (req) => {
-    const qa = req.user!.permissions.includes('truebatch.qa.release');
+  app.get('/api/batches/to-review', { preHandler: requirePermission('truebatch_liquids.qc.approve', 'truebatch_liquids.qa.release') }, async (req) => {
+    const qa = req.user!.permissions.includes('truebatch_liquids.qa.release');
     const ids = await sql<{ id: number }[]>`
       select b.id::int from batches b
       where (${qa} or exists (select 1 from batch_events e where e.batch_id = b.id and e.kind = 'production_approved'))
@@ -486,7 +486,7 @@ export function batchRoutes(app: FastifyInstance, sql: Sql) {
       const l = (await loadBatch(sql, id))!;
       const bv = view(l, (await deviationsRead(app, l)).read);
       const waiting = bv.status === 'production approved' ? 'QC' : bv.status === 'QC approved' ? 'QA' : 'production';
-      if (!req.user!.permissions.includes(waiting === 'QC' ? 'truebatch.qc.approve' : 'truebatch.qa.release')) continue;
+      if (!req.user!.permissions.includes(waiting === 'QC' ? 'truebatch_liquids.qc.approve' : 'truebatch_liquids.qa.release')) continue;
       const last = l.batchEvents.filter((e) => e.kind !== 'deviation_closed').at(-1);
       out.push({ id, batchNo: l.batch.batchNo, productCode: l.doc.header.productCode, productName: l.doc.header.productName, status: bv.status, waiting,
         since: last?.at ?? l.batch.issuedAt, by: last?.personName ?? '', openDeviations: bv.deviations.filter((d) => d.open).length,
@@ -535,7 +535,7 @@ export function batchRoutes(app: FastifyInstance, sql: Sql) {
     return s ? { events: s.events, replaced: s.replaced, inputChanged: s.inputChanged } : reply.code(404).send({ error: 'not_found' });
   });
 
-  // TB-21: what QA reviews in the release screen: corrections, sent-backs, late items, values out of limits with
+  // TL-21: what QA reviews in the release screen: corrections, sent-backs, late items, values out of limits with
   // their notes, deviation notes and their status, steps not applicable, and every signature of the batch.
   app.get<{ Params: { id: string } }>('/api/batches/:id/review', anyUser, async (req, reply) => {
     const id = parseId(req.params.id);
@@ -563,7 +563,7 @@ export function batchRoutes(app: FastifyInstance, sql: Sql) {
     return { link: r.state, deviations: r.state === 'ok' ? r.value : [] };
   });
 
-  // TB-10, pull don't type (owner, 17 Nov 2026): the batch that last used a room or line before this one, from this
+  // TL-10, pull don't type (owner, 17 Nov 2026): the batch that last used a room or line before this one, from this
   // product's own records, for the line clearance's "previous product and batch" (one tap; typed only when unknown).
   app.get<{ Params: { id: string }; Querystring: { item?: string } }>('/api/batches/:id/previous-use', anyUser, async (req, reply) => {
     const id = parseId(req.params.id);
@@ -611,16 +611,16 @@ export function batchRoutes(app: FastifyInstance, sql: Sql) {
     return { link: r.state, items: r.state === 'ok' ? r.value : [] };
   });
 
-  // Packing: the bulk batches TrueBatch Tablets has released of a product, for the issue's pick list (pull, don't type).
-  app.get<{ Querystring: { product?: string } }>('/api/bulk-batches', { preHandler: requirePermission('truebatch.batch.issue') }, async (req) => {
-    const r = await app.links.truebatch.released(String(req.query.product ?? ''));
+  // Packing: the bulk batches TrueBatch Liquids has released of a product, for the issue's pick list (pull, don't type).
+  app.get<{ Querystring: { product?: string } }>('/api/bulk-batches', { preHandler: requirePermission('truebatch_liquids.batch.issue') }, async (req) => {
+    const r = await app.links.truebatch_liquids.released(String(req.query.product ?? ''));
     // With the good tablets: what the other packing batches were already issued of each, and what is left to issue.
     const batches = r.state !== 'ok' ? [] : await Promise.all(r.value.map(async (b) => ({ batchNo: b.batchNo, mfgDate: b.mfgDate, goodQuantity: b.goodQuantity,
       ...(b.goodQuantity ? bulkLeft(b.goodQuantity, await bulkIssues(sql, b.batchNo)) : {}) })));
     return { link: r.state, batches };
   });
 
-  // TB-22: the batch record as a PDF: a complete copy with its values, calculations, changes, notes and signatures.
+  // TL-22: the batch record as a PDF: a complete copy with its values, calculations, changes, notes and signatures.
   app.get<{ Params: { id: string } }>('/api/batches/:id/pdf', anyUser, async (req, reply) => {
     const id = parseId(req.params.id);
     const l = id === null ? null : await loadBatch(sql, id);

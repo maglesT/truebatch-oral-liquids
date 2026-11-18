@@ -12,7 +12,7 @@ begin
 end $$;
 
 create or replace view packing_batch_v1 with (security_barrier) as
-select md5('truebatch_packing:batch:' || b.id)::uuid as batch_id, b.batch_no as batch_number, f.v->>'bulk' as coded_batch_number,
+select md5('truebatch_liquids_packing:batch:' || b.id)::uuid as batch_id, b.batch_no as batch_number, f.v->>'bulk' as coded_batch_number,
   v.doc->'header'->>'productCode' as product_code, v.doc->'pack'->>'bulkCode' as bulk_product_code, v.doc->'pack'->>'type' as pack_type,
   (v.doc->'pack'->>'unitsPerPack')::int as units_per_pack, f.v->>'mfgDate' as mfg_date, fr.r->'expiry'->>'expiry' as expiry_month,
   (g.v->'packs'->>'value')::numeric as packs, (g.v->'cartons'->>'value')::numeric as cartons,

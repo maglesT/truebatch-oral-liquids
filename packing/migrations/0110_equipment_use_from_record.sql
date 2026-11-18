@@ -1,4 +1,4 @@
--- equipment_use_v1 of TrueBatch Tablets Packing, as TrueBatch Tablets' (db/migrations/0016, whole-suite run, S17): a
+-- equipment_use_v1 of TrueBatch Liquids Packing, as TrueBatch Liquids' (db/migrations/0016, whole-suite run, S17): a
 -- line or room is in use from the time it was first recorded (pulled and accepted) on a step, not from the start of that
 -- step, so a room refused until its changeover cleaning was done no longer overlaps that cleaning in the Logbook.
 -- Every column as 0107, in the same order, names and types; everything else as 0107.

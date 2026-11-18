@@ -129,7 +129,7 @@ export const headerSchema = z.object({
   dieAreaMm2: decimal.optional(),
   // Other strengths compressed from the same blend at their own core weight (F0225, F0366).
   otherStrengths: z.array(z.object({ name: text().min(1), labelClaim: text(40), coreWeightMg: decimal }).strict()).max(10).optional(),
-  // TB-11: the rooms of master data (codes) where this product's materials are weighed; a balance is offered there or
+  // TL-11: the rooms of master data (codes) where this product's materials are weighed; a balance is offered there or
   // in a room the stage allows (shared/engine/picks.ts). A version made before this setting has none.
   dispensingRooms: z.array(text()).max(20).optional(),
 }).strict();
@@ -138,7 +138,7 @@ export const headerSchema = z.object({
 // as answered: when the warning reads differently (the item changed), it needs a new answer.
 export const answerSchema = z.object({ about: text(1000), choice: text().min(1), reason: text(1000) }).strict();
 
-// TrueBatch Tablets Packing (TB-P1): a packing master is per product, pack type and size, and destination. Its header
+// TrueBatch Liquids Packing (TL-P1): a packing master is per product, pack type and size, and destination. Its header
 // names the finished pack product, the standard packing batch in tablets (batchSize) and the theoretical weight of one
 // bulk tablet (coreWeightMg, for counts by weight); `pack` holds the rest. Its formula is empty: the packing materials
 // are `pack.materials`, and a step setting { formula: key } names one of them.
@@ -151,9 +151,9 @@ export const packMaterialSchema = z.object({
   code: text(),
   name: text(),
   kind: z.enum(PACK_MATERIAL_KINDS),
-  // Printed (artwork): issued only by its step with a second person, reconciled to zero (TB-P4, TB-P6).
+  // Printed (artwork): issued only by its step with a second person, reconciled to zero (TL-P4, TL-P6).
   printed: z.boolean(),
-  // Coded on the line with the batch number, dates and MRP (TB-P5, TB-P9); leftovers are destroyed.
+  // Coded on the line with the batch number, dates and MRP (TL-P5, TL-P9); leftovers are destroyed.
   coded: z.boolean(),
   perPack: decimal,
   unit: z.enum(['units', 'm', 'g']),
@@ -166,12 +166,12 @@ export const packSchema = z.object({
   // Tablets in one blister, strip or bottle, and packs in one carton.
   unitsPerPack: z.number().int().min(1).max(10_000),
   packsPerCarton: z.number().int().min(1).max(1000),
-  // The approved shelf life (TB-P8): the expiry is worked out from it, never typed.
+  // The approved shelf life (TL-P8): the expiry is worked out from it, never typed.
   shelfLifeMonths: z.number().int().min(1).max(120),
   // "month before": expiry = month of manufacture + shelf life − 1 (use before the end of that month).
   expiryRule: z.enum(['month before', 'same month']).default('month before'),
   destination: z.enum(DESTINATIONS),
-  // Maximum retail price per pack in rupees (India domestic, TB-P9).
+  // Maximum retail price per pack in rupees (India domestic, TL-P9).
   mrp: decimal.optional(),
   // The pack's GTIN, for checking the codes of the customer's serialisation system.
   gtin: z.string().regex(/^\d{14}$/, '14 digits').optional(),

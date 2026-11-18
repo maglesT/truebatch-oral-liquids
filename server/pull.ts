@@ -6,7 +6,7 @@ import { CERTIFICATE, PROVIDER_NAME, bulkIssueProblem, bulkLeft, clauses, readVa
 import { LOT_USABLE } from './links.js';
 import { plantDate } from '../shared/plant-time.js';
 
-// What a link gives a step value at write time (owner 15 Nov 2026, TB-11, TB-12): the value as read now, or a
+// What a link gives a step value at write time (owner 15 Nov 2026, TL-11, TL-12): the value as read now, or a
 // refusal in plain words; when the link is absent or down, the value is typed by hand (its questions in
 // shared/engine/links.ts). Nothing read is kept but what the record keeps (PL-07).
 
@@ -23,7 +23,7 @@ export function lineOf(doc: MasterDoc, st: Step): FormulaLine | PackMaterial | u
 }
 
 /**
- * TB-11: a machine or room the Logbook says is fit for use, not kept for another product (after an antibiotic) and not
+ * TL-11: a machine or room the Logbook says is fit for use, not kept for another product (after an antibiotic) and not
  * in use by another batch. Line clearance: its facts. `productCode` is the code the batch publishes as its product
  * (batch_fact_v1 / packing_batch_v1 product_code: the master's header), the one the Logbook compares.
  */
@@ -57,7 +57,7 @@ export const stateWords = (state: string) => state.replace(/_/g, ' ').replace(/\
 const LOT_WORDS: Record<string, string> = { quarantine: 'in quarantine', quarantined: 'in quarantine', under_test: 'under test', on_hold: 'on hold' };
 const plantDay = (now: Date, tz: string) => now.toLocaleDateString('en-CA', { timeZone: tz });
 
-/** TB-12: a lot MMS has, of this step's material, released and in date; its certificate numbers come with it (TB-13). */
+/** TL-12: a lot MMS has, of this step's material, released and in date; its certificate numbers come with it (TL-13). */
 export async function pullLot(app: FastifyInstance, doc: MasterDoc, st: Step, block: Block, lot: string, was: Record<string, Value>, now: Date, tz: string): Promise<Pulled> {
   const r = await app.links.mms.lot(lot);
   if (r.state !== 'ok') return hand('mms', r.state);
@@ -91,7 +91,7 @@ export async function pullLot(app: FastifyInstance, doc: MasterDoc, st: Step, bl
 }
 
 /**
- * Packing: a bulk batch TrueBatch Tablets has RELEASED, of this pack's bulk product; its date of manufacture (the date
+ * Packing: a bulk batch TrueBatch Liquids has RELEASED, of this pack's bulk product; its date of manufacture (the date
  * its first processing step started, batch_fact_v1.manufactured_on) comes with it, and so do the tablets issued (its
  * good tablets, batch_fact_v1.good_quantity; owner 17 Nov 2026: pull, don't type). Without a good quantity (not given
  * by its view) the tablets are typed.
@@ -100,15 +100,15 @@ export async function pullLot(app: FastifyInstance, doc: MasterDoc, st: Step, bl
  * `typed`: a part issue, more than 0 and up to what is left; none issues all that is left.
  */
 export async function pullBulk(app: FastifyInstance, doc: MasterDoc, block: Block, batchNo: string, typed: unknown, others: () => Promise<BulkIssue[]>): Promise<Pulled> {
-  const r = await app.links.truebatch.batch(batchNo);
-  if (r.state !== 'ok') return hand('truebatch', r.state);
+  const r = await app.links.truebatch_liquids.batch(batchNo);
+  if (r.state !== 'ok') return hand('truebatch_liquids', r.state);
   const b = r.value;
-  if (!b) return refused(`Bulk batch ${batchNo} is not in TrueBatch Tablets.`);
+  if (!b) return refused(`Bulk batch ${batchNo} is not in TrueBatch Liquids.`);
   const problems: string[] = [];
-  if (doc.pack && b.productCode !== doc.pack.bulkCode) problems.push(`Bulk batch ${batchNo} is ${b.productCode ?? 'another product'} in TrueBatch Tablets, not ${doc.pack.bulkCode} ${doc.pack.bulkName}.`);
-  if (!b.released) problems.push(`Bulk batch ${batchNo} is ${b.status.toLowerCase().replaceAll('_', ' ')} in TrueBatch Tablets: only a released bulk batch may be packed.`);
-  if (!b.mfgDate) problems.push(`Bulk batch ${batchNo} has no date of manufacture in TrueBatch Tablets (no processing step started).`);
-  const source: Source = { from: 'truebatch', asOf: b.dataAsOf, shown: `TrueBatch Tablets batch ${batchNo}: ${b.status}, ${b.productCode ?? '—'}, manufactured ${b.mfgDate ?? '—'}` };
+  if (doc.pack && b.productCode !== doc.pack.bulkCode) problems.push(`Bulk batch ${batchNo} is ${b.productCode ?? 'another product'} in TrueBatch Liquids, not ${doc.pack.bulkCode} ${doc.pack.bulkName}.`);
+  if (!b.released) problems.push(`Bulk batch ${batchNo} is ${b.status.toLowerCase().replaceAll('_', ' ')} in TrueBatch Liquids: only a released bulk batch may be packed.`);
+  if (!b.mfgDate) problems.push(`Bulk batch ${batchNo} has no date of manufacture in TrueBatch Liquids (no processing step started).`);
+  const source: Source = { from: 'truebatch_liquids', asOf: b.dataAsOf, shown: `TrueBatch Liquids batch ${batchNo}: ${b.status}, ${b.productCode ?? '—'}, manufactured ${b.mfgDate ?? '—'}` };
   const out: Pulled = { source, values: {}, sources: {}, problems };
   if (b.mfgDate && block.fields.some((x) => x.name === 'mfgDate')) { out.values.mfgDate = b.mfgDate; out.sources.mfgDate = source; }
   const tablets = block.fields.find((x) => x.name === 'tablets');
@@ -127,7 +127,7 @@ export async function pullBulk(app: FastifyInstance, doc: MasterDoc, block: Bloc
   return out;
 }
 
-/** Packing: a date of manufacture typed from the bulk labels (no TrueBatch Tablets link): a real date, never in the future. */
+/** Packing: a date of manufacture typed from the bulk labels (no TrueBatch Liquids link): a real date, never in the future. */
 export function mfgDateProblem(f: BlockField, v: string, now: Date, tz: string): string | null {
   const d = new Date(`${v}T00:00:00Z`);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(v) || Number.isNaN(d.getTime()) || d.toISOString().slice(0, 10) !== v) return `${f.label}: give a date, e.g. 2026-11-15.`;

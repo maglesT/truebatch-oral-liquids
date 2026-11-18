@@ -1,4 +1,4 @@
--- Review and approval of master versions (TB-02): the author sends a draft for review, a second person checks it
+-- Review and approval of master versions (TL-02): the author sends a draft for review, a second person checks it
 -- (passes or returns it), QA approves it with a change control number, and making it effective retires the previous
 -- effective version. Each step is one insert-only event; the signed ones are the object of their signature
 -- (object_type 'master_event'). The version's state follows the events (master_versions.state, migration 0003).
@@ -31,8 +31,8 @@ create index master_comments_version on master_comments (version_id, id);
 create trigger master_comments_insert_only before update or delete or truncate on master_comments
   for each statement execute function refuse_change();
 
-revoke all on master_events, master_comments from truebatch_app;   -- the platform's default grants (0000)
-revoke all on sequence master_events_id_seq, master_comments_id_seq from truebatch_app;
-grant select on master_events, master_comments to truebatch_app;
-grant insert (version_id, kind, payload, person_id) on master_events to truebatch_app;
-grant insert (version_id, path, text, person_id) on master_comments to truebatch_app;
+revoke all on master_events, master_comments from truebatch_liquids_app;   -- the platform's default grants (0000)
+revoke all on sequence master_events_id_seq, master_comments_id_seq from truebatch_liquids_app;
+grant select on master_events, master_comments to truebatch_liquids_app;
+grant insert (version_id, kind, payload, person_id) on master_events to truebatch_liquids_app;
+grant insert (version_id, path, text, person_id) on master_comments to truebatch_liquids_app;

@@ -1,16 +1,16 @@
--- TrueBatch Tablets Packing's published views, as TrueBatch Tablets' (db/migrations/0011, 0008), owner 15 Nov 2026 from
--- the run of TP260001. Columns are only added at the end (create or replace keeps the grants set_link gave).
+-- TrueBatch Liquids Packing's published views, as TrueBatch Liquids' (db/migrations/0011, 0008), owner 15 Nov 2026 from
+-- the run of TLP260001. Columns are only added at the end (create or replace keeps the grants set_link gave).
 --
--- equipment_use_v1: ONE use per packing batch and line or room, as TrueBatch Tablets' (db/migrations/0011): from the
+-- equipment_use_v1: ONE use per packing batch and line or room, as TrueBatch Liquids' (db/migrations/0011): from the
 -- first start of a step that names it until every stage of the batch that names it, or whose rooms allow its room, has
 -- closed (batch event 'stage_closed'), or the production approval or rejection if earlier: the packing line is in use
 -- by the batch through its packing and its reconciliation and line clearance, and dirty after the batch. The line named
 -- when the batch is issued (bulk-issue: the line the order is for) and in the line clearance after packing (it clears
--- the line the batch has just used) do not start a use, nor does a balance (as TrueBatch Tablets'). step_name added.
+-- the line the batch has just used) do not start a use, nor does a balance (as TrueBatch Liquids'). step_name added.
 -- material_use_v1: the quantity issued in the material's unit in master data, as read when the step was signed done
 -- (a count in e.g. nos; grams exactly in kg when master data counts the material in kg); step_name added.
 -- deviation_note_v1 (new): every deviation note (a late periodic check, a result out of limits), with the columns of
--- TrueBatch Tablets' view, so the Deviations system files them as it files tablets' notes.
+-- TrueBatch Liquids' view, so the Deviations system files them as it files tablets' notes.
 do $$
 declare
   rep text := case when current_schema() = 'public' then 'report' else current_schema() || '_report' end;
@@ -98,7 +98,7 @@ left join lateral (
 where st.step->'block'->>'id' = 'pack-material-issue';
 
 create view deviation_note_v1 with (security_barrier) as
-select n.id as note_id, 'truebatch_packing:note:' || n.id as source_ref, b.batch_no as batch_number, v.doc->'header'->>'productCode' as product_code,
+select n.id as note_id, 'truebatch_liquids_packing:note:' || n.id as source_ref, b.batch_no as batch_number, v.doc->'header'->>'productCode' as product_code,
   coalesce(n.payload->>'where', (v.doc->'stages'->n.stage->>'key') || '/' || (v.doc->'stages'->n.stage->'steps'->n.step->>'key')) as step,
   n.payload->>'text' as note, n.payload->>'reference' as reference,
   case when n.payload->>'reference' is null then null when c.at is not null then 'closed' else 'open' end as status,

@@ -2,7 +2,7 @@ import { expect, test, type Browser, type Page } from '@playwright/test';
 import { logIn } from './helpers.js';
 
 // The master designer: a small master built from a skeleton, a master-check problem found and fixed, then the review
-// and approval workflow with three people, each in their own browser (TB-02).
+// and approval workflow with three people, each in their own browser (TL-02).
 
 async function as(browser: Browser, who: string, viewport?: { width: number; height: number }): Promise<Page> {
   const page = await (await browser.newContext(viewport ? { viewport } : {})).newPage();
@@ -23,7 +23,7 @@ async function sign(page: Page) {
   await expect(dialog).toBeHidden();
 }
 
-test('TB-02 build a master from a skeleton, fix a master-check problem, then check, approve and (another QA person) make it effective', async ({ browser }) => {
+test('TL-02 build a master from a skeleton, fix a master-check problem, then check, approve and (another QA person) make it effective', async ({ browser }) => {
   const author = await as(browser, 'author1');
   await author.getByRole('button', { name: 'New master' }).click();
   // Master data's bulk products (and those without a kind yet), never a pack.
@@ -36,7 +36,7 @@ test('TB-02 build a master from a skeleton, fix a master-check problem, then che
   // A new master names no dispensing rooms; the rooms with a weighing balance are listed first, by name.
   await expect(author.getByText('None chosen yet: choose the rooms of master data where the materials are weighed')).toBeVisible();
   await author.getByLabel('Add to dispensing rooms (where the materials are weighed)').selectOption({ label: 'DSP-01 · Dispensing booth 1 (Dispensing)' });
-  await author.getByText('Process skeleton: Direct compression, uncoated').click();
+  await author.getByText('Process skeleton: Dry syrup, blended').click();
   await author.getByRole('button', { name: 'Create draft' }).click();
   await expect(author.getByRole('heading', { name: 'PRD-001 · Examplol 100 mg tablets' })).toBeVisible();
 
@@ -49,14 +49,14 @@ test('TB-02 build a master from a skeleton, fix a master-check problem, then che
   await author.getByLabel('Role of Examplol').selectOption('api');
   await expect(author.locator('.total.ok')).toContainText('equals the theoretical core weight');
 
-  // The process: 2 stages, each starting with line clearance (TB-10); the dry-mix step of blending is removed, leaving 4.
+  // The process: 1 stage, starting with line clearance (TL-10); the dry-mix step of blending is removed, leaving 5.
   await author.getByRole('button', { name: 'Process', exact: true }).click();
   await expect(author.locator('.steps-col .olist li').first()).toContainText('Line clearance');
   // Remove and move are there without selecting the step first.
   await author.getByRole('button', { name: 'Remove Dry mix for a time' }).click();
-  await expect(author.locator('.steps-col .olist li')).toHaveCount(4);
+  await expect(author.locator('.steps-col .olist li')).toHaveCount(5);
   // The stage yield: its theoretical quantity, used in two sentences, is one input; More options opens per step.
-  await author.locator('.steps-col').getByRole('button', { name: /4\. Stage yield/ }).click();
+  await author.locator('.steps-col').getByRole('button', { name: /5\. Stage yield/ }).click();
   await expect(author.locator('.settings-col').getByLabel('Theoretical quantity', { exact: true })).toHaveCount(1);
   await author.getByText('More options').click();
   await author.locator('.steps-col').getByRole('button', { name: /3\. Sift/ }).click();
@@ -75,16 +75,13 @@ test('TB-02 build a master from a skeleton, fix a master-check problem, then che
   await author.getByLabel('Sieve no. (mesh and aperture)').fill('40 mesh (425 µm)');
   await expect(check.getByRole('button', { name: /Sieve no\. \(mesh and aperture\) is not set/ })).toBeHidden();
 
-  await check.getByRole('button', { name: /Hardness limits is not set/ }).click();
-  await author.getByLabel('Hardness limits: lowest').fill('60');
-  await author.getByLabel('Hardness limits: highest').fill('120');
-  await author.getByLabel('Thickness limits: lowest').fill('3.8');
-  await author.getByLabel('Thickness limits: highest').fill('4.2');
-  // The disintegration medium's temperature is recorded: the check asks for its limits.
-  await check.getByRole('button', { name: /Medium temperature is recorded but not checked/ }).click();
-  await author.getByLabel('Medium temperature limits: lowest').fill('35');
-  await author.getByLabel('Medium temperature limits: highest').fill('39');
-  // TB-11: blending names no rooms in the skeleton; the check opens its stage settings, where the rooms are picked.
+  await check.getByRole('button', { name: /Mean content limits is not set/ }).click();
+  await author.getByLabel('Mean content limits: lowest').fill('90.0');
+  await author.getByLabel('Mean content limits: highest').fill('110.0');
+  await author.getByLabel('RSD limit: highest').fill('5.0');
+  await author.getByLabel('Limits for each location: lowest').fill('85.0');
+  await author.getByLabel('Limits for each location: highest').fill('115.0');
+  // TL-11: blending names no rooms in the skeleton; the check opens its stage settings, where the rooms are picked.
   await check.getByRole('button', { name: /Stage Blending: choose the rooms/ }).click();
   await author.getByLabel('Add to rooms this stage may run in (an area, or a room)').selectOption('Blending');
   await expect(check).toContainText('No problems');

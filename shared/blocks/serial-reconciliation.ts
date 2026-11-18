@@ -1,7 +1,7 @@
 import type { Block } from './format.js';
 
 // Packing, serialisation check: received = printed on good packs + rejected + destroyed + unused returned (T4). Any
-// gap is out of limits: a deviation note first, and release waits for its deviation number (TB-18 mechanism).
+// gap is out of limits: a deviation note first, and release waits for its deviation number (TL-18 mechanism).
 export const serialReconciliation: Block = {
   id: 'serial-reconciliation', version: 1, name: 'Reconciliation of serial numbers', gmp: 'yield', checker: true, packing: true,
   instruction: 'Read the counts from the serialisation system at the end of packing.',

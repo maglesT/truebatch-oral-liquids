@@ -1,4 +1,4 @@
--- Published views, as people and the other products read them (owner, 15 Nov 2026, from the run of batch TB260003).
+-- Published views, as people and the other products read them (owner, 15 Nov 2026, from the run of batch TL260003).
 --
 -- batch_fact_v1: family_code is the master version as its number ("1", not "master-2"); product_name (the master's
 -- product name, copied from master data when the master was written, PL-07) and master_version are added at the END
@@ -17,8 +17,8 @@ begin
 end $$;
 
 create or replace view batch_fact_v1 with (security_barrier) as
-select md5('truebatch:batch:' || b.id)::uuid as batch_id, b.batch_no as batch_number, v.doc->'header'->>'productCode' as product_code,
-  null::text as strength, md5('truebatch:master_version:' || v.id)::uuid as mbr_version_id, v.version_no::text as family_code,
+select md5('truebatch_liquids:batch:' || b.id)::uuid as batch_id, b.batch_no as batch_number, v.doc->'header'->>'productCode' as product_code,
+  null::text as strength, md5('truebatch_liquids:master_version:' || v.id)::uuid as mbr_version_id, v.version_no::text as family_code,
   'PROCESSING'::text as record_kind,
   case when e.released then 'RELEASED' when e.rejected then 'REJECTED' when e.qc then 'QC_APPROVED'
        when e.produced is not null then 'PRODUCTION_APPROVED' else 'IN_PRODUCTION' end as status,
@@ -38,7 +38,7 @@ left join lateral (
 ) s on true;
 
 create or replace view deviation_note_v1 with (security_barrier) as
-select n.id as note_id, 'truebatch:note:' || n.id as source_ref, b.batch_no as batch_number, v.doc->'header'->>'productCode' as product_code,
+select n.id as note_id, 'truebatch_liquids:note:' || n.id as source_ref, b.batch_no as batch_number, v.doc->'header'->>'productCode' as product_code,
   coalesce(n.payload->>'where', (v.doc->'stages'->n.stage->>'key') || '/' || (v.doc->'stages'->n.stage->'steps'->n.step->>'key')) as step,
   n.payload->>'text' as note, n.payload->>'reference' as reference,
   case when n.payload->>'reference' is null then null when c.at is not null then 'closed' else 'open' end as status,

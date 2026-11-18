@@ -47,7 +47,7 @@ export interface Me {
   // A demo installation (server/demo.ts): every screen says DEMO; waits may be skipped.
   demo?: boolean;
 }
-export const can = (me: Me, code: string) => me.permissions.includes(`truebatch.${code}`);
+export const can = (me: Me, code: string) => me.permissions.includes(`truebatch_liquids.${code}`);
 
 // Times are shown in plant time with the zone label, as on every screen: "15 Nov, 10:21 IST".
 export function plantTime(iso: string | null): string {

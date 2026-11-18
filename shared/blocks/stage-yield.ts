@@ -1,6 +1,6 @@
 import type { Block } from './format.js';
 
-// Stage yield (T3) and accountability (T4), always checked by a second person (TB-08). Accountability is worked out
+// Stage yield (T3) and accountability (T4), always checked by a second person (TL-08). Accountability is worked out
 // even without its limits; the limits only add the check.
 export const stageYield: Block = {
   id: 'stage-yield', version: 1, name: 'Stage yield', gmp: 'yield', checker: true,

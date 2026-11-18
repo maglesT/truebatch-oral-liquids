@@ -1,4 +1,4 @@
--- material_use_v1 (owner, 16 Nov 2026, from the demo batch TP260003): when QA terminates a batch that has used
+-- material_use_v1 (owner, 16 Nov 2026, from the demo batch TLP260003): when QA terminates a batch that has used
 -- material, the terminate event (batch event 'rejected' with payload.terminated) holds, per lot the batch used, the
 -- quantity that went back to stores unused: payload.returns [{lot, material, value, unit}], in the unit this view
 -- publishes for the lot; the rest stays used (destroyed or in the batch). Same columns, same rows; only the meaning of

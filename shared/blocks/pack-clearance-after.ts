@@ -1,6 +1,6 @@
 import { PACKING_LINE, type Block } from './format.js';
 
-// Packing, TB-P3 and TB-P6: line clearance after packing, checked by a second person (TB-08).
+// Packing, TL-P3 and TL-P6: line clearance after packing, checked by a second person (TL-08).
 export const packClearanceAfter: Block = {
   id: 'pack-clearance-after', version: 1, name: 'Line clearance after packing', gmp: 'line-clearance', checker: true, packing: true,
   instruction: 'Clear the line after packing: nothing of this batch left on, in or around it, and the coder cleared of its data.',

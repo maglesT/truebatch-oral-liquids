@@ -1,6 +1,6 @@
 import type { Block } from './format.js';
 
-// Packing, TB-P2 and TB-P6: the finished goods quantity, and the reconciliation of the bulk tablets issued: the tablets
+// Packing, TL-P2 and TL-P6: the finished goods quantity, and the reconciliation of the bulk tablets issued: the tablets
 // in good packs and in samples (packs × tablets per pack, T8), the good tablets returned and the rejected tablets
 // counted by weight (T6), the yield in packs (T3) and the accountability of every tablet issued (T4). Always checked.
 export const finishedGoods: Block = {

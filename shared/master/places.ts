@@ -1,5 +1,5 @@
 /**
- * The master against master data's machines and rooms (TB-11): a step that records a machine is offered on the floor
+ * The master against master data's machines and rooms (TL-11): a step that records a machine is offered on the floor
  * only the machines of its type standing in a room its stage allows (balances also in the master's dispensing rooms),
  * shared/engine/picks.ts. When no machine of master data fits, the floor's picker would be empty: the master check
  * warns while the master is written. A warning, not an error: master data changes (a machine is moved or added) without
@@ -27,7 +27,7 @@ export function placeChecks(doc: MasterDoc, md: PlaceData): Problem[] {
       const where = typed.slice(0, 3).map((m) => `${m.code} stands in ${m.room ?? 'no room'}`).join('; ') + (typed.length > 3 ? `; and ${typed.length - 3} more` : '');
       const allowed = [...s.roomTypes, ...(isBalance(f) ? dispensing : [])].join(', ');
       const what = f.label.toLowerCase();
-      out.push({ level: 'warning', path: `stages[${si}].steps[${ti}]`, rule: 'TB-11', message: !typed.length
+      out.push({ level: 'warning', path: `stages[${si}].steps[${ti}]`, rule: 'TL-11', message: !typed.length
         ? `Master data has no ${what} (no machine of its type): the floor could not record this step. Engineering adds it in master data`
         : s.machineTypes.length && !typed.some((m) => s.machineTypes.some((x) => x.toLowerCase() === (m.type ?? '').toLowerCase())) && !isBalance(f)
           ? `No ${what} is offered on the floor: the stage allows only the machine types ${s.machineTypes.join(', ')}. Add its type to the stage's machine types (${where})`

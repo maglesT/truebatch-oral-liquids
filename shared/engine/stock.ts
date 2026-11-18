@@ -10,7 +10,7 @@ import type { Stored, Value } from './values.js';
 import type { StepView } from './batch.js';
 
 // The blocks whose material the other products read as used (material_use_v1 of both products).
-export const MATERIAL_USE = ['weigh', 'lubricate', 'pack-material-issue'];
+export const MATERIAL_USE = ['weigh', 'pack-material-issue'];
 
 type Q = { value: string; unit: string };
 const isQ = (v: Value | undefined): v is Q => typeof v === 'object' && !Array.isArray(v) && 'value' in v && 'unit' in v;
@@ -23,7 +23,7 @@ const done = (v: StepView) => v.events.some((e) => e.kind === 'done');
  * (destroyed and batch-coded material is used, not returned). `steps`: the batch's steps, for the reconciliation.
  */
 export function usedQuantity(doc: MasterDoc, st: Step, values: Record<string, Value>, results: Record<string, Stored>, steps: readonly StepView[]): Q | null {
-  if (st.block.id === 'weigh' || st.block.id === 'lubricate') {
+  if (st.block.id === 'weigh') {
     const net = results.net;
     return net?.ok ? { value: net.value, unit: net.unit } : null;
   }

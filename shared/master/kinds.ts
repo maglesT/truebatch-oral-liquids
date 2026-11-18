@@ -1,6 +1,6 @@
 /**
  * Unit kinds of a block's values and settings: one place for the designer (the units it offers) and the master check
- * (TB-01: a limit or a typed target in a unit of another kind than the value it checks is refused; the template would
+ * (TL-01: a limit or a typed target in a unit of another kind than the value it checks is refused; the template would
  * refuse every reading at batch time). A quantity is of the kind of the values it is used with; a limit of what it limits.
  */
 import { refsIn, type Block } from '../blocks/format.js';
@@ -66,7 +66,7 @@ export function neededKind(block: Block, setting: string, settings: Step['settin
 
 const what = (k: Kind) => (k === 'number' ? 'a plain number' : k === 'fraction' ? 'a percentage' : `${/^[aeiou]/i.test(k) ? 'an' : 'a'} ${k}`);
 
-/** TB-01: a limit, or a C1 target typed with its unit, in a unit of another kind than the value it is checked against. */
+/** TL-01: a limit, or a C1 target typed with its unit, in a unit of another kind than the value it is checked against. */
 export function unitKindProblem(block: Block, name: string, settings: Step['settings'], unit: string): string | null {
   const s = block.settings.find((x) => x.name === name);
   const target = block.calcs.some((c) => c.template === 'C1' && refsIn((c.args as { around?: { centre?: unknown } }).around?.centre).includes(name));

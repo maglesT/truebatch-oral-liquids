@@ -1,4 +1,4 @@
-# TrueBatch Tablets: calculation and check templates (version 2)
+# TrueBatch Liquids: calculation and check templates (version 2)
 
 Small, pure TypeScript functions. One function per template. No formula language, no parser, no
 expression engine. The master batch record picks a template and its inputs. Underneath there is
@@ -94,7 +94,7 @@ difference. When it is compared with a limit written in °C, the difference unit
 | T26 | Mix to a target | mass of the main lot A and its value a; the donor lot's value b; the target t (a % size fraction, an assay, an LOD …) | donor to add = mA × (t − a) ÷ (b − t); the mixed total; other markers of the mix (F0450) | result unit; **`scale: 'ethanol % v/v'`**: strengths to % w/w at 20 °C by the OIML R 22 formula, donor volume shown (F0008); **`basis`** of each value (F0027); **`others`** with limits | **b not on the far side of t from a** (no amount can reach the target); temperatures; mass not a mass; **values on different bases**; **properties that do not mix by mass** (sizes, hardness, pressure, pH: F0418); another marker out of its limits |
 | F8 | Diversion window (pure calculation only) | excursion start and end; shortest and longest residence delay; line rate | divert from start + shortest to end + longest; window minutes; quantity = rate × window. Reverse: the lots that could be in the tablets made in a window | rate in kg/h, tablets/h or L/h | end before start; longest delay shorter than shortest |
 
-| T27 | Expiry from the shelf life (packing, TB-P8) | date of manufacture (YYYY-MM-DD), approved shelf life in months, rule ("month before": the end of the month before; or "same month") | expiry month = month of manufacture + shelf life (− 1); the worked line | — | date not YYYY-MM-DD; shelf life not 1–120 whole months |
+| T27 | Expiry from the shelf life (packing, TL-P8) | date of manufacture (YYYY-MM-DD), approved shelf life in months, rule ("month before": the end of the month before; or "same month") | expiry month = month of manufacture + shelf life (− 1); the worked line | — | date not YYYY-MM-DD; shelf life not 1–120 whole months |
 
 F1–F7 and the rest of F8 (step flow) belong to the batch engine and are not here.
 
@@ -110,8 +110,8 @@ F1–F7 and the rest of F8 (step flow) belong to the batch engine and are not he
 | F2 helper | No further change (`noFurtherChange`) | previous round's reading, this round's reading, the largest change (an amount, or % of the previous reading) | "constant weight": \|current − previous\| rounded to the limit's decimals ≤ limit → stop repeating. The round loop itself is the engine's (F2) | readings of different kinds; % change from zero |
 | C6 | Staged test | test type and the results of each stage | disintegration (6, then 12 more, 16 of 18); content uniformity L1/L2 (via T14); dissolution IR S1–S3; ER L1–L3 per time point; delayed release acid A1–A3 and buffer B1–B3. Says pass, "next stage" (and how many more units) or fail | wrong number of units per stage; wrong number of time points |
 | C7 | Sampling plan by lot size (AQL) | lot size, inspection level (S-1…S-4, I, II, III), AQL per defect class, defects found (optional) | code letter (Table I), sample size, accept/reject per class (Table II-A single, normal, arrows followed); 100 % inspection when the sample would reach the lot size; accept/reject when defects are given | AQL not a table column (0.010–10 only); unknown level; lot size not a whole number |
-| C8 | Printed data (packing, TB-P5, TB-P9) | what is checked; the text as printed; the batch record's value: a text (batch number), a month (date of manufacture), the expiry (worked out by T27 from the date of manufacture and shelf life) or the MRP (none when the pack has none) | the printed text against the batch record, after its printed label in any punctuation, spacing and case ("B.No.", "MFG.DT.", "MFD.", "Mfg. Date", "EXP.DT.", "EXP.", "Use before", "M.R.P. Rs. … (Incl. of all taxes)"): text without spaces and case, months in the usual printed forms ("10/2028", "OCT.2028", "10-28"), money as its amount; the values themselves exactly | no printed text; a bad date of manufacture or shelf life |
-| C9 | Serialisation codes (packing, TB-P5) | the codes read from sample packs ("(01)…(17)…(10)…(21)…" or raw with a group separator); the pack GTIN; batch number; date of manufacture and shelf life; the codes of earlier rounds | each code: GTIN, batch and expiry (AI 17, YYMMDD) are this batch's; a serial of 1 to 20 GS1 characters; no serial twice in the round or in an earlier round. Checks only: no serial numbers are made or kept | no code; a pack GTIN without its right check digit |
+| C8 | Printed data (packing, TL-P5, TL-P9) | what is checked; the text as printed; the batch record's value: a text (batch number), a month (date of manufacture), the expiry (worked out by T27 from the date of manufacture and shelf life) or the MRP (none when the pack has none) | the printed text against the batch record, after its printed label in any punctuation, spacing and case ("B.No.", "MFG.DT.", "MFD.", "Mfg. Date", "EXP.DT.", "EXP.", "Use before", "M.R.P. Rs. … (Incl. of all taxes)"): text without spaces and case, months in the usual printed forms ("10/2028", "OCT.2028", "10-28"), money as its amount; the values themselves exactly | no printed text; a bad date of manufacture or shelf life |
+| C9 | Serialisation codes (packing, TL-P5) | the codes read from sample packs ("(01)…(17)…(10)…(21)…" or raw with a group separator); the pack GTIN; batch number; date of manufacture and shelf life; the codes of earlier rounds | each code: GTIN, batch and expiry (AI 17, YYMMDD) are this batch's; a serial of 1 to 20 GS1 characters; no serial twice in the round or in an earlier round. Checks only: no serial numbers are made or kept | no code; a pack GTIN without its right check digit |
 
 C7 uses the MIL-STD-105E tables, which are US government work in the public domain. They give the
 same numbers as ANSI/ASQ Z1.4 and ISO 2859-1 single sampling, normal inspection. The ISO text is not
@@ -175,7 +175,7 @@ as when it was answered; until then the warning blocks "Send for review" and app
 - **F4 by a rule** (F0040): a step's `onlyIf` (a limit on the batch size or the core batch weight) leaves it out as not
   applicable, with no operator choice. A rule on a value recorded during the batch is not supported.
 - **F6 with a changing interval** (F0030): `everyMinutesLater` (after N minutes from the first round, a round every M
-  minutes; still at most the block's interval, TB-15). A change "as the target nears" (on a value) is not supported.
+  minutes; still at most the block's interval, TL-15). A change "as the target nears" (on a value) is not supported.
 
 ## Decisions taken while building (see also the report)
 
@@ -203,6 +203,6 @@ as when it was answered; until then the warning blocks "Send for review" and app
 - `basic.ts` (T1–T6, T21), `series.ts` (T7, C1–C4, noFurtherChange), `mixing.ts` (T26 and the alcohol table),
   `dispensing.ts` (T8–T12, T15, T16, T18–T20, C5), `liquid.ts` (T17), `time.ts` (T13, F8), `uniformity.ts` (T14),
   `physical.ts` (T22, T22 mixed lots, T23–T25), `staged.ts` (C6), `sampling.ts` (C7); `uniformity.ts` also T14 stratified;
-  `packing.ts` (T27, C8, C9: TrueBatch Tablets Packing)
+  `packing.ts` (T27, C8, C9: TrueBatch Liquids Packing)
 - `test/templates/*.test.ts`: table-style tests. Every test name starts with its template ID. Each expected number
   has its hand calculation in a comment. Real cases cite the formulation number from the formulation test.

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { BLOCKS } from '../shared/blocks/index.js';
 import { masterChecks, plainWords } from '../shared/master/checks.js';
 import { placeChecks } from '../shared/master/places.js';
@@ -9,6 +9,8 @@ import { dispensingRoomChoices, grouped, ownProducts, qtyText, stageRoomChoices,
 import { sentence, sentenceText } from '../web/src/designer/sentences.js';
 import { SKELETON_LIST, skeletonStages } from '../web/src/designer/skeletons.js';
 import { tablet } from './engine-fixture.js';
+// The shared test master is built from test-only blocks (test/test-blocks.ts).
+vi.mock('../shared/blocks/index.js', async (original) => (await import('./test-blocks.js')).withTestBlocks(original as never));
 
 // The designer findings of the full demo run of 17 Nov 2026 (F03-F17, F35, F36): what the master check reports, the
 // plain view's words, and the pick lists offered from master data.
@@ -18,28 +20,28 @@ const header = { productItemId: 'p', productCode: 'P', productName: 'P', batchSi
 const room = (code: string, name: string, area: string | null, active = true) => ({ itemId: code, code, name, version: 1, active, area, grade: 'D' });
 const machine = (code: string, type: string | null, at: string | null, active = true) => ({ itemId: code, code, name: code, version: 1, active, kind: 'instrument' as const, type, room: at });
 const MD = {
-  rooms: [room('RM-101', 'Dispensing booth', 'Dispensing'), room('RM-932', 'Immunosuppressants block: dispensing', 'Dispensing'), room('RM-105', 'Compression room 1', 'Compression'),
-    room('RM-110', 'QC instrument laboratory', 'QC'), room('RM-501', 'Cyclotron vault', 'Cyclotron vault'), room('RM-999', 'Old room', 'Compression', false)],
-  equipment: [machine('IN-BAL-03', 'Balance', 'RM-101'), machine('IN-BAL-01', 'Balance', 'RM-110'), machine('TP-01', 'Tablet press', 'RM-105'),
-    machine('IN-DT-01', 'Disintegration tester', 'RM-110'), machine('FR-01', 'Friabilator', 'RM-105')],
+  rooms: [room('RM-101', 'Dispensing booth', 'Dispensing'), room('RM-932', 'Immunosuppressants block: dispensing', 'Dispensing'), room('RM-105', 'Granulation room 1', 'Granulation'),
+    room('RM-110', 'QC instrument laboratory', 'QC'), room('RM-501', 'Cyclotron vault', 'Cyclotron vault'), room('RM-999', 'Old room', 'Granulation', false)],
+  equipment: [machine('IN-BAL-03', 'Balance', 'RM-101'), machine('IN-BAL-01', 'Balance', 'RM-110'), machine('RMG-01', 'Rapid mixer granulator', 'RM-105'),
+    machine('FBD-01', 'Fluid bed dryer', 'RM-110'), machine('MIL-01', 'Sieve', 'RM-105')],
 };
-const uncoated = () => masterSchema.parse({ header, formula: [], stages: skeletonStages('wet-granulation-uncoated', header) });
+const granulated = () => masterSchema.parse({ header, formula: [], stages: skeletonStages('dry-syrup-granulated', header) });
 
 describe('designer findings of the 17 Nov 2026 run', () => {
-  it('TB-11 the master check warns when no machine of a step\'s type stands in the rooms its stage allows, and says where it stands (F17)', () => {
-    const doc = uncoated();
-    const compression = doc.stages.findIndex((s) => s.key === 'compression');
-    const di = doc.stages[compression]!.steps.findIndex((t) => t.block.id === 'disintegration');
-    const warned = placeChecks(doc, MD).find((p) => p.path === `stages[${compression}].steps[${di}]`);
-    expect(warned).toMatchObject({ level: 'warning', rule: 'TB-11' });
-    expect(warned!.message).toBe('No disintegration tester stands in a room this stage allows (Compression): IN-DT-01 stands in RM-110. Allow its room in the stage settings, or engineering moves it in master data');
-    // The press and the friabilator stand in the compression room: no warning for them; with the tester moved, none.
-    expect(placeChecks(doc, MD).filter((p) => p.path.startsWith(`stages[${compression}]`)).map((p) => p.path)).toEqual([`stages[${compression}].steps[${di}]`]);
-    const moved = { ...MD, equipment: MD.equipment.map((m) => (m.code === 'IN-DT-01' ? { ...m, room: 'RM-105' } : m)) };
-    expect(placeChecks(doc, moved).filter((p) => p.path.startsWith(`stages[${compression}]`))).toEqual([]);
+  it('TL-11 the master check warns when no machine of a step\'s type stands in the rooms its stage allows, and says where it stands (F17)', () => {
+    const doc = granulated();
+    const gran = doc.stages.findIndex((s) => s.key === 'granulation');
+    const di = doc.stages[gran]!.steps.findIndex((t) => t.block.id === 'dry');
+    const warned = placeChecks(doc, MD).find((p) => p.path === `stages[${gran}].steps[${di}]`);
+    expect(warned).toMatchObject({ level: 'warning', rule: 'TL-11' });
+    expect(warned!.message).toBe('No dryer stands in a room this stage allows (Granulation): FBD-01 stands in RM-110. Allow its room in the stage settings, or engineering moves it in master data');
+    // The granulator and the mill stand in the granulation room: no warning for them; with the dryer moved, none.
+    expect(placeChecks(doc, MD).filter((p) => p.path.startsWith(`stages[${gran}]`)).map((p) => p.path)).toEqual([`stages[${gran}].steps[${di}]`]);
+    const moved = { ...MD, equipment: MD.equipment.map((m) => (m.code === 'FBD-01' ? { ...m, room: 'RM-105' } : m)) };
+    expect(placeChecks(doc, moved).filter((p) => p.path.startsWith(`stages[${gran}]`))).toEqual([]);
     // A type master data does not have at all; a balance in a dispensing room of the master is found there.
-    expect(placeChecks(doc, { ...MD, equipment: MD.equipment.filter((m) => m.code !== 'IN-DT-01') }).find((p) => p.path === `stages[${compression}].steps[${di}]`)!.message)
-      .toMatch(/^Master data has no disintegration tester/);
+    expect(placeChecks(doc, { ...MD, equipment: MD.equipment.filter((m) => m.code !== 'FBD-01') }).find((p) => p.path === `stages[${gran}].steps[${di}]`)!.message)
+      .toMatch(/^Master data has no /);
     const weigh = doc.stages[0]!.steps.findIndex((t) => t.block.id === 'weigh');
     expect(placeChecks(doc, MD).some((p) => p.path === `stages[0].steps[${weigh}]`)).toBe(false);
   });
@@ -77,27 +79,18 @@ describe('designer findings of the 17 Nov 2026 run', () => {
     const b = block('binder-solution');
     const settings = { binder: { formula: 'pvp' }, targetSolids: '10 %w/w', tolerance: '2.0', mixTimeLimit: { low: '15', high: '30', unit: 'min' } };
     expect(sentenceText(tablet(), b, settings, sentence(b, b.calcs[0]!))).toBe('The solvent to add is worked out from the batch quantity of Povidone K30 and 10 %w/w.');
-    // The disintegration medium's temperature: no sentence while its limits are empty, and a warning to set them.
-    const di = block('disintegration');
-    expect(sentenceText(tablet(), di, { maxTime: '15' }, sentence(di, di.calcs[0]!))).toBe('');
-    const doc = uncoated();
-    expect(masterChecks(doc).filter((p) => /recorded but not checked/.test(p.message)).map((p) => p.message)).toEqual(['Medium temperature is recorded but not checked: set the medium temperature limits']);
+    const doc = granulated();
     // A stage without a responsible role is reported.
     expect(masterChecks({ ...doc, stages: doc.stages.map((s, i) => (i === 0 ? { ...s, role: '' } : s)) }).some((p) => p.path === 'stages[0]' && /no responsible role/.test(p.message))).toBe(true);
   });
 
   it('the plain view gives numbers with their units and plain sentences (F06, F13)', () => {
-    const di = block('disintegration');
-    expect(sentenceText(tablet(), di, { maxTime: '15' }, sentence(di, di.calcs[1]!)))
-      .toBe('Each of the times of 6 tablets must be at most 15 min; when one or two are not, the times of 12 more tablets are recorded too, and at least 16 of the 18 must be.');
-    const pd = block('punch-die-check');
-    expect(sentenceText(tablet(), pd, {}, sentence(pd, pd.calcs[1]!))).toBe('The punches or dies damaged must be 0: none allowed.');
     const rec = block('tablet-reconciliation');
     const good = rec.calcs.find((c) => /good tablets/i.test(c.label));
     if (good) expect(sentenceText(tablet(), rec, {}, sentence(rec, good))).toMatch(/^The good tablets are /);
-    const lines = describeMaster(uncoated()).flatMap((s) => s.lines.map((l) => l.text));
+    const lines = describeMaster(granulated()).flatMap((s) => s.lines.map((l) => l.text));
     expect(lines).toContain('Batch size 50,000 tablets.');
-    expect(lines.find((l) => l.includes('Produces bulk tablets'))).toMatch(/to be used within 720 hours \(30 days\)\./);
+    expect(lines.find((l) => l.includes('Produces dry syrup powder'))).toMatch(/to be used within 720 hours \(30 days\)\./);
     // A charged material by its name and code, as the floor names it.
     const d = tablet();
     const text = describeMaster(d).flatMap((s) => s.lines.map((l) => l.text)).find((l) => l.includes('Charge a material'))!;
@@ -137,9 +130,9 @@ describe('designer findings of the 17 Nov 2026 run', () => {
     expect(disp.groups).toEqual([{ label: 'Rooms with a weighing balance', options: ['RM-101'] }, { label: 'Other rooms', options: ['RM-105', 'RM-110', 'RM-501', 'RM-932'] }]);
     expect(disp.text('RM-932')).toBe('RM-932 · Immunosuppressants block: dispensing (Dispensing)');
     // A stage: the areas and rooms where its machines stand first.
-    const compression = uncoated().stages.find((s) => s.key === 'compression')!;
-    const st = stageRoomChoices(compression, MD);
-    expect(st.groups[0]).toEqual({ label: "Where this stage's machines stand", options: ['Compression', 'QC', 'RM-105', 'RM-110'] });
+    const gran = granulated().stages.find((s) => s.key === 'granulation')!;
+    const st = stageRoomChoices(gran, MD);
+    expect(st.groups[0]).toEqual({ label: "Where this stage's machines stand", options: ['Granulation', 'QC', 'RM-105', 'RM-110'] });
     expect(st.groups[1]!.options).toEqual(['Cyclotron vault', 'Dispensing']);
   });
 

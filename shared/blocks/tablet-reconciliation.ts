@@ -1,7 +1,7 @@
 import type { Block } from './format.js';
 
 // Reconciliation of tablets: the good and rejected tablets counted by weight (T6, ÷ the mean tablet weight), the
-// yield in tablets (T3) and the accountability of every tablet (T4). A yield step: always checked (TB-08).
+// yield in tablets (T3) and the accountability of every tablet (T4). A yield step: always checked (TL-08).
 export const tabletReconciliation: Block = {
   id: 'tablet-reconciliation', version: 1, name: 'Reconciliation of tablets', gmp: 'yield', checker: true,
   instruction: 'Weigh the good tablets and the rejected tablets. Count the tablets taken as samples (in-process and QC).',

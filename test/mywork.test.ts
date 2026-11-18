@@ -1,6 +1,8 @@
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { call, freshApp, login, proofFor, seedUser, type TestApp } from './helpers.js';
 import { small } from './engine-fixture.js';
+// The shared test master is built from test-only blocks (test/test-blocks.ts).
+vi.mock('../shared/blocks/index.js', async (original) => (await import('./test-blocks.js')).withTestBlocks(original as never));
 
 // GET /api/batches: "My work" on the floor screens: the batches in production with what waits for each person.
 
@@ -27,8 +29,8 @@ beforeAll(async () => {
   t.master.products_.push({ ...item('p', 'P', 'P'), strength: null, dosageForm: 'tablet' });
   t.master.materials_.push({ ...item('m', 'M', 'M'), category: null, unit: 'kg' });
   t.master.equipment_.push({ ...item('eq-prs', 'PRS-01', 'Tablet press'), kind: 'equipment', type: 'tablet press', room: 'CMP-01' });
-  const people = { author: ['truebatch.master.author'], issuer: ['truebatch.batch.issue'], asha: ['truebatch.batch.operate', 'truebatch.batch.check'],
-    ravi: ['truebatch.batch.check'], sam: ['truebatch.batch.supervise'], viewer: ['truebatch.view'] } as const;
+  const people = { author: ['truebatch_liquids.master.author'], issuer: ['truebatch_liquids.batch.issue'], asha: ['truebatch_liquids.batch.operate', 'truebatch_liquids.batch.check'],
+    ravi: ['truebatch_liquids.batch.check'], sam: ['truebatch_liquids.batch.supervise'], viewer: ['truebatch_liquids.view'] } as const;
   for (const [name, perms] of Object.entries(people)) {
     await seedUser(t.owner, name, [...perms]);
     cookies[name] = (await login(t.app, name)).cookie;
@@ -51,7 +53,7 @@ describe('My work', () => {
     expect(Math.abs(Date.parse(now) - Date.now())).toBeLessThan(60_000);
   });
 
-  it('TB-08 the checker\'s own list: a step waiting for check is listed for a second person only, never for its performer', async () => {
+  it('TL-08 the checker\'s own list: a step waiting for check is listed for a second person only, never for its performer', async () => {
     await act('asha', b.id, '0.1.0.1', 'start');
     await act('asha', b.id, '0.1.0.1', 'record', { values: { reading: '6.0' } });
     expect((await sign('asha', b.id, '0.1.0.1', 'done')).statusCode).toBe(200);
@@ -76,7 +78,7 @@ describe('My work', () => {
     expect((await mine('sam')).some((x) => x.id === b.id)).toBe(false);
   });
 
-  it('TB-15 a compression round started shows when the next check is due', async () => {
+  it('periodic rounds (TL-15 unused): a compression round started shows when the next check is due', async () => {
     const c = await issue(small([{ machineTypes: ['tablet press'], steps: [{ block: { id: 'compress', version: 1 }, everyMinutes: 30, flow: { kind: 'repeat-until', maxRounds: 40 },
       settings: { meanLimit: { low: '95.0', high: '105.0', unit: 'mg' }, weightBand: '5.0', weightOuterBand: '10.0', hardnessLimit: { low: '40', high: '80', unit: 'N' }, thicknessLimit: { low: '2.8', high: '3.2', unit: 'mm' } } },
     { block: { id: 'stage-yield', version: 1 }, checker: true, settings: { theoretical: '0.100 kg', yieldLimit: { low: '97.0', high: '100.5', unit: '%' } } }] }]));

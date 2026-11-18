@@ -1,5 +1,5 @@
 // Screen 7: review and approval. The version in plain sentences, stage by stage, or its changes from the previous
-// version; comments; and the workflow (TB-02): the author sends it for review, a second person checks it or returns
+// version; comments; and the workflow (TL-02): the author sends it for review, a second person checks it or returns
 // it, QA approves it with a change control number, then makes it effective (the previous effective one retires).
 import { useEffect, useState, type FormEvent } from 'react';
 import { ApiError, can, plantTime, type Me } from '../api.js';

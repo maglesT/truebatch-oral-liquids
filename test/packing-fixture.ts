@@ -32,4 +32,4 @@ export function packing(x: Partial<Pack> = {}): MasterDoc {
 }
 
 /** A valid GS1 code of this batch. */
-export const code = (serial: string, batch = 'TB260001', expiry = '281031', gtin = GTIN) => `(01)${gtin}(17)${expiry}(10)${batch}(21)${serial}`;
+export const code = (serial: string, batch = 'TL260001', expiry = '281031', gtin = GTIN) => `(01)${gtin}(17)${expiry}(10)${batch}(21)${serial}`;

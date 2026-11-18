@@ -1,6 +1,6 @@
 import type { Block } from './format.js';
 
-// Packing, TB-P3: vacuum leak test of strips or blisters alongside the line. The sample comes from the AQL plan for
+// Packing, TL-P3: vacuum leak test of strips or blisters alongside the line. The sample comes from the AQL plan for
 // the batch's theoretical packs (C7); a pack that leaks is a defect.
 export const leakTest: Block = {
   id: 'leak-test', version: 1, name: 'Leak test', checker: false, packing: true, stop: 'finished',

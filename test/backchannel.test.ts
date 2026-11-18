@@ -19,11 +19,11 @@ function jwt(claims: Record<string, unknown>, o: { key?: KeyObject; alg?: string
 }
 const now = () => Math.floor(Date.now() / 1000);
 const good = (over: Record<string, unknown> = {}) => ({
-  iss: ISSUER, aud: 'truebatch', iat: now(), exp: now() + 120, jti: 'j1', sub: 'e-1', sid: 's-1', events: { [BACKCHANNEL_EVENT]: {} }, ...over,
+  iss: ISSUER, aud: 'truebatch_liquids', iat: now(), exp: now() + 120, jti: 'j1', sub: 'e-1', sid: 's-1', events: { [BACKCHANNEL_EVENT]: {} }, ...over,
 });
 
 describe('logout token check (real verification)', () => {
-  const signOn = oidcSignOn({ issuer: ISSUER, clientId: 'truebatch', clientSecret: 'x', redirectUri: 'https://truebatch.test/cb' });
+  const signOn = oidcSignOn({ issuer: ISSUER, clientId: 'truebatch_liquids', clientSecret: 'x', redirectUri: 'https://truebatch.test/cb' });
   beforeAll(() => {
     vi.stubGlobal('fetch', vi.fn(async (url: string) => {
       if (url !== `${ISSUER}/jwks`) return new Response('no', { status: 404 });
@@ -61,8 +61,8 @@ describe('POST /backchannel-logout', () => {
   let t: TestApp;
   beforeAll(async () => {
     t = await freshApp();
-    await seedUser(t.owner, 'bclop1', ['truebatch.batch.operate']);
-    await seedUser(t.owner, 'bclop2', ['truebatch.batch.operate']);
+    await seedUser(t.owner, 'bclop1', ['truebatch_liquids.batch.operate']);
+    await seedUser(t.owner, 'bclop2', ['truebatch_liquids.batch.operate']);
   });
   afterAll(() => t.close());
 

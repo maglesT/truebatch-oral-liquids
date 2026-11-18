@@ -1,8 +1,10 @@
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { call, freshApp, login, proofFor, seedUser, type TestApp } from './helpers.js';
 import { tablet, placed } from './engine-fixture.js';
+// The shared test master is built from test-only blocks (test/test-blocks.ts).
+vi.mock('../shared/blocks/index.js', async (original) => (await import('./test-blocks.js')).withTestBlocks(original as never));
 
-// Review and approval of master versions (TB-02): the author sends for review (signs "prepared"), a second person
+// Review and approval of master versions (TL-02): the author sends for review (signs "prepared"), a second person
 // checks ("checked") or returns, QA approves ("approved") with a change control number, and making a version
 // effective retires the previous one.
 
@@ -15,9 +17,9 @@ beforeAll(async () => {
   t.master.products_.push({ ...item('prd-1', 'PRD-001', 'Examplol 100 mg film-coated tablets'), strength: '100 mg', dosageForm: 'tablet' });
   for (const l of tablet().formula) t.master.materials_.push({ ...item(l.materialItemId, l.code, l.name), category: null, unit: 'kg' });
   const people = {
-    author: ['truebatch.master.author'], author2: ['truebatch.master.author', 'truebatch.master.check'],
-    checker: ['truebatch.master.check'], quality: ['truebatch.master.approve'], qachecker: ['truebatch.master.approve', 'truebatch.master.check'],
-    viewer: ['truebatch.view'],
+    author: ['truebatch_liquids.master.author'], author2: ['truebatch_liquids.master.author', 'truebatch_liquids.master.check'],
+    checker: ['truebatch_liquids.master.check'], quality: ['truebatch_liquids.master.approve'], qachecker: ['truebatch_liquids.master.approve', 'truebatch_liquids.master.check'],
+    viewer: ['truebatch_liquids.view'],
   } as const;
   for (const [name, perms] of Object.entries(people)) {
     await seedUser(t.owner, name, [...perms]);
@@ -44,7 +46,7 @@ async function approved(doc = placed(tablet())) {
 }
 
 describe('master review and approval', () => {
-  it('TB-01 a version with master-check errors cannot be sent for review', async () => {
+  it('TL-01 a version with master-check errors cannot be sent for review', async () => {
     const doc = placed(tablet());
     doc.formula[0]!.mgPerTablet = '90.0';
     const { id } = await draft(doc);
@@ -55,13 +57,13 @@ describe('master review and approval', () => {
     expect(await state(id)).toBe('draft');
   });
 
-  it('TB-01 a limit written through the API in a unit of another kind than its value: saved as a draft, refused by the check, not sent for review', async () => {
+  it('TL-01 a limit written through the API in a unit of another kind than its value: saved as a draft, refused by the check, not sent for review', async () => {
     const doc = placed(tablet());
     const compress = doc.stages[2]!.steps.find((t) => t.key === 'compress')!;
     compress.settings.meanLimit = { low: '245.0', high: '255.0', unit: 'min' };
     const { id } = await draft(doc);
     const checks = (await as('author', 'GET', `/api/master-versions/${id}/checks`)).json() as { problems: { level: string; rule?: string; path: string; message: string }[] };
-    expect(checks.problems).toEqual([{ level: 'error', rule: 'TB-01', path: 'stages[2].steps[1].settings.meanLimit', message: expect.stringMatching(/^Mean weight limits: min is a time, but the value checked is a mass/) }]);
+    expect(checks.problems).toEqual([{ level: 'error', rule: 'TL-01', path: 'stages[2].steps[1].settings.meanLimit', message: expect.stringMatching(/^Mean weight limits: min is a time, but the value checked is a mass/) }]);
     expect((await act('author', id, 'submit')).json().error).toBe('master_has_errors');
     // The same limit in a unit of the right kind is accepted.
     compress.settings.meanLimit = { low: '0.245', high: '0.255', unit: 'g' };
@@ -77,7 +79,7 @@ describe('master review and approval', () => {
     const checks = (await as('author', 'GET', `/api/master-versions/${id}/checks`)).json() as { problems: { message: string; question?: { key: string } }[] };
     const q = checks.problems.find((p) => p.question?.key === 'double-adjustment/mcc')!;
     expect(q.message).toMatch(/corrected twice/);
-    expect((await review(id, 'author')).refusals.submit).toBe('The master check shows 1 problem to fix or answer first (TB-01).');
+    expect((await review(id, 'author')).refusals.submit).toBe('The master check shows 1 problem to fix or answer first (TL-01).');
     expect((await act('author', id, 'submit')).json().error).toBe('master_has_errors');
     // The answer is saved with the draft, kept in the master document and signed with it.
     const answered = { ...doc, answers: { 'double-adjustment/mcc': { about: q.message, choice: 'intended', reason: 'Blend assay sets the tablet weight; dispensing uses the nominal potency' } } };
@@ -88,7 +90,7 @@ describe('master review and approval', () => {
     expect(saved.doc.answers['double-adjustment/mcc']!.choice).toBe('intended');
   });
 
-  it('TB-02 the author cannot check their own version; a second person checks it', async () => {
+  it('TL-02 the author cannot check their own version; a second person checks it', async () => {
     const { id } = await draft();
     expect((await act('author', id, 'submit')).statusCode).toBe(200);
     expect(await state(id)).toBe('in_review');
@@ -102,14 +104,14 @@ describe('master review and approval', () => {
     expect(sigs.map((s) => `${s.meaning} ${s.printed_name}`)).toEqual(['prepared AUTHOR', 'checked CHECKER']);
   });
 
-  it('TB-02 an author who edited a version cannot check it', async () => {
+  it('TL-02 an author who edited a version cannot check it', async () => {
     const { id } = await draft();
     expect((await as('author2', 'PUT', `/api/master-versions/${id}`, { doc: placed(tablet()) })).statusCode).toBe(200);
     expect((await act('author', id, 'submit')).statusCode).toBe(200);
     expect((await act('author2', id, 'pass')).json().error).toBe('author_cannot_check');
   });
 
-  it('TB-02 only QA approves, and only a version a second person has checked', async () => {
+  it('TL-02 only QA approves, and only a version a second person has checked', async () => {
     const { id } = await draft();
     expect((await act('author', id, 'submit')).statusCode).toBe(200);
     expect((await act('quality', id, 'approve', { changeControl: 'CC-1' })).json().error).toBe('not_checked');
@@ -119,14 +121,14 @@ describe('master review and approval', () => {
     expect(await state(id)).toBe('approved');
   });
 
-  it('TB-02 QA who checked the version cannot also approve it', async () => {
+  it('TL-02 QA who checked the version cannot also approve it', async () => {
     const { id } = await draft();
     expect((await act('author', id, 'submit')).statusCode).toBe(200);
     expect((await act('qachecker', id, 'pass')).statusCode).toBe(200);
     expect((await act('qachecker', id, 'approve', { changeControl: 'CC-1' })).json().error).toBe('author_cannot_approve');
   });
 
-  it('TB-02 approval needs a change control number (route and database)', async () => {
+  it('TL-02 approval needs a change control number (route and database)', async () => {
     const { id } = await draft();
     await act('author', id, 'submit');
     await act('checker', id, 'pass');
@@ -140,7 +142,7 @@ describe('master review and approval', () => {
     expect((await review(id)).events.at(-1)).toMatchObject({ kind: 'approved', payload: { changeControl: 'CC-2026-014' } });
   });
 
-  it('TB-02 one effective version: making a new version effective retires the previous one', async () => {
+  it('TL-02 one effective version: making a new version effective retires the previous one', async () => {
     // Without QMS the change control number is typed by hand: a second person makes the version effective.
     const v1 = await approved();
     expect((await as('qachecker', 'POST', `/api/master-versions/${v1.id}/make-effective`, {})).statusCode).toBe(200);

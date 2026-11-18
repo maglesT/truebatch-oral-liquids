@@ -1,4 +1,4 @@
-// TB-22: the batch record as a PDF, the way the Logbook makes its copies. Everything comes from the master version and
+// TL-22: the batch record as a PDF, the way the Logbook makes its copies. Everything comes from the master version and
 // the events, worked out by the engine as on screen; nothing is typed again. Changed values are marked: the original
 // is struck through and kept with the reason, the person and the time.
 import type { Content, TDocumentDefinitions } from 'pdfmake/interfaces.js';
@@ -214,7 +214,7 @@ export function batchRecordDoc(r: RecordInput, by: string, printedAt = new Date(
     : { text: `No decision yet: the batch is ${statusWords(view.status, !!doc.pack)}.`, italics: true, fontSize: 9 });
   if (view.status !== 'released' && view.status !== 'rejected') content.push(small(`This copy was made while the batch is ${statusWords(view.status, !!doc.pack)}: it is not a released record.`, { color: RED, margin: [0, 4, 0, 0] }));
 
-  return pageFrame(`${doc.pack ? 'TrueBatch Tablets Packing' : 'TrueBatch Tablets'} · ${record} ${r.batch.batchNo} · ${h.productCode} ${h.productName}`, by, content, printedAt, demo);
+  return pageFrame(`${doc.pack ? 'TrueBatch Liquids Packing' : 'TrueBatch Liquids'} · ${record} ${r.batch.batchNo} · ${h.productCode} ${h.productName}`, by, content, printedAt, demo);
 }
 
 /** The recorded values; a corrected value shows the original struck through, the reason, the person and the time. */

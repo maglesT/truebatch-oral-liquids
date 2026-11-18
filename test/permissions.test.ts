@@ -14,13 +14,13 @@ const manifest = JSON.parse(readFileSync(path.join(import.meta.dirname, '../ops/
 describe('declared permissions', () => {
   it('PL-01: the draft manifest declares exactly the permission codes and labels the server checks', () => {
     expect(Object.fromEntries(manifest.permissions.map((p) => [p.code, p.label]))).toEqual(PERMISSIONS);
-    expect(manifest.product).toBe('truebatch');
-    expect(manifest.database).toBe('truebatch');
+    expect(manifest.product).toBe('truebatch_liquids');
+    expect(manifest.database).toBe('truebatch_liquids');
     expect(manifest.signon.backchannel_logout).toBe('/backchannel-logout');
   });
 
-  it('PL-01: every code is a truebatch code in the platform format', () => {
-    for (const code of Object.keys(PERMISSIONS)) expect(code).toMatch(/^truebatch(\.[a-z0-9_]+)+$/);
+  it('PL-01: every code is a truebatch_liquids code in the platform format', () => {
+    for (const code of Object.keys(PERMISSIONS)) expect(code).toMatch(/^truebatch_liquids(\.[a-z0-9_]+)+$/);
   });
 
   it('PL-05: every signature meaning needs one declared permission', () => {

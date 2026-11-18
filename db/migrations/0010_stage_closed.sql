@@ -2,7 +2,7 @@
 -- marks it dirty after the stage, not after each step). The engine works out when a stage closes (every step done,
 -- checked or not applicable, shared/engine/batch.ts); the action that closes it records that once, as the batch event
 -- 'stage_closed' (payload.stage: its position in the master), for the views other products read (equipment_use_v1).
--- TrueBatch Tablets Packing runs this too.
+-- TrueBatch Liquids Packing runs this too.
 alter table batch_events drop constraint batch_events_kind_check;
 alter table batch_events add constraint batch_events_kind_check check (kind in ('production_approved', 'qc_approved', 'released', 'rejected',
   'deviation_closed', 'stage_closed'));

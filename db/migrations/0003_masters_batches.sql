@@ -39,7 +39,7 @@ end $$;
 create trigger master_versions_locked before update or delete on master_versions
   for each row execute function refuse_change_unless_draft();
 
--- TB-03: batch numbers come from one counter per year and are never reused (batch_no is unique).
+-- TL-03: batch numbers come from one counter per year and are never reused (batch_no is unique).
 create table batch_counters (
   year integer primary key,
   last_no integer not null check (last_no >= 1)
@@ -77,14 +77,14 @@ create unique index step_events_late_once on step_events (batch_id, (payload->>'
 create trigger step_events_insert_only before update or delete or truncate on step_events
   for each statement execute function refuse_change();
 
-revoke all on master_versions, batch_counters, batches, step_events from truebatch_app;   -- the platform's default grants (0000)
-revoke all on sequence master_ids, master_versions_id_seq, batches_id_seq, step_events_id_seq from truebatch_app;
-grant usage on sequence master_ids to truebatch_app;
-grant select on master_versions to truebatch_app;
-grant insert (master_id, version_no, doc, created_by) on master_versions to truebatch_app;
-grant update (doc, state) on master_versions to truebatch_app;
-grant select, insert, update (last_no) on batch_counters to truebatch_app;
-grant select on batches to truebatch_app;
-grant insert (batch_no, master_version_id, issued_by) on batches to truebatch_app;
-grant select on step_events to truebatch_app;
-grant insert (batch_id, stage, sub, step, round, kind, payload, person_id) on step_events to truebatch_app;
+revoke all on master_versions, batch_counters, batches, step_events from truebatch_liquids_app;   -- the platform's default grants (0000)
+revoke all on sequence master_ids, master_versions_id_seq, batches_id_seq, step_events_id_seq from truebatch_liquids_app;
+grant usage on sequence master_ids to truebatch_liquids_app;
+grant select on master_versions to truebatch_liquids_app;
+grant insert (master_id, version_no, doc, created_by) on master_versions to truebatch_liquids_app;
+grant update (doc, state) on master_versions to truebatch_liquids_app;
+grant select, insert, update (last_no) on batch_counters to truebatch_liquids_app;
+grant select on batches to truebatch_liquids_app;
+grant insert (batch_no, master_version_id, issued_by) on batches to truebatch_liquids_app;
+grant select on step_events to truebatch_liquids_app;
+grant insert (batch_id, stage, sub, step, round, kind, payload, person_id) on step_events to truebatch_liquids_app;

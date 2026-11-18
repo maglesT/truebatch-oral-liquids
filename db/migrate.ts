@@ -8,8 +8,8 @@ import { connect, type Sql } from '../server/db.js';
 const here = path.dirname(fileURLToPath(import.meta.url));
 export const MIGRATIONS_DIR = path.resolve(here, here.includes(`${path.sep}dist${path.sep}`) ? '../../db/migrations' : 'migrations');
 
-// Another product's database built from these migrations (TrueBatch Tablets Packing, packing/migrate.ts): the folders
-// in order, files to leave out, and its own app role in place of truebatch_app.
+// Another product's database built from these migrations (TrueBatch Liquids Packing, packing/migrate.ts): the folders
+// in order, files to leave out, and its own app role in place of truebatch_liquids_app.
 export interface Plan { dirs: { dir: string; skip?: string[] }[]; role?: string }
 
 export async function migrate(sql: Sql, plan: string | Plan = MIGRATIONS_DIR): Promise<string[]> {
@@ -24,7 +24,7 @@ export async function migrate(sql: Sql, plan: string | Plan = MIGRATIONS_DIR): P
   for (const { dir, f: file } of files) {
     if (done.has(file)) continue;
     const raw = readFileSync(path.join(dir, file), 'utf8');
-    const text = p.role ? raw.replaceAll('truebatch_app', p.role) : raw;
+    const text = p.role ? raw.replaceAll('truebatch_liquids_app', p.role) : raw;
     await sql.begin(async (tx) => {
       await tx.unsafe(text);
       await tx`insert into schema_migrations (name) values (${file})`;

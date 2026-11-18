@@ -1,4 +1,4 @@
--- TrueBatch Tablets Packing's material_use_v1 (owner, 16 Nov 2026, from the demo batch TP260003): when QA terminates
+-- TrueBatch Liquids Packing's material_use_v1 (owner, 16 Nov 2026, from the demo batch TLP260003): when QA terminates
 -- a packing batch that has packing material issued, the terminate event (batch event 'rejected' with
 -- payload.terminated) holds, per lot issued, the quantity that went back to stores unused: payload.returns
 -- [{lot, material, value, unit}], in the unit this view publishes for the lot; the rest stays used (destroyed or

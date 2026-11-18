@@ -1,11 +1,13 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { BLOCKS } from '../shared/blocks/index.js';
 import { blockProblems, type Block } from '../shared/blocks/format.js';
 import { evaluate } from '../shared/engine/index.js';
 import { blocking, masterChecks } from '../shared/master/checks.js';
 import { masterSchema, type MasterDoc } from '../shared/master/schema.js';
 import { placed, tablet, unplaced } from './engine-fixture.js';
-// The problems, without the rooms a stage must name (TB-11): the fixtures name none.
+// The shared test master is built from test-only blocks (test/test-blocks.ts).
+vi.mock('../shared/blocks/index.js', async (original) => (await import('./test-blocks.js')).withTestBlocks(original as never));
+// The problems, without the rooms a stage must name (TL-11): the fixtures name none.
 const checks = (d: Parameters<typeof masterChecks>[0]) => unplaced(masterChecks(d));
 
 /** The fixture with one change; the problems that change makes. */
@@ -40,13 +42,13 @@ describe('master checks', () => {
     expect(masterChecks(placed(tablet()))).toEqual([]);
   });
 
-  it('TB-11 a stage that works machines or names a room, with no rooms chosen, is an error; balances alone and the line a packing batch is issued to are not', () => {
-    expect(masterChecks(tablet()).filter((p) => p.rule === 'TB-11').map((p) => `${p.path}: ${p.message}`)).toEqual(['Binder solution', 'Granulation', 'Compression', 'Coating']
+  it('TL-11 a stage that works machines or names a room, with no rooms chosen, is an error; balances alone and the line a packing batch is issued to are not', () => {
+    expect(masterChecks(tablet()).filter((p) => p.rule === 'TL-11').map((p) => `${p.path}: ${p.message}`)).toEqual(['Binder solution', 'Granulation', 'Compression', 'Coating']
       .map((name, i) => `stages[${i}].roomTypes: Stage ${name}: choose the rooms this stage may run in (an area or a room of master data, in the stage settings)`));
     const d = placed(tablet());
     d.stages[0]!.roomTypes = [];
     d.stages[0]!.steps = d.stages[0]!.steps.filter((t) => t.block.id === 'weigh');
-    expect(masterChecks(d).filter((p) => p.rule === 'TB-11')).toEqual([]);
+    expect(masterChecks(d).filter((p) => p.rule === 'TL-11')).toEqual([]);
   });
 
   it('a draft may be incomplete, but its shape is checked', () => {
@@ -54,25 +56,25 @@ describe('master checks', () => {
   });
 
   it.each<[string, (d: MasterDoc) => void, string]>([
-    ['weighing', (d) => { step(d, 'granulation', 'weigh-api').checker = false; }, 'error TB-08 stages[1].steps[0]: A weighing step needs a second-person check'],
-    ['charge-in', (d) => { step(d, 'granulation', 'charge-api').checker = false; }, 'error TB-08 stages[1].steps[2]: A charge-in step needs a second-person check'],
-    ['yield', (d) => { step(d, 'compression', 'yield').checker = false; }, 'error TB-08 stages[2].steps[1]: A yield step needs a second-person check'],
-    ['critical', (d) => { step(d, 'granulation', 'granulate').critical = true; }, 'error TB-08 stages[1].steps[3]: A critical step needs a second-person check'],
-  ])('TB-08 a %s step without a second-person check is an error', (_what, change, want) => {
+    ['weighing', (d) => { step(d, 'granulation', 'weigh-api').checker = false; }, 'error TL-08 stages[1].steps[0]: A weighing step needs a second-person check'],
+    ['charge-in', (d) => { step(d, 'granulation', 'charge-api').checker = false; }, 'error TL-08 stages[1].steps[2]: A charge-in step needs a second-person check'],
+    ['yield', (d) => { step(d, 'compression', 'yield').checker = false; }, 'error TL-08 stages[2].steps[1]: A yield step needs a second-person check'],
+    ['critical', (d) => { step(d, 'granulation', 'granulate').critical = true; }, 'error TL-08 stages[1].steps[3]: A critical step needs a second-person check'],
+  ])('TL-08 a %s step without a second-person check is an error', (_what, change, want) => {
     expect(after(change)).toEqual([want]);
   });
 
-  it('TB-10 a stage worked in a room without a line clearance step is an error; line clearance not first is a warning', () => {
-    expect(after((d) => { d.stages[2]!.roomTypes = ['Compression']; })).toEqual(['error TB-10 stages[2]: Stage Compression is worked in a room but has no line clearance step']);
+  it('TL-10 a stage worked in a room without a line clearance step is an error; line clearance not first is a warning', () => {
+    expect(after((d) => { d.stages[2]!.roomTypes = ['Compression']; })).toEqual(['error TL-10 stages[2]: Stage Compression is worked in a room but has no line clearance step']);
     const clearance = { key: 'line-clearance', block: { id: 'line-clearance', version: 1 }, checker: true, waitForCheck: false, critical: false, settings: {}, flow: { kind: 'none' as const } };
     expect(after((d) => { d.stages[2]!.roomTypes = ['Compression']; d.stages[2]!.steps.unshift(clearance); })).toEqual([]);
     expect(after((d) => { d.stages[2]!.steps.push(clearance); })).toEqual(['warning - stages[2].steps[2]: Line clearance is not the first step of Compression']);
     expect(after((d) => { d.stages[2]!.steps.unshift({ ...clearance, checker: false }); }))
-      .toEqual(['error TB-08 stages[2].steps[0]: A line clearance step needs a second-person check']);
+      .toEqual(['error TL-08 stages[2].steps[0]: A line clearance step needs a second-person check']);
   });
 
-  it('TB-01 an intermediate without a hold time is an error', () => {
-    expect(after((d) => { delete d.stages[1]!.produces!.holdHours; })).toEqual(['error TB-01 stages[1].produces: The intermediate dried granules has no hold time']);
+  it('TL-01 an intermediate without a hold time is an error', () => {
+    expect(after((d) => { delete d.stages[1]!.produces!.holdHours; })).toEqual(['error TL-01 stages[1].produces: The intermediate dried granules has no hold time']);
   });
 
   it('a stage without a yield step is an error (a preparation needs none)', () => {
@@ -84,12 +86,12 @@ describe('master checks', () => {
     expect(after((d) => { d.formula[3]!.mgPerTablet = '80.0'; d.formula[6]!.mgPerTablet = '9.0'; d.header.coatedWeightMg = '259.0'; })).toEqual([]);
   });
 
-  it('TB-13 adjustment settings the templates library refuses are errors (same basis, overage, salt factor)', () => {
+  it('TL-13 adjustment settings the templates library refuses are errors (same basis, overage, salt factor)', () => {
     expect(errors((d) => {
       d.formula[0]!.adjust = { salt: { from: { name: 'base', mw: '383.4' }, to: { name: 'sodium sesquihydrate', mw: '432.4', hydrateOrSolvate: true } }, potency: { basis: 'anhydrous' } };
-    })).toEqual([expect.stringMatching(/^error TB-13 formula\[0\]\.adjust: Same-basis rule \(C5\): the standard quantity already uses the hydrate/)]);
+    })).toEqual([expect.stringMatching(/^error TL-13 formula\[0\]\.adjust: Same-basis rule \(C5\): the standard quantity already uses the hydrate/)]);
     expect(after((d) => { d.formula[0]!.adjust = { potency: { basis: 'as is' } }; }))
-      .toEqual(['error TB-13 formula[0].adjust: Say whether the standard quantity is the anhydrous weight or the hydrate/solvate weight (same-basis rule C5)']);
+      .toEqual(['error TL-13 formula[0].adjust: Say whether the standard quantity is the anhydrous weight or the hydrate/solvate weight (same-basis rule C5)']);
     expect(after((d) => { d.formula[0]!.adjust = { overage: { percent: '5.0', maxPercent: '3.0' } }; }))
       .toEqual(['error - formula[0].adjust: The overage 5.0 % is above the 3.0 % the master allows']);
     expect(errors((d) => { d.formula[0]!.adjust = { salt: { from: { name: 'base', mw: '383.4' }, to: { name: 'hemifumarate', mw: '0' } } }; }))
@@ -102,13 +104,13 @@ describe('master checks', () => {
       .toEqual(['error - stages[1].steps[3].settings.endPointLimit: The lower limit 12.0 is above the upper limit 8.0']);
   });
 
-  it('TB-01 a limit or a typed target in a unit of another kind than the value it checks is an error (every reading would be refused)', () => {
+  it('TL-01 a limit or a typed target in a unit of another kind than the value it checks is an error (every reading would be refused)', () => {
     expect(errors((d) => { step(d, 'compression', 'compress').settings.meanLimit = { low: '245.0', high: '255.0', unit: 'min' }; }))
-      .toEqual(['error TB-01 stages[2].steps[0].settings.meanLimit: Mean weight limits: min is a time, but the value checked is a mass. Choose a unit of that kind (in min every reading would be refused at batch time)']);
+      .toEqual(['error TL-01 stages[2].steps[0].settings.meanLimit: Mean weight limits: min is a time, but the value checked is a mass. Choose a unit of that kind (in min every reading would be refused at batch time)']);
     expect(errors((d) => { step(d, 'coating', 'qa-hold').settings = { what: 'Weight', unit: 'mg', limit: { low: '95', high: '105', unit: '%' } }; }))
-      .toEqual(['error TB-01 stages[3].steps[1].settings.limit: Limits: % is a percentage, but the value checked is a mass. Choose a unit of that kind (in % every reading would be refused at batch time)']);
+      .toEqual(['error TL-01 stages[3].steps[1].settings.limit: Limits: % is a percentage, but the value checked is a mass. Choose a unit of that kind (in % every reading would be refused at batch time)']);
     expect(errors((d) => { step(d, 'granulation', 'yield').settings.yieldLimit = { low: '97.0', high: '100.5', unit: 'kg' }; })).toHaveLength(1);
-    expect(errors((d) => { step(d, 'granulation', 'weigh-lactose').settings.target = '12.0 min'; })).toEqual([expect.stringMatching(/^error TB-01 stages\[1\]\.steps\[1\]\.settings\.target: .*min is a time, but the value checked is a mass/)]);
+    expect(errors((d) => { step(d, 'granulation', 'weigh-lactose').settings.target = '12.0 min'; })).toEqual([expect.stringMatching(/^error TL-01 stages\[1\]\.steps\[1\]\.settings\.target: .*min is a time, but the value checked is a mass/)]);
     // A unit not in the list is refused as before; a unit of the same kind, or °C on a temperature difference, is not a kind problem.
     expect(errors((d) => { step(d, 'compression', 'compress').settings.meanLimit = { low: '245.0', high: '255.0', unit: 'F-min' }; })).toEqual([expect.stringMatching(/"F-min" is not in the unit list/)]);
     expect(errors((d) => { Object.assign(step(d, 'compression', 'compress').settings, { meanLimit: { low: '0.245', high: '0.255', unit: 'g' }, hardnessLimit: { low: '6', high: '12', unit: 'kp' } }); })).toEqual([]);
@@ -122,11 +124,11 @@ describe('master checks', () => {
     expect(r.meanWeight).toEqual({ ok: false, message: 'mg (mass) cannot be converted to min (time)' });
   });
 
-  it('TB-15 compression checks more than 30 minutes apart, or with no interval, are an error', () => {
+  it('periodic rounds (test block compress, TL-15 unused): compression checks more than 30 minutes apart, or with no interval, are an error', () => {
     expect(after((d) => { step(d, 'compression', 'compress').everyMinutes = 45; }))
-      .toEqual(['error TB-15 stages[2].steps[0].everyMinutes: Periodic checks every 45 min: they must be at least every 30 min']);
+      .toEqual(['error TL-15 stages[2].steps[0].everyMinutes: Periodic checks every 45 min: they must be at least every 30 min']);
     expect(after((d) => { delete step(d, 'compression', 'compress').everyMinutes; }))
-      .toEqual(['error TB-15 stages[2].steps[0].everyMinutes: Compress with periodic checks needs the interval of its periodic checks']);
+      .toEqual(['error TL-15 stages[2].steps[0].everyMinutes: Compress with periodic checks needs the interval of its periodic checks']);
     expect(after((d) => { step(d, 'compression', 'compress').everyMinutes = 30; })).toEqual([]);
   });
 
@@ -186,22 +188,8 @@ describe('calculation checks', () => {
     const mccCompensates = (overage: string) => (d: MasterDoc) => { d.formula[0]!.adjust = { ...d.formula[0]!.adjust, overage: { percent: overage } }; d.formula[4]!.adjust = { compensates: ['api'] }; };
     // 100 000 tablets: 10.000 kg API × 1.20 = 12.000 kg; 2.000 kg more than the 1.750 kg of MCC
     expect(only('error', 'formula[4].adjust.compensates')(mccCompensates('20.0')))
-      .toEqual([expect.stringMatching(/^error TB-13 formula\[4\]\.adjust\.compensates: At the nominal certificate values: Not enough Microcrystalline cellulose to compensate.*-0\.250 kg of Microcrystalline cellulose\. The batch weight cannot be kept$/)]);
+      .toEqual([expect.stringMatching(/^error TL-13 formula\[4\]\.adjust\.compensates: At the nominal certificate values: Not enough Microcrystalline cellulose to compensate.*-0\.250 kg of Microcrystalline cellulose\. The batch weight cannot be kept$/)]);
     expect(only('error', 'formula[4].adjust.compensates')(mccCompensates('10.0'))).toEqual([]);
-  });
-
-  it('calculation check ⛔ weight variation on coated tablets other than film-coated: the block offers no other coating, and T14 refuses it', () => {
-    const uniformity = (coating: string): Change => (d) => {
-      d.stages[2]!.steps.splice(1, 0, { key: 'uniformity', block: { id: 'uniformity-by-weight', version: 1 }, checker: true, waitForCheck: false, critical: false,
-        settings: { coating, labelClaim: '100 mg' }, flow: { kind: 'none' } });
-    };
-    expect(errors(uniformity('sugar-coated'))).toEqual(['error - stages[2].steps[1].settings.coating: Coating: choose one of uncoated, film-coated']);
-    expect(errors(uniformity('film-coated'))).toEqual([]);
-    const d = tablet();
-    uniformity('sugar-coated')(d);
-    const weights = Array.from({ length: 10 }, () => ({ value: '250.0', unit: 'mg' }));
-    expect(evaluate(d, [], { stage: 2, sub: 1, step: 1, round: 1 }, { weights, assay: { value: '99.0', unit: '%' } }).acceptance)
-      .toEqual({ ok: false, message: 'The weight-variation method is not allowed for sugar-coated tablets: only uncoated and film-coated tablets may use it. Test content uniformity on individual units' });
   });
 
   it('calculation check ⛔ a liquid make-up the templates refuse is shown on its step before any batch (T17)', () => {

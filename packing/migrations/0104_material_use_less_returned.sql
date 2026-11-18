@@ -1,4 +1,4 @@
--- TrueBatch Tablets Packing's material_use_v1 (owner, 16 Nov 2026, from the run of TP260002): what a packing batch
+-- TrueBatch Liquids Packing's material_use_v1 (owner, 16 Nov 2026, from the run of TLP260002): what a packing batch
 -- used of a lot is what was issued to it less what its reconciliation returned to stores uncoded. Same columns, same
 -- rows (one per signed issue step, pack-material-issue); only the meaning of quantity changes:
 --   quantity = the quantity issued − "Returned to stores uncoded" of the printed-reconciliation step of the same

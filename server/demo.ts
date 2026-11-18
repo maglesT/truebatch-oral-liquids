@@ -8,8 +8,8 @@ import type { Product } from './product.js';
 import { keyId, skipKey, skippable, timers, type Timer } from '../shared/engine/index.js';
 
 // Demo installations only. The platform sets TRUEBATCH_DEMO=1 only for the demo customer's installation, never for a
-// plant's: every screen then says DEMO, and a person with the demo permission (truebatch.demo.skip,
-// truebatch_packing.demo.skip) may end a running wait at once (a minimum time, a periodic check, a hold time, a mixing
+// plant's: every screen then says DEMO, and a person with the demo permission (truebatch_liquids.demo.skip,
+// truebatch_liquids_packing.demo.skip) may end a running wait at once (a minimum time, a periodic check, a hold time, a mixing
 // time: its lower limit then counts as met, shared/engine/values.ts evaluate). Each skip is one insert-only step event,
 // shown in the step history, QA's review and the batch record PDF. Anywhere else the button is absent, the route
 // answers 403 and the terminal command exits non-zero.
@@ -31,7 +31,7 @@ async function skipWait(tx: Tx, l: LoadedBatch, t: Timer, person: number): Promi
 
 /** POST /api/batches/:id/demo-skip { timer }: the "Skip wait (demo)" button. */
 export function demoRoutes(app: FastifyInstance, sql: Sql) {
-  app.post<{ Params: { id: string } }>('/api/batches/:id/demo-skip', { preHandler: requirePermission('truebatch.demo.skip') }, async (req, reply) => {
+  app.post<{ Params: { id: string } }>('/api/batches/:id/demo-skip', { preHandler: requirePermission('truebatch_liquids.demo.skip') }, async (req, reply) => {
     if (!app.demo) return reply.code(403).send({ error: 'not_demo', problems: ['This is not a demo installation: waits run on the server clock.'] });
     const id = parseId(req.params.id);
     const body = z.object({ timer: z.string().min(1).max(100) }).safeParse(req.body);

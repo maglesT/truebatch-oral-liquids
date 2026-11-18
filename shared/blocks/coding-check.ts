@@ -1,6 +1,6 @@
 import type { Block } from './format.js';
 
-// Packing, TB-P5, TB-P8 and TB-P9: the printed batch number, dates and MRP as read from the pack, against the batch data
+// Packing, TL-P5, TL-P8 and TL-P9: the printed batch number, dates and MRP as read from the pack, against the batch data
 // (C8): the bulk batch number and its date of manufacture, the expiry worked out from the approved shelf life and the
 // master's MRP. At the start, then every N minutes alongside the line, and at the end.
 export const codingCheck: Block = {

@@ -2,13 +2,15 @@
 // test masters, worked out with every field filled ("1" for a number, yes, the first option), once with the required
 // fields only and once with all, in a first and a second round. A template may refuse what it is given; it must never
 // crash on it (a crash is "could not use these inputs": the step could not be signed).
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { BLOCKS, findBlock, type Block } from '../shared/blocks/index.js';
 import { evaluate, type StepEvent, type Value } from '../shared/engine/index.js';
 import { masterChecks } from '../shared/master/checks.js';
 import { masterSchema, type MasterDoc, type Step } from '../shared/master/schema.js';
 import { at, ev, tablet } from './engine-fixture.js';
 import { GTIN, pack, packing } from './packing-fixture.js';
+// The shared test master is built from test-only blocks (test/test-blocks.ts).
+vi.mock('../shared/blocks/index.js', async (original) => (await import('./test-blocks.js')).withTestBlocks(original as never));
 
 const pct = (low: string, high: string) => ({ low, high, unit: '%' });
 const minutes = { low: '10', high: '12', unit: 'min' };
@@ -69,7 +71,7 @@ function filled(b: Block, settings: Step['settings'], all: boolean): Record<stri
     if (f.kind === 'choice') return f.options![0]!;
     if (f.kind === 'timer') return `${at(minute += 11).toISOString().slice(0, 19)}Z`;
     if (f.kind === 'machine' || f.kind === 'room') return item;
-    if (f.kind === 'bulk') return 'TB260001';
+    if (f.kind === 'bulk') return 'TL260001';
     if (f.kind === 'lot') return 'L-1';
     return f.date ? '2026-11-03' : '1';
   };
@@ -108,7 +110,7 @@ describe('the sweep: no template crashes on any block or test master', () => {
   it.each(BLOCKS.map((b) => [b.id, b] as const))('%s: all its settings set, its fields filled, required only or all, in two rounds', (id, b) => {
     expect(Object.keys(SETTINGS[id] ?? {}).sort()).toEqual(b.settings.map((s) => s.name).sort());
     for (const all of [false, true]) expect(crashes(using(b), all)).toEqual([]);
-    // Its limits and targets are of the kinds of the values they check (TB-01).
+    // Its limits and targets are of the kinds of the values they check (TL-01).
     expect(masterChecks(using(b)).filter((p) => /every reading would be refused/.test(p.message))).toEqual([]);
   });
 

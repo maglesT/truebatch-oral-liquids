@@ -7,6 +7,8 @@ import type { Block } from '../shared/blocks/format.js';
 import { evaluate } from '../shared/engine/index.js';
 import { masterChecks } from '../shared/master/checks.js';
 import { small } from './engine-fixture.js';
+// The shared test master is built from test-only blocks (test/test-blocks.ts).
+vi.mock('../shared/blocks/index.js', async (original) => (await import('./test-blocks.js')).withTestBlocks(original as never));
 
 const TEST_BLOCKS: Record<string, Block> = {
   'optional-reading': { id: 'optional-reading', version: 1, name: 'An optional reading', instruction: 'Record the solvent if tested.', checker: false,

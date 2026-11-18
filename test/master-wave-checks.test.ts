@@ -1,9 +1,11 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { openSteps, timers } from '../shared/engine/index.js';
 import { blocking, masterChecks } from '../shared/master/checks.js';
 import type { MasterDoc } from '../shared/master/schema.js';
 import { at, ev, tablet, unplaced } from './engine-fixture.js';
-// The problems, without the rooms a stage must name (TB-11): the fixtures name none.
+// The shared test master is built from test-only blocks (test/test-blocks.ts).
+vi.mock('../shared/blocks/index.js', async (original) => (await import('./test-blocks.js')).withTestBlocks(original as never));
+// The problems, without the rooms a stage must name (TL-11): the fixtures name none.
 const checks = (d: Parameters<typeof masterChecks>[0]) => unplaced(masterChecks(d));
 
 // Calculation checks from the 1,000-formulation test (waves 1-5): not GMP rules. Each case cites its formulation.
@@ -132,7 +134,7 @@ describe('F4 by rule and F6 with a changing interval (data-level options)', () =
       .toEqual([expect.stringMatching(/The rule for leaving the step out: .*cannot be converted/)]);
   });
 
-  it('F6 F0030: checks every 30 min, then every 15 min after 60 min; a later interval above 30 min is TB-15', () => {
+  it('F6 F0030: checks every 30 min, then every 15 min after 60 min; a later interval above 30 min is TL-15', () => {
     const d = tablet();
     step(d, 'compression', 'compress').everyMinutesLater = { afterMinutes: 60, everyMinutes: 15 };
     expect(checks(d)).toEqual([]);

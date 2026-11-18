@@ -1,9 +1,11 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   currentValues, doneProblems, evaluate, openSteps, parseKey, refusal, stepLabel, stepState, stepTitle, timers,
   type Action, type State, type StepEvent,
 } from '../shared/engine/index.js';
 import { at, ev, fail, pass, reading, small, tablet } from './engine-fixture.js';
+// The shared test master is built from test-only blocks (test/test-blocks.ts).
+vi.mock('../shared/blocks/index.js', async (original) => (await import('./test-blocks.js')).withTestBlocks(original as never));
 
 const kinds = (s: string) => s.split(' ').filter(Boolean).map((k) => ev(k as StepEvent['kind'], '0.1.0.1'));
 const stateOf = (doc: ReturnType<typeof small>, events: StepEvent[], id: string, now = at(1000)) => {
@@ -31,9 +33,9 @@ describe('stepState', () => {
 });
 
 describe('the action table', () => {
-  const op = { id: 1, permissions: ['truebatch.batch.operate'] };
-  const checker = { id: 2, permissions: ['truebatch.batch.check'] };
-  const qa = { id: 3, permissions: ['truebatch.qa.release'] };
+  const op = { id: 1, permissions: ['truebatch_liquids.batch.operate'] };
+  const checker = { id: 2, permissions: ['truebatch_liquids.batch.check'] };
+  const qa = { id: 3, permissions: ['truebatch_liquids.qa.release'] };
   const ctx = (state: State, events: StepEvent[], user = op, flow: 'none' | 'optional-with-reason' | 'qa-hold' = 'none') => ({ state, events, flow, user });
   const ok = (a: Action, c: ReturnType<typeof ctx>) => refusal(a, c)?.error ?? 'allowed';
 
@@ -58,8 +60,8 @@ describe('the action table', () => {
     expect(ok(action, ctx(state, kinds(events), user))).toBe(want);
   });
 
-  it('TB-08 the checker cannot be the performer, nor anyone who started, recorded or corrected the step', () => {
-    const both = { id: 1, permissions: ['truebatch.batch.operate', 'truebatch.batch.check'] };
+  it('TL-08 the checker cannot be the performer, nor anyone who started, recorded or corrected the step', () => {
+    const both = { id: 1, permissions: ['truebatch_liquids.batch.operate', 'truebatch_liquids.batch.check'] };
     const done = [ev('started', '0.1.0.1', { person: 7 }), ev('value', '0.1.0.1', { person: 1 }), ev('done', '0.1.0.1', { person: 7 })];
     expect(refusal('check', ctx('done_awaiting_check', done, both))?.error).toBe('own_work');
     expect(refusal('send-back', ctx('done_awaiting_check', done, both))?.error).toBe('own_work');
@@ -86,7 +88,7 @@ describe('the action table', () => {
 });
 
 describe('openSteps', () => {
-  it('TB-09 normal: the next step opens when the previous is done; the next stage when the previous stage is closed', () => {
+  it('TL-09 normal: the next step opens when the previous is done; the next stage when the previous stage is closed', () => {
     const doc = small([{ steps: [{}, {}] }, {}]);
     expect(stateOf(doc, [], '0.1.0.1')).toBe('open');
     expect(stateOf(doc, [], '0.1.1.1')).toBe('waiting');
@@ -130,7 +132,7 @@ describe('openSteps', () => {
     expect(stateOf(doc, r2, '0.1.1.1')).toBe('open');
   });
 
-  it('TB-09 repeat-until: after the most rounds without passing, the next step needs a deviation note', () => {
+  it('TL-09 repeat-until: after the most rounds without passing, the next step needs a deviation note', () => {
     const doc = small([{ steps: [{ flow: { kind: 'repeat-until', maxRounds: 2, stop: 'readingCheck' } }, {}] }]);
     const round = (r: number) => [ev('started', `0.1.0.${r}`), reading(`0.1.0.${r}`, { readingCheck: fail }), ev('done', `0.1.0.${r}`)];
     const both = [...round(1), ...round(2)];
@@ -165,7 +167,7 @@ describe('openSteps', () => {
 });
 
 describe('corrections', () => {
-  it('TB-06 a correction replaces the value and the original is kept, with the reason', () => {
+  it('TL-06 a correction replaces the value and the original is kept, with the reason', () => {
     const events = [
       ev('started', '0.1.0.1'),
       ev('value', '0.1.0.1', { payload: { values: { reading: { value: '6.1', unit: '' } }, results: { readingCheck: pass as never } } }),
@@ -193,7 +195,7 @@ describe('done needs', () => {
   const doc = small([{ steps: [{ minMinutes: 10 }] }]);
   const view = (events: StepEvent[], now: Date) => doneProblems(doc, openSteps(doc, events, now).steps[0]!, now);
 
-  it('TB-14 every required field, no refused calculation and no failing check without a deviation note after it', () => {
+  it('TL-14 every required field, no refused calculation and no failing check without a deviation note after it', () => {
     expect(view([ev('started', '0.1.0.1', { min: 0 })], at(20))).toEqual(['Reading is not recorded']);
     const refused = ev('value', '0.1.0.1', { min: 1, payload: { values: { reading: { value: '1', unit: '' } }, results: { readingCheck: { ok: false, message: 'bad limit' } } } });
     expect(view([ev('started', '0.1.0.1', { min: 0 }), refused], at(20))).toEqual(['bad limit']);
@@ -203,7 +205,7 @@ describe('done needs', () => {
     expect(view([ev('started', '0.1.0.1', { min: 0 }), out, ev('note', '0.1.0.1', { min: 3 })], at(20))).toEqual([]);
   });
 
-  it('TB-16 a screen not intact after use fails the integrity check: the step needs a deviation note', () => {
+  it('sieve (no rule in Liquids, TL-16 unused): a screen not intact after use fails the integrity check: the step needs a deviation note', () => {
     const sieve = small([{ steps: [{ block: { id: 'sieve', version: 1 }, settings: {} }] }]);
     const values = { machine: 'MIL-01', screen: '1.0 mm', intactBefore: 'yes', intactAfter: 'no' };
     const results = evaluate(sieve, [], { stage: 0, sub: 1, step: 0, round: 1 }, values);
@@ -214,7 +216,7 @@ describe('done needs', () => {
     expect(v([...events, ev('note', '0.1.0.1', { min: 2, payload: { text: 'Screen torn; material re-sieved' } })])).toEqual([]);
   });
 
-  it('TB-10 line clearance: every answer yes is clear; a "no" needs a deviation note; the cleaning label is recorded', () => {
+  it('TL-10 line clearance: every answer yes is clear; a "no" needs a deviation note; the cleaning label is recorded', () => {
     const lc = small([{ steps: [{ block: { id: 'line-clearance', version: 1 }, checker: true, settings: {} }] }]);
     const key = { stage: 0, sub: 1, step: 0, round: 1 };
     const label = { cleanedOn: '15 Nov 2026 06:40', cleanedBy: 'R. Operator' };
@@ -238,7 +240,7 @@ describe('done needs', () => {
 });
 
 describe('timers', () => {
-  it('TB-17 an exceeded hold time blocks the using stage until a deviation note', () => {
+  it('TL-17 an exceeded hold time blocks the using stage until a deviation note', () => {
     const doc = small([{ produces: { name: 'granules', holdHours: 2 } }, { uses: ['s0'] }]);
     const done = [ev('started', '0.1.0.1', { min: 0 }), ev('done', '0.1.0.1', { min: 10 })];
     expect(timers(doc, done, at(60))).toMatchObject([{ id: 'hold:0:1', kind: 'hold', state: 'running', from: at(10), at: at(130), key: { stage: 1, step: 0 } }]);
@@ -259,7 +261,7 @@ describe('timers', () => {
     expect(timers(doc, [...done, ev('note', '1.1.0.1', { min: 140 }), ev('started', '1.1.0.1', { min: 141 })], at(500))[0]!.state).toBe('late');
   });
 
-  it('TB-15 a periodic check is due every 30 minutes from the start of the previous round', () => {
+  it('periodic rounds (the mechanism of TL-P10; TL-15 unused): a periodic check is due every 30 minutes from the start of the previous round', () => {
     const doc = small([{ steps: [{ everyMinutes: 30, flow: { kind: 'repeat-until', maxRounds: 10, stop: 'readingCheck' } }] }]);
     const r1 = [ev('started', '0.1.0.1', { min: 0 }), reading('0.1.0.1', { readingCheck: fail }, { min: 2 }), ev('done', '0.1.0.1', { min: 3 })];
     expect(timers(doc, r1, at(20))).toMatchObject([{ id: 'every:0.1.0.2', kind: 'periodic', state: 'running', at: at(30) }]);
@@ -294,7 +296,7 @@ describe('calculations come from the templates library', () => {
     expect(r.netCheck).toMatchObject({ ok: true, check: { pass: true } });
   });
 
-  it('TB-13 without the LOD the T9 refusal is the result, so the step cannot be signed', () => {
+  it('TL-13 without the LOD the T9 refusal is the result, so the step cannot be signed', () => {
     const r = evaluate(doc, [], { stage: 1, sub: 1, step: 0, round: 1 }, { assay: { value: '99.0', unit: '%' } });
     expect(r.target).toEqual({ ok: false, message: "The dried assay needs the lot's loss on drying" });
     expect(r.netCheck).toBeUndefined();
@@ -344,12 +346,12 @@ describe('corrections reach the steps that used the value', () => {
     ['nothing changed since', coated, 'done', false, 0],
     ['the mean core weight was corrected after the coating used it', corrected, 'in_progress', true, 1],
     ['a correction before the coating used it', [...compressed, fix(compressed, 'corrected')], 'waiting', false, 0],
-  ])('TB-06 %s → coating %s, sign again %s, %d input change(s)', (_what, events, state, resign, changes) => {
+  ])('TL-06 %s → coating %s, sign again %s, %d input change(s)', (_what, events, state, resign, changes) => {
     const v = coatView(events);
     expect([v.state, v.needsResign, v.inputChanged.length]).toEqual([state, resign, changes]);
   });
 
-  it('TB-06 the stale step shows the result worked out again (not stored), which input changed and by whom; signing again stores it', () => {
+  it('TL-06 the stale step shows the result worked out again (not stored), which input changed and by whom; signing again stores it', () => {
     const v = coatView(corrected);
     expect(v.inputChanged).toMatchObject([{ kind: 'corrected', person: 4, stage: 2, step: 0, payload: { reason: 'Weights typed from the wrong sheet' } }]);
     // (257.5 − 251.0) ÷ 251.0 × 100 = 2.59 %: now below the 2.8 % limit.
@@ -362,7 +364,7 @@ describe('corrections reach the steps that used the value', () => {
     expect(openSteps(doc, resigned, at(1000)).steps.find((s) => s.id === '3.1.0.2')!.state).toBe('open');
   });
 
-  it('TB-06 a checked step goes back for signing and checking again; a correction of the step that used it does not count', () => {
+  it('TL-06 a checked step goes back for signing and checking again; a correction of the step that used it does not count', () => {
     const checked = [...coated.slice(0, -1), ev('done', '3.1.0.1'), ev('checked', '3.1.0.1', { person: 2 })];
     const changed = [...checked, fix(checked, 'corrected')];
     expect(stepState(changed.filter((e) => e.stage === 3), true).state).toBe('checked');
@@ -410,7 +412,7 @@ describe('repeat-until: no further change from the previous round (F2)', () => {
     expect(uses).toEqual([r1[0]!.id]);
   });
 
-  it('TB-06 correcting the previous round marks this round "input changed"', () => {
+  it('TL-06 correcting the previous round marks this round "input changed"', () => {
     const r2 = round(round([], 1, '10.00'), 2, '10.02');
     const fix = ev('corrected', '0.1.0.1', { payload: { values: g('10.20'), results: {}, reason: 'Misread' } });
     const v = openSteps(doc, [...r2, fix], at(1000)).steps.find((s) => s.id === '0.1.0.2')!;
@@ -424,7 +426,7 @@ describe('yield accountability (T4)', () => {
   it.each([
     ['with accountability limits', true],
     ['without accountability limits', false],
-  ])('TB-18 yield and accountability are worked out %s; the limits only add the check', (_what, limits) => {
+  ])('TL-18 yield and accountability are worked out %s; the limits only add the check', (_what, limits) => {
     const doc = tablet();
     if (!limits) delete doc.stages[2]!.steps[1]!.settings.accountabilityLimit;
     const r = evaluate(doc, [], key, values);

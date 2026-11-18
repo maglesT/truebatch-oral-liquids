@@ -1,4 +1,4 @@
-// Rule-to-test traceability: reads the TrueBatch rules (TB-xx, and the packing rules TB-Px) from docs/rules.md and the
+// Rule-to-test traceability: reads the TrueBatch rules (TL-xx, and the packing rules TL-Px) from docs/rules.md and the
 // rule IDs at the start of test names in test/ and e2e/, and prints the rule-to-test list. With --check it fails when a rule has no test, unless
 // docs/rules.md marks the rule "later" (its feature is not built yet).
 import { readdirSync, readFileSync } from 'node:fs';
@@ -11,7 +11,7 @@ const register = readFileSync(path.join(root, 'docs/rules.md'), 'utf8');
 interface Rule { id: string; text: string; later: boolean }
 const rules: Rule[] = [];
 for (const line of register.split('\n')) {
-  const m = /^\| (TB-(?:\d\d|P\d)) \| (.+?) \|(?:.*\| (later\b.*?) \|)?/.exec(line);
+  const m = /^\| (TL-(?:\d\d|P\d+)) \| (.+?) \|(?:.*\| (later\b.*?) \|)?/.exec(line);
   if (m) rules.push({ id: m[1]!, text: m[2]!.trim(), later: m[3] !== undefined });
 }
 
@@ -23,7 +23,7 @@ const sources = [
 ];
 for (const source of sources) {
   const src = readFileSync(path.join(root, source), 'utf8');
-  for (const m of src.matchAll(/\b(?:it|test)\(\s*(['"`])(TB-P\d|(?:TB|PL)-\d\d)([\s\S]*?)\1\s*,/g)) {
+  for (const m of src.matchAll(/\b(?:it|test)\(\s*(['"`])(TL-P\d+|(?:TL|PL)-\d\d)([\s\S]*?)\1\s*,/g)) {
     const name = `${m[2]}${m[3]}`.replace(/\\'/g, "'").replace(/\$\{[^}]*\}/g, '…');
     tests.set(m[2]!, [...(tests.get(m[2]!) ?? []), `${source}: ${name}`]);
   }
@@ -36,7 +36,7 @@ const lines = [
   '|------|-------------|-------|',
   ...rules.map((r) => `| ${r.id} | ${short(r.text).replaceAll('|', '/')} | ${(tests.get(r.id) ?? [r.later ? '*later*' : '**NONE**']).map((x) => x.replaceAll('|', '/')).join('<br>')} |`),
   '',
-  `${rules.length} rules, ${covered.length} with tests, ${rules.filter((r) => r.later && !tests.has(r.id)).length} later; ${[...tests.values()].flat().length} rule-named tests (TB and platform PL).`,
+  `${rules.length} rules, ${covered.length} with tests, ${rules.filter((r) => r.later && !tests.has(r.id)).length} later; ${[...tests.values()].flat().length} rule-named tests (TL and platform PL).`,
 ];
 
 if (process.argv.includes('--check')) {

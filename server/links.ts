@@ -143,7 +143,7 @@ export const mmsClient = (l: Link) => ({
     order by expiry_date nulls last, lot_number limit 100`).map((r) => lotOf(r))),
 });
 
-// ---- TrueBatch Tablets: report.batch_fact_v1 and deviation_note_v1 (published), read by TrueBatch Tablets Packing for its bulk batch. The
+// ---- TrueBatch Liquids: report.batch_fact_v1 and deviation_note_v1 (published), read by TrueBatch Liquids Packing for its bulk batch. The
 // date of manufacture is its manufactured_on (owner, 15 Nov 2026): the plant-time date the bulk batch's first
 // processing step started (db/migrations/0007_batch_fact_manufactured_on.sql); null until a step has started.
 // goodQuantity (owner, 17 Nov 2026: pull, don't type): its good_quantity, the good tablets of its reconciliation
@@ -191,7 +191,7 @@ export interface Links {
   qms: ReturnType<typeof qmsClient>;
   logbook: ReturnType<typeof logbookClient>;
   mms: ReturnType<typeof mmsClient>;
-  truebatch: ReturnType<typeof truebatchClient>;
+  truebatch_liquids: ReturnType<typeof truebatchClient>;
   recruitment: ReturnType<typeof recruitmentClient>;
 }
 /** The links, from their connections (null: absent). `schema` lets tests point a provider at its own schema. */
@@ -201,7 +201,7 @@ export function links(c: Partial<Record<Provider, Sql | null>> = {}, schema: Par
     qms: qmsClient(link('qms', c.qms ?? null, schema.qms)),
     logbook: logbookClient(link('logbook', c.logbook ?? null, schema.logbook)),
     mms: mmsClient(link('mms', c.mms ?? null, schema.mms)),
-    truebatch: truebatchClient(link('truebatch', c.truebatch ?? null, schema.truebatch)),
+    truebatch_liquids: truebatchClient(link('truebatch_liquids', c.truebatch_liquids ?? null, schema.truebatch_liquids)),
     recruitment: recruitmentClient(link('recruitment', c.recruitment ?? null, schema.recruitment)),
   };
 }

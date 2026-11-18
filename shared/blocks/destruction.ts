@@ -1,6 +1,6 @@
 import type { Block } from './format.js';
 
-// Packing, TB-P6: batch-coded leftovers destroyed so they cannot be used, witnessed by a second person.
+// Packing, TL-P6: batch-coded leftovers destroyed so they cannot be used, witnessed by a second person.
 export const destruction: Block = {
   id: 'destruction', version: 1, name: 'Destruction of batch-coded leftovers', checker: true, packing: true,
   instruction: 'Destroy every batch-coded leftover (printed materials and rejected packs) as reconciled, with a second person watching.',

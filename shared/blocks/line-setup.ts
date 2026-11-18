@@ -1,6 +1,6 @@
 import type { Block } from './format.js';
 
-// Packing, TB-P4 and TB-P2: at line start every component is checked against the packing master, the coder is set to
+// Packing, TL-P4 and TL-P2: at line start every component is checked against the packing master, the coder is set to
 // this batch's data and specimens of the coded printed materials go with the record.
 export const lineSetup: Block = {
   id: 'line-setup', version: 1, name: 'Line set-up and component check', checker: true, packing: true,

@@ -1,6 +1,6 @@
 import type { Block } from './format.js';
 
-// Packing, TB-P5: the code reader or camera challenged at the start: a bad code must be rejected. Checked by a second
+// Packing, TL-P5: the code reader or camera challenged at the start: a bad code must be rejected. Checked by a second
 // person.
 export const visionChallenge: Block = {
   id: 'vision-challenge', version: 1, name: 'Camera challenge', checker: true, packing: true,

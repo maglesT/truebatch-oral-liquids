@@ -1,4 +1,4 @@
--- equipment_use_v1 (owner, 17 Nov 2026, from the confirmation run of TB260007): a machine or room named only in line
+-- equipment_use_v1 (owner, 17 Nov 2026, from the confirmation run of TL260007): a machine or room named only in line
 -- clearance steps (a room, the packing line) was used by the stage, not by its clearance, so step_name is the stage's
 -- name ("Blending", "Packing"): the Logbook says "Last used by batch … in TrueBatch (Blending)", not "(Blending › Line
 -- clearance)". A machine operated in a process step keeps that step. Everything else as db/migrations/0013.
