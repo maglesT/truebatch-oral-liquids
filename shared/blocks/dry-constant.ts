@@ -9,6 +9,7 @@ export const dryConstant: Block = {
     { name: 'machine', label: 'Dryer or oven', kind: 'machine', types: ['dryer', 'drier', 'fbd', 'fluid bed', 'oven'] },
     { name: 'weight', label: 'Sample weight', kind: 'number', unit: 'g' },
   ],
-  settings: [{ name: 'maxChange', label: 'Largest change between rounds', kind: 'quantity' }],
+  // A tolerance, typed: a formula line's batch quantity (kilograms) there would let every round pass as "no further change".
+  settings: [{ name: 'maxChange', label: 'Largest change between rounds', kind: 'quantity', notBatch: 'tolerance' }],
   calcs: [{ name: 'constant', label: 'No further change', template: 'F2', args: { previous: '$prev.weight', current: '$weight', limit: { maxChange: '$maxChange' } } }],
 };

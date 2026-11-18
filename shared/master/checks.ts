@@ -82,7 +82,9 @@ export function masterChecks(doc: MasterDoc): Problem[] {
       for (const [name, v] of Object.entries(st.settings)) {
         const bs = block.settings.find((x) => x.name === name);
         const listed = !bs?.options || (typeof v === 'string' && bs.options.includes(v));
-        const why = !bs ? `The block ${block.name} has no setting ${name}` : listed ? settingProblem(doc, si, ti, bs.kind, v) : `${bs.label}: choose one of ${bs.options!.join(', ')}`;
+        // A tolerance (notBatch) is typed: a batch quantity of some kilograms would let every round of drying pass.
+        const typedOnly = bs?.notBatch && typeof v === 'object' && !('unit' in v) ? `${bs.label} is a tolerance: type it (${'formula' in v ? 'the batch quantity of a formula line' : 'header' in v ? 'a header value' : 'an earlier step'} is not a tolerance)` : null;
+        const why = !bs ? `The block ${block.name} has no setting ${name}` : typedOnly ?? (listed ? settingProblem(doc, si, ti, bs.kind, v) : `${bs.label}: choose one of ${bs.options!.join(', ')}`);
         if (why) error(`${p}.settings.${name}`, why);
         // TL-01: a limit (or a typed target) in a unit of another kind than the value it checks.
         const unit = typeof v === 'object' && 'unit' in v ? v.unit : typeof v === 'string' && bs?.kind === 'quantity' ? QUANTITY.exec(v)?.[3] : undefined;

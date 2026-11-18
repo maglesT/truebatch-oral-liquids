@@ -197,7 +197,7 @@ function Slot({ doc, si, ti, block, settings, name, onChange }: {
     const def = kind === 'fraction' ? '%' : field?.unit ?? (unitSetting && typeof settings[unitSetting] === 'string' ? settings[unitSetting] as string : unitsOf(k)[0]?.symbol ?? '');
     return <LimitEdit label={s.label} value={typeof v === 'object' && 'unit' in v ? v : undefined} kind={k} unit={def} onChange={onChange} missing={missing} />;
   }
-  return <QuantitySource doc={doc} si={si} ti={ti} label={s.label} kind={kind} value={v} onChange={onChange} missing={missing} />;
+  return <QuantitySource doc={doc} si={si} ti={ti} label={s.label} kind={kind} value={v} onChange={onChange} missing={missing} typedOnly={!!s.notBatch} />;
 }
 
 function LimitEdit({ label, value, kind, unit, onChange, missing }: { label: string; value?: Limit; kind?: Kind; unit: string; onChange: (l: Limit | undefined) => void; missing: boolean }) {
@@ -219,10 +219,12 @@ function LimitEdit({ label, value, kind, unit, onChange, missing }: { label: str
 }
 
 /** Where a quantity comes from: a typed value, a formula line, the header, or an earlier step (compatible kinds only). */
-function QuantitySource({ doc, si, ti, label, kind, value, onChange, missing }: {
+function QuantitySource({ doc, si, ti, label, kind, value, onChange, missing, typedOnly }: {
   doc: MasterDoc; si: number; ti: number; label: string; kind?: Kind; value?: SettingValue; onChange: (v: SettingValue | undefined) => void; missing: boolean;
+  typedOnly?: boolean;
 }) {
-  const fits = (k: Kind | undefined) => !kind || k === kind;
+  // A tolerance (notBatch) is typed only: no formula line, header value or earlier step is offered.
+  const fits = (k: Kind | undefined) => !typedOnly && (!kind || k === kind);
   const refs = earlierRefs(doc, si, ti).filter((r) => fits(r.kind));
   const code = value === undefined ? '' : typeof value === 'string' ? 'type' : 'formula' in value ? `${value.adjusted ? 'fa' : 'f'}:${value.formula}` : 'header' in value ? `h:${value.header}` : 'ref' in value ? `r:${value.ref}` : '';
   const pick = (c: string) => {

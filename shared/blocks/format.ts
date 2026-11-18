@@ -45,6 +45,10 @@ export const settingSchema = z.object({
   // text: the fixed list the master picks from.
   options: z.array(z.string().min(1)).optional(),
   optional: z.boolean().optional(),
+  // quantity: never a batch quantity (as Tablets round 31). Only 'tolerance': a small difference (the largest change
+  // between rounds of drying to constant weight), typed only; a formula line, a header value or an earlier step is
+  // refused (checks.ts) and the designer does not offer them.
+  notBatch: z.enum(['tolerance']).optional(),
 }).strict();
 
 export const calcSchema = z.object({
@@ -116,6 +120,7 @@ export function blockProblems(b: Block): string[] {
     if (f.kind === 'choice' && !f.options?.length) p.push(`field ${f.name}: a choice needs options`);
   }
   for (const s of b.settings) if (s.options && (s.kind !== 'text' || !s.options.length)) p.push(`setting ${s.name}: only a text setting has a list`);
+  for (const s of b.settings) if (s.notBatch && s.kind !== 'quantity') p.push(`setting ${s.name}: only a quantity setting is marked not a batch quantity`);
   const known = new Set([...b.fields.map((f) => f.name), ...b.settings.map((s) => s.name), ...PACK_FACTS.map((x) => `pack.${x}`), ...BATCH_FACTS.map((x) => `batch.${x}`)]);
   for (const f of b.atIssue ?? []) if (!b.fields.some((x) => x.name === f)) p.push(`atIssue: no field ${f}`);
   // "$prev.name" reads the previous round, so it may name any calculation of the block, this one included.

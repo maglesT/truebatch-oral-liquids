@@ -34,6 +34,15 @@ describe('the liquids blocks (library sections 5.2-5.4)', () => {
     expect(masterChecks(one('bulk-adjust', { ...set, target: '24.0 mg/mL' })).filter((x) => x.path.includes('settings'))).toEqual([]);
   });
 
+  it('drying to constant weight: the largest change is a tolerance, typed only (Tablets round 31)', () => {
+    const set = (maxChange: object | string) => masterChecks(one('dry-constant', { maxChange })).filter((x) => x.path.endsWith('settings.maxChange')).map((x) => x.message);
+    expect(set({ formula: 'x' })).toEqual(['Largest change between rounds is a tolerance: type it (the batch quantity of a formula line is not a tolerance)']);
+    expect(set({ header: 'batchSize' })).toEqual(['Largest change between rounds is a tolerance: type it (a header value is not a tolerance)']);
+    expect(set('0.5 g')).toEqual([]);
+    expect(blockProblems({ ...findBlock({ id: 'dry-constant', version: 1 })!, settings: [{ name: 'maxChange', label: 'x', kind: 'number', notBatch: 'tolerance' }] }))
+      .toContain('setting maxChange: only a quantity setting is marked not a batch quantity');
+  });
+
   it('TL-08 make-up by weight: the target batch weight is the volume × the density (I18), the net weight is checked against it', () => {
     const r = run('make-up', { volume: '1000 L', density: '1.250 g/mL', tolerance: '0.5' }, { gross: q('1500.0', 'kg'), tare: q('250.0', 'kg') });
     expect(r.target).toMatchObject({ ok: true, value: '1250', unit: 'kg', shown: '1000 L × 1.250 g/mL = 1250.000 kg' });
