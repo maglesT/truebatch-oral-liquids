@@ -4,6 +4,7 @@ import { blockProblems } from '../shared/blocks/format.js';
 import { evaluate, type StepEvent, type Value } from '../shared/engine/index.js';
 import { masterChecks } from '../shared/master/checks.js';
 import { neededKind } from '../shared/master/kinds.js';
+import { durations } from '../shared/engine/values.js';
 import { ev, small, unplaced } from './engine-fixture.js';
 
 // The liquids blocks (shared/blocks/liquids.ts): what each works out from recorded values, with the templates.
@@ -53,6 +54,14 @@ describe('the liquids blocks (library sections 5.2-5.4)', () => {
     // A stop check that is not a C1 runs without an unset optional argument, so it is not refused.
     const notC1 = findBlock({ id: 'ph-adjust', version: 1 })!.calcs.find((c) => c.template !== 'C1')!;
     expect(never({ phLimit: { low: '4.5', high: '5.5', unit: '' } }, notC1.name, 'ph-adjust')).toEqual([]);
+  });
+
+  it('an optional mixing or hydration time limit, when set, is a minimum wait (its timer and the demo skip)', () => {
+    const st = (settings: object) => ({ key: 's', block: { id: 'sugar-syrup', version: 1 }, checker: false, flow: { kind: 'once' }, settings }) as never;
+    const b = findBlock({ id: 'sugar-syrup', version: 1 });
+    expect(durations(b, st({ timeLimit: { low: '30', high: '60', unit: 'min' } })).map((d) => [d.calc, d.limit.low])).toEqual([['mixTime', '30']]);
+    expect(durations(b, st({}))).toEqual([]);
+    expect(durations(findBlock({ id: 'hydrate', version: 1 }), st({ timeLimit: { low: '30', high: '90', unit: 'min' } })).map((d) => d.calc)).toEqual(['hydrationTime']);
   });
 
   it('drying to constant weight: the largest change is a tolerance, typed only (Tablets round 31)', () => {
