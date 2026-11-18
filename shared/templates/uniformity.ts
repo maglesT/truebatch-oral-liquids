@@ -83,6 +83,7 @@ export function t14ContentUniformity(i: T14Input): Outcome<T14Extra> {
       }
       const ws = readSeries(i.weights, 'Weight');
       for (const w of ws) needKind(w, ['mass'], 'Each unit weight');
+      if (ws.some((w) => !w.v.isPositive() || w.v.isZero())) refuse('Each unit weight must be more than zero: check the weighings');
       const s = stats(ws);
       const assay = percent(i.assay, 'The assay');
       const claim = parse(i.labelClaim, 'The label claim');
