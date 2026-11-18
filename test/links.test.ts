@@ -396,6 +396,16 @@ describe('TL-12 MMS: only released, in-date lots of the material; certificate va
     expect(await problems(record(third.id, '0.1.0.1', { lot: 'API-OK', balance: 'eq-bal', gross: '16.000', tare: '0.850' }))).toEqual([
       'Lot API-OK has 14.85 kg available in MMS (25 kg in stock less 10.15 kg already used in TrueBatch Liquids): 15.15 kg cannot be taken from it. Take at most 14.85 kg, or another lot.']);
     expect((await record(third.id, '0.1.0.1', { lot: 'API-OK', balance: 'eq-bal', gross: '15.000', tare: '0.850' })).statusCode).toBe(200);
+    // Tablets round 35: MMS's stock after the use by all TrueBatch products (lot_v1.stock_after_use, MMS D-70): another
+    // product used 12 kg, so 25 − 10.15 − 12 = 2.85 kg is left, in the lot's unit.
+    await t.owner.unsafe(`alter table ${S.mms}.lot_v1 add column stock_after_use numeric; update ${S.mms}.lot_v1 set stock_after_use = 2.85 where lot_number = 'API-OK'`);
+    try {
+      expect(await problems(record(third.id, '0.1.0.1', { lot: 'API-OK', balance: 'eq-bal', gross: '15.000', tare: '0.850' }))).toEqual([
+        'Lot API-OK has 2.85 kg available in MMS (after use in all TrueBatch products): 14.15 kg cannot be taken from it. Take at most 2.85 kg, or another lot.']);
+      expect((await record(third.id, '0.1.0.1', { lot: 'API-OK', balance: 'eq-bal', gross: '3.700', tare: '0.850' })).statusCode).toBe(200);
+    } finally {
+      await t.owner.unsafe(`alter table ${S.mms}.lot_v1 drop column if exists stock_after_use`);
+    }
   });
 });
 

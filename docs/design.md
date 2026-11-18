@@ -54,7 +54,15 @@ answering) or **ok**.
   2026): MMS's balance of the lot (`lot_v1.stock`, in `lot_v1.unit`, MMS D-61) less what this product already used from it as
   its `material_use_v1` gives it (`shared/engine/stock.ts`), checked when it is recorded or corrected and when the
   step is signed done. An MMS whose `lot_v1` has no stock yet, or a lot typed by hand, is not compared. What the other
-  TrueBatch product used from the same lot is not read (each product uses its own kind of material).
+  TrueBatch products used of the same lot (bug fix, 18 Nov 2026: a leaflet lot issued by two packing products went
+  below 0 in MMS): `lot_v1.stock_after_use` (MMS D-70, platform 1.20.0), the lot's stock after the use by every
+  TrueBatch product linked to MMS, this one included, read through `to_jsonb` like `stock` (null on an older view or
+  while MMS has not read every product lately). When it is there, what is available is the lower of it (plus the
+  step's own earlier quantity, so a correction is not counted twice) and the figure above; the message then says
+  "after use in all TrueBatch products". MMS works it out from its own read of the products, about every minute, so
+  two products issuing from the same lot within that minute can both pass (accepted: it is a check, not a lock);
+  once MMS has read the first issue, the next one is refused. This product's own uses count at once (the figure
+  above). Without `stock_after_use`: this product's own use only, as before.
 - **Recruitment** (`training_v1`, owner 17 Nov 2026: only trained people sign): one row per person and skill
   (`person_login`, `skill_code`, `skill_title`, `trained_on`, `valid_until`, `qualified`, already false when expired),
   read through `RECRUITMENT_DATABASE_URL`. A master step may name the training it needs (`step.training`: the skill's

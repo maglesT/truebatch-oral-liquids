@@ -38,7 +38,8 @@ beforeAll(async () => {
     { ...item('prd-1', 'PRD-001', 'Examplol 120 mg/5 mL syrup'), strength: '120 mg/5 mL', dosageForm: 'syrup' });
   for (const m of packing().pack!.materials) t.master.materials_.push({ ...item(m.materialItemId, m.code, m.name), category: 'packing', unit: m.unit === 'units' ? 'nos' : m.unit });
   t.master.equipment_.push({ ...item('ln-1', 'BL-01', 'Blister line 1'), kind: 'equipment', type: 'filling line', room: 'PK-01' },
-    { ...item('ln-2', 'BL-02', 'Blister line 2'), kind: 'equipment', type: 'filling line', room: 'PK-02' });
+    { ...item('ln-2', 'BL-02', 'Blister line 2'), kind: 'equipment', type: 'filling line', room: 'PK-02' },
+    { ...item('ln-3', 'BL-03', 'Blister line 3'), kind: 'equipment', type: 'filling line', room: 'PK-03' });
   for (const [name, perms] of Object.entries({ author: P('master.author'), issuer: P('batch.issue'), op1: P('batch.operate'), chk1: P('batch.check'), qa1: P('qa.release') })) {
     await seedUser(t.owner, name, perms);
     cookies[name] = (await login(t.app, name)).cookie;
@@ -127,6 +128,46 @@ describe('a packing material lot is not issued beyond what MMS shows available',
     // 1000 in stock less 400 still used by the terminated batch: 600 available for the other one.
     expect((await record(second, { lot: 'CTN-1', issued: '601', matches: 'yes' })).json()).toMatchObject({ problems: [expect.stringMatching(/^Lot CTN-1 has 600 nos available in MMS \(1000 nos in stock less 400 nos already used/)] });
     expect((await record(second, { lot: 'CTN-1', issued: '600', matches: 'yes' })).statusCode).toBe(200);
+  });
+
+  it('TB-P4 bug fix (18 Nov 2026): what the other TrueBatch products used of the lot counts too (MMS lot_v1.stock_after_use); the lower of it and this product\'s own count', async () => {
+    // A leaflet lot on the demo: 1980 nos in MMS, 490 issued by another packing product, so 1490 left for this one.
+    await t.owner.unsafe(`alter table ${MMS}.lot_v1 add column stock_after_use numeric;
+      insert into ${MMS}.lot_v1 (lot_number, kind, material_master_id, material_code, status, expiry_date, qc_report_ref, stock, unit, stock_after_use)
+        values ('CTN-2', 'material', 'pm-ctn', 'PM-205', 'approved', '2099-01-31', 'QC-26-203', 1980, 'nos', 1490)`);
+    const after = (lot: string, n: number | null) => t.owner.unsafe(`update ${MMS}.lot_v1 set stock_after_use = ${n} where lot_number = '${lot}'`);
+    const third = await batch('ln-3');
+    expect((await as('op1', 'POST', `/api/batches/${third}/steps/${CARTON}/start`)).statusCode).toBe(200);
+    const correct = (values: object) => as('op1', 'POST', `/api/batches/${third}/steps/${CARTON}/correct`, { values, reason: 'Wrong quantity' });
+    try {
+      expect((await record(third, { lot: 'CTN-2', issued: '1500', matches: 'yes' })).json()).toMatchObject({ error: 'not_in_stock', problems: [
+        'Lot CTN-2 has 1490 nos available in MMS (after use in all TrueBatch products): 1500 nos cannot be taken from it. Take at most 1490 nos, or another lot.'] });
+      expect((await record(third, { lot: 'CTN-2', issued: '1490', matches: 'yes' })).statusCode).toBe(200);
+      const done = await as('op1', 'POST', `/api/batches/${third}/steps/${CARTON}/done`, { proof: proofFor('op1'), contentHash: await hash(third, CARTON) });
+      expect(done.statusCode, done.body).toBe(200);
+      // MMS has read this use: 0 left after use. A correction of the same step counts its own quantity once.
+      await after('CTN-2', 0);
+      expect((await correct({ issued: '1491' })).json()).toMatchObject({ problems: [expect.stringMatching(/^Lot CTN-2 has 1490 nos available in MMS \(after use in all TrueBatch products\): 1491 nos/)] });
+      expect((await correct({ issued: '1490' })).statusCode).toBe(200);
+      // MMS has not read this product's latest use yet (stock_after_use still the full stock): its own use counts live.
+      // CTN-1: 1000 in stock, 400 used by the terminated batch.
+      await after('CTN-1', 1000);
+      expect((await correct({ lot: 'CTN-1', issued: '700' })).json()).toMatchObject({ problems: [
+        'Lot CTN-1 has 600 nos available in MMS (1000 nos in stock less 400 nos already used in TrueBatch Liquids Packing): 700 nos cannot be taken from it. Take at most 600 nos, or another lot.'] });
+      // Once MMS has read the uses, another product's (100 nos) too, the next issue is refused with MMS's figure.
+      await after('CTN-1', 500);
+      expect((await correct({ lot: 'CTN-1', issued: '600' })).json()).toMatchObject({ problems: [
+        'Lot CTN-1 has 500 nos available in MMS (after use in all TrueBatch products): 600 nos cannot be taken from it. Take at most 500 nos, or another lot.'] });
+      // Another product used all of it: nothing to take.
+      await after('CTN-1', -138);
+      expect((await correct({ lot: 'CTN-1', issued: '1' })).json()).toMatchObject({ problems: [
+        'Lot CTN-1 has 0 nos available in MMS (after use in all TrueBatch products): 1 nos cannot be taken from it. Take another lot.'] });
+      // MMS gives no figure (a link of MMS down, or not read lately): this product's own use only, as before.
+      await after('CTN-1', null);
+      expect((await correct({ lot: 'CTN-1', issued: '600' })).statusCode).toBe(200);
+    } finally {
+      await t.owner.unsafe(`alter table ${MMS}.lot_v1 drop column if exists stock_after_use`);
+    }
   });
 
   it('a quantity is counted in the lot\'s unit as MMS counts it: the same kind by a power of ten, never across kinds', () => {

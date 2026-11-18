@@ -349,7 +349,14 @@ async function stockUnit(app: FastifyInstance, doc: MasterDoc, key: StepKey): Pr
  * A lot is not used beyond what MMS shows available (owner, 16 Nov 2026): MMS's balance of the lot less what this
  * product has already used from it (material_use_v1, as MMS takes it off; shared/engine/stock.ts). Checked while MMS
  * answers for a lot pulled from it; a lot typed by hand (MMS absent or down) is not compared. The step's own earlier
- * quantity is not counted twice. What the other TrueBatch product used from the same lot is not read here.
+ * quantity is not counted twice.
+ * What the other TrueBatch products used of the same lot (bug fix, 18 Nov 2026: a leaflet lot issued by two packing
+ * products went below 0 in MMS): MMS's lot_v1.stock_after_use (MMS D-70), the lot's stock after the use by every
+ * TrueBatch product, this one included. It is MMS's figure from its last read of the products (about every minute),
+ * so this product's own uses are also counted live (the figure above) and the lower of the two is what is available.
+ * Race, accepted: two products issuing from the same lot within that minute can both pass; once MMS has read the first
+ * use, the next issue is refused. Without stock_after_use (an older MMS, or MMS not reading every product lately):
+ * as before, this product's own use only.
  */
 async function stockProblem(app: FastifyInstance, tx: Tx, l: LoadedBatch, v: StepView, values: Record<string, Value>, results: Record<string, Stored>,
   source: Record<string, Source>): Promise<string | null> {
@@ -364,19 +371,25 @@ async function stockProblem(app: FastifyInstance, tx: Tx, l: LoadedBatch, v: Ste
   const want = inLotUnit(q, unit);
   if (!want) return null;
   let used = new Dec(0);
+  let mine = new Dec(0);   // this step's own earlier quantity (once signed done, in MMS's stock_after_use too)
   const ids = await tx<{ id: number }[]>`select distinct batch_id::int as id from step_events
     where kind in ('value', 'corrected') and lower(payload->'values'->>'lot') = lower(${lot})`;
   for (const { id } of ids) {
     const b = id === l.batch.id ? l : (await loadBatch(tx, id))!;
     for (const u of usesOfLot(b.doc, openSteps(b.doc, b.events, b.now).steps, lot, returnsOf(b.batchEvents))) {
-      if (id === l.batch.id && u.step.id === v.id) continue;
-      used = used.plus(inLotUnit(u.quantity, unit) ?? 0);
+      const n = inLotUnit(u.quantity, unit) ?? 0;
+      if (id === l.batch.id && u.step.id === v.id) mine = mine.plus(n);
+      else used = used.plus(n);
     }
   }
   const stock = new Dec(r.value.stock);
-  const available = Dec.max(stock.minus(used), 0);
+  const own = Dec.max(stock.minus(used), 0);
+  const all = r.value.stockAfterUse ? Dec.max(new Dec(r.value.stockAfterUse).plus(mine), 0) : null;
+  const available = all && all.lte(own) ? all : own;
   if (want.lte(available)) return null;
-  return `Lot ${lot} has ${available} ${unit} available in MMS (${stock} ${unit} in stock less ${used} ${unit} already used in ${app.product.name}): `
+  const why = available === all ? 'after use in all TrueBatch products'
+    : `${stock} ${unit} in stock less ${used} ${unit} already used in ${app.product.name}`;
+  return `Lot ${lot} has ${available} ${unit} available in MMS (${why}): `
     + `${want} ${unit} cannot be taken from it. ${available.gt(0) ? `Take at most ${available} ${unit}, or another lot.` : 'Take another lot.'}`;
 }
 
