@@ -49,6 +49,13 @@ export function neededKind(block: Block, setting: string, settings: Step['settin
   for (const c of block.calcs) {
     let refs = refsIn(c.args);
     if (!refs.includes(setting)) continue;
+    // A volume by the density (I18 convert): the density is a density; the quantity a volume when the result is a mass
+    // (the target batch weight of a make-up), a mass when the result is a volume.
+    if (c.template === 'I18' && (c.args as { mode?: string }).mode === 'convert') {
+      const a = c.args as { quantity?: unknown; density?: unknown; unit?: unknown };
+      if (refsIn(a.density).includes(setting)) return 'density';
+      if (refsIn(a.quantity).includes(setting)) return kindOfUnit(typeof a.unit === 'string' ? a.unit : undefined) === 'mass' ? 'volume' : 'mass';
+    }
     // Mix to a target (T26): the measured value, the donor and the target are of one kind; the mass is a mass.
     if (c.template === 'T26') {
       const a = c.args as Record<string, unknown>;

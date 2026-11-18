@@ -64,6 +64,17 @@ describe('the liquids blocks (library sections 5.2-5.4)', () => {
     expect(durations(findBlock({ id: 'hydrate', version: 1 }), st({ timeLimit: { low: '30', high: '90', unit: 'min' } })).map((d) => d.calc)).toEqual(['hydrationTime']);
   });
 
+  it('TL-01 the make-up by weight (I18): the final volume is a volume and the density a density, so no formula line is offered or taken', () => {
+    const b = findBlock({ id: 'make-up', version: 1 })!;
+    expect(neededKind(b, 'volume')).toBe('volume');
+    expect(neededKind(b, 'density')).toBe('density');
+    const set = { volume: { formula: 'x' }, density: { formula: 'x' }, tolerance: '0.5' };
+    const p = masterChecks(one('make-up', set)).filter((x) => /settings\.(volume|density)$/.test(x.path)).map((x) => x.message);
+    expect(p).toEqual(['Final batch volume: a formula line gives its batch quantity (a mass), but this setting is a volume. Type the value instead',
+      'Density at the make-up temperature: a formula line gives its batch quantity (a mass), but this setting is a density. Type the value instead']);
+    expect(masterChecks(one('make-up', { volume: { header: 'batchVolume' }, density: '1.250 g/mL', tolerance: '0.5' })).filter((x) => /settings\.(volume|density)$/.test(x.path))).toEqual([]);
+  });
+
   it('drying to constant weight: the largest change is a tolerance, typed only (Tablets round 31)', () => {
     const set = (maxChange: object | string) => masterChecks(one('dry-constant', { maxChange })).filter((x) => x.path.endsWith('settings.maxChange')).map((x) => x.message);
     expect(set({ formula: 'x' })).toEqual(['Largest change between rounds is a tolerance: type it (the batch quantity of a formula line is not a tolerance)']);

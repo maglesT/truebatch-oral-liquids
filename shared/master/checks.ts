@@ -93,7 +93,7 @@ export function masterChecks(doc: MasterDoc): Problem[] {
         // A formula line gives its batch quantity, always a mass in kg (lineQuantity): refused where the setting is a value
         // of another kind (a target concentration, a volume in L), which no batch could work out (Tablets rounds 29/31).
         const need = !why && typeof v === 'object' && 'formula' in v && bs?.kind === 'quantity' ? neededKind(block, name, st.settings) : undefined;
-        if (need && need !== 'mass') error(`${p}.settings.${name}`, `${bs!.label}: a formula line gives its batch quantity (a mass), but this setting is ${need === 'mass concentration' ? 'a concentration' : need === 'volume' ? 'a volume' : `a value of kind ${need}`}. Type the value instead`, 'TL-01');
+        if (need && need !== 'mass') error(`${p}.settings.${name}`, `${bs!.label}: a formula line gives its batch quantity (a mass), but this setting is ${need === 'mass concentration' ? 'a concentration' : `a ${need}`}. Type the value instead`, 'TL-01');
       }
       // A temperature recorded with optional limits left empty is recorded without a check (the disintegration
       // medium at 37 ± 2 °C, an inlet or forming temperature): a warning, so the author sets them or leaves them knowingly.

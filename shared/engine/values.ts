@@ -209,7 +209,9 @@ export function batchText(doc: MasterDoc): string {
 
 /** The pack in words: "bottle, child-resistant cap, measuring cup; fill 60 mL + 1.5 mL excess". */
 export function packText(p: Pack): string {
-  const fill = p.fillWeightG ? `fill ${p.fillWeightG} g` : p.fillVolumeMl ? `fill ${p.fillVolumeMl} mL${p.fillExcessMl ? ` + ${p.fillExcessMl} mL excess` : ''}` : 'fill not set';
+  // A fill weight (a dry syrup) and a fill volume (a liquid): both shown when both are set, so neither changes unseen.
+  const parts = [p.fillWeightG ? `${p.fillWeightG} g` : '', p.fillVolumeMl ? `${p.fillVolumeMl} mL${p.fillExcessMl ? ` + ${p.fillExcessMl} mL excess` : ''}` : p.fillExcessMl ? `${p.fillExcessMl} mL excess` : ''].filter(Boolean);
+  const fill = parts.length ? `fill ${parts.join(', ')}` : 'fill not set';
   return [p.type, p.closure !== 'none' ? p.closure : '', p.device !== 'none' ? p.device : ''].filter(Boolean).join(', ') + `; ${fill}`;
 }
 

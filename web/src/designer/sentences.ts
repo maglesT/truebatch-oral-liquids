@@ -115,8 +115,10 @@ export function limitText(l: Limit): string {
   const u = l.unit === '' ? '' : ` ${l.unit}`;
   const low = l.low ? `${l.lowStrict ? 'more than' : 'at least'} ${l.low}${u}` : '';
   const high = l.high ? `${l.highStrict ? 'less than' : 'at most'} ${l.high}${u}` : '';
-  if (l.low && l.high && !l.lowStrict && !l.highStrict) return `within ${l.low} to ${l.high}${u}`;
-  return [low, high].filter(Boolean).join(' and ') || 'no limits';
+  // The alert limits inside the limits, when the master sets them: a result outside them passes with an alert.
+  const alert = l.alertLow || l.alertHigh ? ` (alert limit ${limitText({ low: l.alertLow, high: l.alertHigh, unit: l.unit })})` : '';
+  if (l.low && l.high && !l.lowStrict && !l.highStrict) return `within ${l.low} to ${l.high}${u}${alert}`;
+  return `${[low, high].filter(Boolean).join(' and ') || 'no limits'}${alert}`;
 }
 
 /** A setting's value in words. */
