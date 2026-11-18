@@ -41,6 +41,20 @@ describe('the liquids blocks (library sections 5.2-5.4)', () => {
     expect(p).toEqual(['Theoretical quantity: a formula line gives its batch quantity (a mass), but this setting is a volume. Type the value instead']);
   });
 
+  it('a repeat-until step whose C1 stop check reads an optional limit left unset never passes: refused (Tablets rounds 37/37b)', () => {
+    const flow = (stop: string) => ({ kind: 'repeat-until', maxRounds: 5, stop });
+    const never = (settings: object, stop: string, id = 'water') => {
+      const d = one(id, settings);
+      (d.stages[0]!.steps[0] as { flow: object }).flow = flow(stop);
+      return masterChecks(d).filter((x) => x.message.includes('never passes')).map((x) => x.message);
+    };
+    expect(never({ water: 'hot' }, 'temperatureCheck')).toEqual(['Temperature stops the rounds, but Temperature limits is not set, so it never passes: set it, or pick the check that stops the rounds under More options']);
+    expect(never({ water: 'hot', temperatureLimit: { low: '70', high: '80', unit: '°C' } }, 'temperatureCheck')).toEqual([]);
+    // A stop check that is not a C1 runs without an unset optional argument, so it is not refused.
+    const notC1 = findBlock({ id: 'ph-adjust', version: 1 })!.calcs.find((c) => c.template !== 'C1')!;
+    expect(never({ phLimit: { low: '4.5', high: '5.5', unit: '' } }, notC1.name, 'ph-adjust')).toEqual([]);
+  });
+
   it('drying to constant weight: the largest change is a tolerance, typed only (Tablets round 31)', () => {
     const set = (maxChange: object | string) => masterChecks(one('dry-constant', { maxChange })).filter((x) => x.path.endsWith('settings.maxChange')).map((x) => x.message);
     expect(set({ formula: 'x' })).toEqual(['Largest change between rounds is a tolerance: type it (the batch quantity of a formula line is not a tolerance)']);

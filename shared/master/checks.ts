@@ -118,7 +118,16 @@ export function masterChecks(doc: MasterDoc): Problem[] {
       if (st.flow.kind === 'repeat-until') {
         if (!st.flow.maxRounds) error(`${p}.flow`, 'A repeat-until step needs the most rounds allowed');
         const stop = st.flow.stop ?? block.stop;
-        if (!stop || !block.calcs.some((c) => c.name === stop)) error(`${p}.flow`, 'A repeat-until step needs a stop check (a calculation of its block)');
+        const stopCalc = block.calcs.find((c) => c.name === stop);
+        if (!stop || !stopCalc) error(`${p}.flow`, 'A repeat-until step needs a stop check (a calculation of its block)');
+        // A C1 stop check whose value or limit is an optional setting ("$name?") the master left unset is left out at
+        // run time (engine/values.ts leaves out only such a C1), so it never passes and the rounds can only end at the
+        // most rounds allowed. Other templates run without an unset optional argument, so only a C1's value and limit
+        // are checked (Tablets rounds 37/37b). Other optional settings stay optional.
+        else if (stopCalc.template === 'C1') for (const [, name] of JSON.stringify({ value: (stopCalc.args as { value?: unknown }).value, limit: (stopCalc.args as { limit?: unknown }).limit }).matchAll(/"\$([a-zA-Z0-9]+)\?"/g)) {
+          const bs = block.settings.find((x) => x.name === name);
+          if (bs && name && st.settings[name] === undefined) error(`${p}.flow`, `${stopCalc.label} stops the rounds, but ${bs.label} is not set, so it never passes: set it, or pick the check that stops the rounds under More options`);
+        }
       }
       if (st.everyMinutes && st.flow.kind !== 'repeat-until') error(`${p}.everyMinutes`, 'Checks every N minutes need a repeat-until step');
       const later = st.everyMinutesLater;
