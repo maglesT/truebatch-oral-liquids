@@ -30,8 +30,15 @@ describe('the liquids blocks (library sections 5.2-5.4)', () => {
     expect(neededKind(b, 'largestLimit')).toBe('mass');
     const set = { target: { formula: 'x' }, donor: '0 mg/mL', direction: 'dilute with the vehicle', largestLimit: { high: '5', unit: 'kg' }, tolerance: '1.0' };
     const p = masterChecks(one('bulk-adjust', set)).filter((x) => x.path.endsWith('settings.target'));
-    expect(p.map((x) => x.message)).toEqual(['Target concentration: a formula line gives its batch quantity, but this setting is a concentration. Type the value instead']);
+    expect(p.map((x) => x.message)).toEqual(['Target concentration: a formula line gives its batch quantity (a mass), but this setting is a concentration. Type the value instead']);
     expect(masterChecks(one('bulk-adjust', { ...set, target: '24.0 mg/mL' })).filter((x) => x.path.includes('settings'))).toEqual([]);
+  });
+
+  it('TL-01 a formula line (always kg) on a quantity read in litres is refused; the designer offers no line there', () => {
+    const b = findBlock({ id: 'bulk-yield', version: 1 })!;
+    expect(neededKind(b, 'theoretical', { unit: 'L' })).toBe('volume');
+    const p = masterChecks(one('bulk-yield', { unit: 'L', theoretical: { formula: 'x' } })).filter((x) => x.path.endsWith('settings.theoretical')).map((x) => x.message);
+    expect(p).toEqual(['Theoretical quantity: a formula line gives its batch quantity (a mass), but this setting is a volume. Type the value instead']);
   });
 
   it('drying to constant weight: the largest change is a tolerance, typed only (Tablets round 31)', () => {
