@@ -25,5 +25,5 @@
     "qms": ["change_v1"],
     "recruitment": ["training_v1"]
   },
-  "source": { "repo": "https://github.com/maglesT/TrueBatch-Tablets", "commit": "<full commit id at bundling>" }
+  "source": { "repo": "https://github.com/maglesT/truebatch-oral-liquids", "commit": "<full commit id at bundling>" }
 }
