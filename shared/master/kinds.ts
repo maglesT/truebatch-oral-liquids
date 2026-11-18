@@ -47,8 +47,14 @@ export function kindOf(block: Block, name: string, settings: Step['settings'] = 
 export function neededKind(block: Block, setting: string, settings: Step['settings'] = {}, seen = new Set<string>([setting])): Kind | undefined {
   const s = block.settings.find((x) => x.name === setting);
   for (const c of block.calcs) {
-    const refs = refsIn(c.args);
+    let refs = refsIn(c.args);
     if (!refs.includes(setting)) continue;
+    // Mix to a target (T26): the measured value, the donor and the target are of one kind; the mass is a mass.
+    if (c.template === 'T26') {
+      const a = c.args as Record<string, unknown>;
+      const prop = refsIn([a.a, a.b, a.target]);
+      refs = prop.includes(setting) ? prop : refsIn([a.mass]);
+    }
     if (s?.kind === 'limit') {
       if (c.template === 'F2') return undefined;
       if (refsIn((c.args as { rsdLimit?: unknown }).rsdLimit).includes(setting)) return 'fraction';

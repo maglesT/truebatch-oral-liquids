@@ -9,7 +9,7 @@ import { decimalsOf } from '../templates/core.js';
 import { claimMg, claimWords, evaluate, headerValue, lineQuantity, perBatch } from '../engine/values.js';
 import { materialLines, type Answer, type FormulaLine, type Limit, type MasterDoc, type SettingValue } from './schema.js';
 import { packingChecks } from './packing.js';
-import { unitKindProblem } from './kinds.js';
+import { neededKind, unitKindProblem } from './kinds.js';
 import { isBalance } from '../engine/picks.js';
 
 /** A warning the author answers: one of the options, with a reason when `needsReason`. */
@@ -88,6 +88,10 @@ export function masterChecks(doc: MasterDoc): Problem[] {
         const unit = typeof v === 'object' && 'unit' in v ? v.unit : typeof v === 'string' && bs?.kind === 'quantity' ? QUANTITY.exec(v)?.[3] : undefined;
         const wrong = !why && unit !== undefined ? unitKindProblem(block, name, st.settings, unit) : null;
         if (wrong) error(`${p}.settings.${name}`, wrong, 'TL-01');
+        // A formula line gives its batch quantity (a mass or volume): refused where the setting is a value of another
+        // kind (a target concentration), which no batch could work out (Tablets round 29 port, by the unit kind).
+        const need = !why && typeof v === 'object' && 'formula' in v && bs?.kind === 'quantity' ? neededKind(block, name, st.settings) : undefined;
+        if (need && need !== 'mass' && need !== 'volume') error(`${p}.settings.${name}`, `${bs!.label}: a formula line gives its batch quantity, but this setting is ${need === 'mass concentration' ? 'a concentration' : `a value of kind ${need}`}. Type the value instead`, 'TL-01');
       }
       // A temperature recorded with optional limits left empty is recorded without a check (the disintegration
       // medium at 37 ± 2 °C, an inlet or forming temperature): a warning, so the author sets them or leaves them knowingly.

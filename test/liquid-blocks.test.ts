@@ -3,6 +3,7 @@ import { findBlock } from '../shared/blocks/index.js';
 import { blockProblems } from '../shared/blocks/format.js';
 import { evaluate, type StepEvent, type Value } from '../shared/engine/index.js';
 import { masterChecks } from '../shared/master/checks.js';
+import { neededKind } from '../shared/master/kinds.js';
 import { ev, small, unplaced } from './engine-fixture.js';
 
 // The liquids blocks (shared/blocks/liquids.ts): what each works out from recorded values, with the templates.
@@ -20,6 +21,17 @@ describe('the liquids blocks (library sections 5.2-5.4)', () => {
       'bulk-test', 'bulk-adjust', 'bulk-transfer', 'bulk-yield', 'bulk-yield-weight', 'room-status']) {
       expect(blockProblems(findBlock({ id, version: 1 })!), id).toEqual([]);
     }
+  });
+
+  it('TL-01 the bulk correction: its target is a concentration, so a formula line (a batch quantity) is refused and only typed', () => {
+    const b = findBlock({ id: 'bulk-adjust', version: 1 })!;
+    expect(neededKind(b, 'target')).toBe('mass concentration');
+    expect(neededKind(b, 'donor')).toBe('mass concentration');
+    expect(neededKind(b, 'largestLimit')).toBe('mass');
+    const set = { target: { formula: 'x' }, donor: '0 mg/mL', direction: 'dilute with the vehicle', largestLimit: { high: '5', unit: 'kg' }, tolerance: '1.0' };
+    const p = masterChecks(one('bulk-adjust', set)).filter((x) => x.path.endsWith('settings.target'));
+    expect(p.map((x) => x.message)).toEqual(['Target concentration: a formula line gives its batch quantity, but this setting is a concentration. Type the value instead']);
+    expect(masterChecks(one('bulk-adjust', { ...set, target: '24.0 mg/mL' })).filter((x) => x.path.includes('settings'))).toEqual([]);
   });
 
   it('TL-08 make-up by weight: the target batch weight is the volume × the density (I18), the net weight is checked against it', () => {
