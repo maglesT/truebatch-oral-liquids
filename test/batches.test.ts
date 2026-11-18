@@ -327,6 +327,12 @@ describe('walking a stage', () => {
     expect(await code(t.owner`delete from step_events`)).toBe('42501');
     expect(await code(t.sql`insert into step_events (batch_id, stage, sub, step, round, kind, person_id, at) values (${id}, 0, 1, 0, 1, 'note', 1, now() - interval '1 day')`)).toBe('42501');
   });
+
+  it('TL-06 a batch row is insert-only: neither the app role nor the owner can change, delete or truncate it (Tablets round 34)', async () => {
+    expect(await code(t.owner`update batches set batch_no = batch_no`)).toBe('42501');
+    expect(await code(t.owner`delete from batches where id = ${id}`)).toBe('42501');
+    expect(await code(t.owner`truncate batches cascade`)).toBe('42501');
+  });
 });
 
 describe('production approval, QC approval and QA release', () => {
