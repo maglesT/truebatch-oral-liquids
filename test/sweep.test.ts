@@ -41,18 +41,18 @@ const SETTINGS: Record<string, Step['settings']> = {
   disintegration: { maxTime: '15', temperatureLimit: { low: '35', high: '39', unit: '°C' } },
   'uniformity-by-weight': { coating: 'uncoated', labelClaim: '50 mg' },
   'content-uniformity': { coating: 'uncoated' },
-  coat: { coreWeight: { header: 'coreWeight' }, gainLimit: pct('2.8', '3.2') },
-  'spray-coat': { coreWeight: { header: 'coreWeight' }, base: 'start', gainLimit: pct('2.8', '3.2'), inletLimit: { low: '50', high: '70', unit: '°C' },
+  coat: { coreWeight: '250.0 mg', gainLimit: pct('2.8', '3.2') },
+  'spray-coat': { coreWeight: '250.0 mg', base: 'start', gainLimit: pct('2.8', '3.2'), inletLimit: { low: '50', high: '70', unit: '°C' },
     bedLimit: { low: '35', high: '45', unit: '°C' }, sprayRateLimit: { low: '50', high: '150', unit: 'g/min' } },
   'polish-print': { print: 'Logo in black' },
   check: { what: 'Weight', unit: 'mg', limit: { low: '95', high: '105', unit: 'mg' } },
   'qa-sample': { sampleLimit: { low: '50', high: '60', unit: 'tablets' } },
-  'stage-yield': { theoretical: { header: 'coreBatch' }, yieldLimit: pct('97.0', '100.5'), accountabilityLimit: pct('99.0', '100.5') },
+  'stage-yield': { theoretical: { header: 'batchMass' }, yieldLimit: pct('97.0', '100.5'), accountabilityLimit: pct('99.0', '100.5') },
   'tablet-reconciliation': { theoretical: { header: 'batchSize' }, meanWeight: '100.0 mg', yieldLimit: pct('97.0', '100.5'), accountabilityLimit: pct('99.0', '100.5') },
   'pack-material-issue': { material: { formula: 'foil' }, unit: 'm' },
   'forming-check': { sealLimit: { low: '160', high: '190', unit: '°C' }, formLimit: { low: '110', high: '140', unit: '°C' } },
   'leak-test': { vacuumUnit: 'mbar', vacuumLimit: { low: '400', high: '600', unit: 'mbar' }, level: 'S-1', aql: '0' },
-  'finished-goods': { meanWeight: { header: 'coreWeight' }, yieldLimit: pct('98.0', '100.5'), accountabilityLimit: pct('99.5', '100.5') },
+  'finished-goods': { meanWeight: '250.0 mg', yieldLimit: pct('98.0', '100.5'), accountabilityLimit: pct('99.5', '100.5') },
   'printed-reconciliation': { material: { formula: 'foil' }, unit: 'm', issued: '100 m' },
   'serial-reconciliation': { received: '1000 nos' },
 };
@@ -95,8 +95,8 @@ function crashes(doc: MasterDoc, all: boolean): string[] {
   return out;
 }
 
-const header = { productItemId: 'p', productCode: 'P', productName: 'P', batchSize: '1000', coreWeightMg: '100.0', coatedWeightMg: '103.0', dispensingRooms: ['DSP-01'] };
-const formula = [{ key: 'x', materialItemId: 'm', code: 'M', name: 'M', mgPerTablet: '100.0', role: 'api', place: 'intragranular',
+const header = { productItemId: 'p', productCode: 'P', productName: 'P', batchSize: '1000', batchUnit: 'L', dispensingRooms: ['DSP-01'] };
+const formula = [{ key: 'x', materialItemId: 'm', code: 'M', name: 'M', mg: '100.0', role: 'api', place: 'intragranular',
   adjust: { potency: { basis: 'as is', standardIs: 'anhydrous' }, overage: { percent: '2' } } }];
 /** A small master of one block with all its settings set; a packing block after the bulk issue (its batch facts). */
 function using(b: Block): MasterDoc {

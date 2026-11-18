@@ -4,7 +4,7 @@
  */
 import { Dec, findUnit, type Outcome, type Q, type ResultValue } from '../templates/index.js';
 import { findBlock, type Block, type BlockField } from '../blocks/index.js';
-import type { FormulaLine, Limit, MasterDoc, Pack, SettingValue, Step } from '../master/schema.js';
+import type { FormulaLine, HEADER_VALUES, Limit, MasterDoc, Pack, SettingValue, Step } from '../master/schema.js';
 import { callTemplate } from './templates.js';
 import { keyId, type StepEvent, type StepKey } from './state.js';
 import type { Source } from './links.js';
@@ -138,8 +138,74 @@ function refValue(doc: MasterDoc, events: readonly StepEvent[], here: StepKey, r
   return name in c.values ? c.values[name] : c.results[name] ? asQ(c.results[name]) : undefined;
 }
 
-const tablets = (doc: MasterDoc) => `${doc.header.batchSize} tablets`;
-const perBatch = (mg: string, doc: MasterDoc) => callTemplate('T8', { mode: 'per unit', perUnit: `${mg} mg`, count: tablets(doc), unit: 'kg' });
+// The liquid batch header (plan data change 1, as TrueBatch Injectables): a liquid batch is scaled per mL of its volume
+// (a batch in kg by the density), a dry syrup powder per g of its mass.
+const L_DP = 3;
+const powder = (doc: MasterDoc) => doc.header.type === 'dry syrup';
+/** The batch volume in L, or why there is none. */
+function batchLitres(doc: MasterDoc): Dec | string {
+  const { batchSize, batchUnit, densityGPerMl } = doc.header;
+  if (powder(doc)) return 'A dry syrup powder has no batch volume';
+  if (batchUnit === 'L') return new Dec(batchSize);
+  if (batchUnit !== 'kg') return 'A packing batch has no volume';
+  if (!densityGPerMl || new Dec(densityGPerMl).isZero()) return 'The header gives no density, so a batch in kg has no volume';
+  return new Dec(batchSize).div(densityGPerMl).toDecimalPlaces(L_DP, Dec.ROUND_HALF_UP);
+}
+/** A formula line's quantity in the batch: mg per mL × the batch volume, or mg per g × the batch mass (T8). */
+export function perBatch(mg: string | undefined, doc: MasterDoc): Outcome<object> {
+  if (mg === undefined) return { ok: false, message: 'Made up to volume (q.s.): no quantity of its own' };
+  if (powder(doc)) {
+    if (doc.header.batchUnit !== 'kg') return { ok: false, message: 'A dry syrup batch is made in kg' };
+    return callTemplate('T8', { mode: 'per unit', perUnit: `${mg} mg/g`, count: `${doc.header.batchSize} kg`, unit: 'kg' });
+  }
+  const l = batchLitres(doc);
+  if (typeof l === 'string') return { ok: false, message: l };
+  return callTemplate('T8', { mode: 'per unit', perUnit: `${mg} mg/mL`, count: `${l.toString()} L`, unit: 'kg' });
+}
+
+/**
+ * A line's mg per mL (or per g of a dry syrup) as the label claims it: per 1 mL, per dose volume, per drop, per
+ * container (a dry syrup: × the fill weight), per g of powder; a dry syrup's volume claims are of the reconstituted
+ * volume. A string says why there is no claim to check (none, or a value the header does not give).
+ */
+export function claimMg(doc: MasterDoc, mg: string): Dec | string {
+  const h = doc.header;
+  const n = (v?: string) => (v && !new Dec(v).isZero() ? new Dec(v) : undefined);
+  let perMl = new Dec(mg);
+  if (powder(doc)) {
+    if (h.claimPer === 'g of powder') return perMl;
+    const fill = n(h.fillWeightG);
+    if (!fill) return 'The header gives no fill weight';
+    if (h.claimPer === 'container') return perMl.times(fill);
+    const rec = n(h.reconstitutedMl);
+    if (!rec) return 'The header gives no volume after reconstitution';
+    perMl = perMl.times(fill).div(rec);
+  } else if (h.claimPer === 'g of powder' || h.claimPer === 'container') return `A liquid claimed per ${h.claimPer} is checked in packing`;
+  switch (h.claimPer) {
+    case 'mL': return perMl;
+    case 'dose volume': { const d = n(h.doseVolumeMl); return d ? perMl.times(d) : 'The header gives no dose volume'; }
+    case 'drop': { const d = n(h.dropsPerMl); return d ? perMl.div(d) : 'The header gives no drops per mL'; }
+    default: return 'The header gives no label claim';
+  }
+}
+/** "per 5 mL", "per drop" … for messages. */
+export function claimWords(doc: MasterDoc): string {
+  const h = doc.header;
+  const rec = h.type === 'dry syrup' && h.claimPer !== 'container' && h.claimPer !== 'g of powder' ? ' after reconstitution' : '';
+  return h.claimPer === 'dose volume' ? `per ${h.doseVolumeMl ?? '?'} mL${rec}` : h.claimPer === 'mL' ? `per mL${rec}` : `per ${h.claimPer ?? 'mL'}${rec}`;
+}
+
+/** The header values in words, for messages ("only when the batch volume is …"). */
+export const HEADER_WORDS: Record<(typeof HEADER_VALUES)[number], string> = {
+  batchSize: 'batch size', batchVolume: 'batch volume', batchMass: 'batch mass', density: 'density', fillWeight: 'fill weight', containers: 'containers expected',
+};
+
+/** The batch in words, for the screens and the PDF: "1,000 L · density 1.250 g/mL at 25 °C". */
+export function batchText(doc: MasterDoc): string {
+  const h = doc.header;
+  return [`${Number(h.batchSize).toLocaleString('en-IN')} ${h.batchUnit}`, h.densityGPerMl ? `density ${h.densityGPerMl} g/mL${h.densityAtC ? ` at ${h.densityAtC} °C` : ''}` : '',
+    h.fillWeightG ? `fill ${h.fillWeightG} g per container` : '', h.reconstitutedMl ? `${h.reconstitutedMl} mL after reconstitution` : ''].filter(Boolean).join(' · ');
+}
 
 /** The pack facts a packing block's calculations read as "$pack.name" (shared/blocks/format.ts PACK_FACTS). */
 export function packFacts(p: Pack): Record<string, string> {
@@ -147,14 +213,25 @@ export function packFacts(p: Pack): Record<string, string> {
     expiryRule: p.expiryRule, type: p.type, destination: p.destination, gtin: p.gtin, mrp: p.mrp }).filter(([, v]) => v !== undefined).map(([k, v]) => [`pack.${k}`, v!]));
 }
 
-/** A header value: as written, or the batch weight (T8: weight per tablet × batch size). */
-export function headerValue(doc: MasterDoc, h: 'batchSize' | 'coreWeight' | 'coatedWeight' | 'coreBatch' | 'coatedBatch'): string | Stored {
-  const { coreWeightMg: core, coatedWeightMg: coated } = doc.header;
-  if (h === 'batchSize') return tablets(doc);
-  if (h === 'coreWeight') return `${core} mg`;
-  if (h === 'coreBatch') return store(perBatch(core, doc));
-  if (coated === undefined) return { ok: false, message: 'The master has no coated tablet weight' };
-  return h === 'coatedWeight' ? `${coated} mg` : store(perBatch(coated, doc));
+/** A header value: as written, or worked out from it (the volume, the mass, the containers of a dry syrup). */
+export function headerValue(doc: MasterDoc, h: (typeof HEADER_VALUES)[number]): string | Stored {
+  const { batchSize, batchUnit, densityGPerMl: d, fillWeightG: fill } = doc.header;
+  const no = (message: string): Stored => ({ ok: false, message });
+  switch (h) {
+    case 'batchSize': return `${batchSize} ${batchUnit}`;
+    case 'density': return d ? `${d} g/mL` : no('The header gives no density');
+    case 'fillWeight': return fill ? `${fill} g` : no('The header gives no fill weight');
+    case 'batchVolume': { const l = batchLitres(doc); return typeof l === 'string' ? no(l) : `${l.toString()} L`; }
+    case 'batchMass':
+      if (batchUnit === 'kg') return `${batchSize} kg`;
+      if (batchUnit !== 'L') return no('A packing batch has no mass');
+      return d ? `${new Dec(batchSize).times(d).toString()} kg` : no('The header gives no density, so a batch in L has no mass');
+    case 'containers':
+      if (!powder(doc) || batchUnit !== 'kg') return no('Containers are worked out for a dry syrup batch in kg only');
+      if (!fill || new Dec(fill).isZero()) return no('The header gives no fill weight, so the containers are not known');
+      return `${new Dec(batchSize).times(1000).div(fill).floor().toString()} units`;
+    default: return no('Not a header value');
+  }
 }
 
 /** The adjusted quantity a step recorded for a formula line (its setting that asks for the adjusted line). */
@@ -176,7 +253,7 @@ function recordedAdjusted(doc: MasterDoc, events: readonly StepEvent[], here: St
  * or T10 for a filler that compensates other lines. The worked lines are joined.
  */
 export function lineQuantity(doc: MasterDoc, events: readonly StepEvent[], here: StepKey, line: FormulaLine, adjusted: boolean, values: Record<string, Value>, uses: number[] = []): Stored {
-  let q: Outcome<object> = perBatch(line.mgPerTablet, doc);
+  let q: Outcome<object> = perBatch(line.mg, doc);
   const shown: string[] = [];
   const next = (o: Outcome<object>) => { if (q.ok) shown.push(q.shown); q = o; };
   const a = adjusted ? line.adjust : undefined;
@@ -200,7 +277,7 @@ export function lineQuantity(doc: MasterDoc, events: readonly StepEvent[], here:
   return r.ok && shown.length ? { ...r, shown: [...shown, r.shown].join('; then ') } : r;
 }
 const perBatchQ = (doc: MasterDoc, l: FormulaLine | undefined) => {
-  const r = l ? store(perBatch(l.mgPerTablet, doc)) : undefined;
+  const r = l ? store(perBatch(l.mg, doc)) : undefined;
   return r ? asQ(r) : undefined;
 };
 

@@ -38,8 +38,7 @@ export function PackFields({ header, pack, products, onChange }: { header: Heade
         <label>Pack type<select aria-label="Pack type" value={pack.type} onChange={(e) => set({ type: e.target.value as Pack['type'] })}>{PACK_TYPES.map((t) => <option key={t}>{t}</option>)}</select></label>
         <label>Tablets per pack<Decimal label="Tablets per pack" value={String(pack.unitsPerPack)} onChange={(v) => set({ unitsPerPack: whole(v) })} width={5} /></label>
         <label>Packs per carton<Decimal label="Packs per carton" value={String(pack.packsPerCarton)} onChange={(v) => set({ packsPerCarton: whole(v) })} width={5} /></label>
-        <label>Standard packing batch (tablets)<Decimal label="Standard packing batch (tablets)" value={header.batchSize} onChange={(v) => setH({ batchSize: v })} width={9} /></label>
-        <label>Tablet weight (mg, for counts by weight)<Decimal label="Tablet weight (mg)" value={header.coreWeightMg} onChange={(v) => setH({ coreWeightMg: v })} /></label>
+        <label>Standard packing batch (packs)<Decimal label="Standard packing batch (packs)" value={header.batchSize} onChange={(v) => setH({ batchSize: v, batchUnit: 'packs' })} width={9} /></label>
         <label>Approved shelf life (months)<Decimal label="Approved shelf life (months)" value={String(pack.shelfLifeMonths)} onChange={(v) => set({ shelfLifeMonths: whole(v) })} width={4} /></label>
         <label>Expiry<select aria-label="Expiry rule" value={pack.expiryRule} onChange={(e) => set({ expiryRule: e.target.value as Pack['expiryRule'] })}>
           <option value="month before">month of manufacture + shelf life − 1</option><option value="same month">month of manufacture + shelf life</option></select></label>

@@ -67,17 +67,18 @@ export function earlierRefs(doc: MasterDoc, si: number, ti: number): RefOption[]
 }
 
 export const HEADER_LABEL: Record<(typeof HEADER_VALUES)[number], { label: string; kind: Kind }> = {
-  batchSize: { label: 'the batch size (tablets)', kind: 'count' },
-  coreWeight: { label: 'the theoretical core tablet weight', kind: 'mass' },
-  coatedWeight: { label: 'the theoretical coated tablet weight', kind: 'mass' },
-  coreBatch: { label: 'the theoretical core batch weight', kind: 'mass' },
-  coatedBatch: { label: 'the theoretical coated batch weight', kind: 'mass' },
+  batchSize: { label: 'the batch size as made (L or kg)', kind: 'number' },
+  batchVolume: { label: 'the batch volume (L)', kind: 'volume' },
+  batchMass: { label: 'the batch mass (kg)', kind: 'mass' },
+  density: { label: 'the density', kind: 'density' },
+  fillWeight: { label: 'the fill weight per container (dry syrup)', kind: 'mass' },
+  containers: { label: 'the containers expected (dry syrup)', kind: 'count' },
 };
 
 export const stepTitle = (doc: MasterDoc, t: Step, j?: number) => `${j === undefined ? '' : `${j + 1}. `}${title(doc, t)}`;
 
 // Settings a new step starts with (the author may change them): the usual dispensing tolerance.
-const DEFAULT_SETTINGS: Record<string, Step['settings']> = { weigh: { tolerance: '0.5' }, lubricate: { tolerance: '0.5' } };
+const DEFAULT_SETTINGS: Record<string, Step['settings']> = { weigh: { tolerance: '0.5' } };
 /** A new step from a block, with its default instruction, signatures and settings. */
 export function stepFrom(block: Block, taken: string[]): Step {
   return { key: newKey(block.id, taken), block: { id: block.id, version: block.version }, settings: { ...DEFAULT_SETTINGS[block.id] }, checker: block.checker,

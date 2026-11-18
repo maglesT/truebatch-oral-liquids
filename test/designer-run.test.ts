@@ -16,7 +16,7 @@ vi.mock('../shared/blocks/index.js', async (original) => (await import('./test-b
 // plain view's words, and the pick lists offered from master data.
 
 const block = (id: string) => BLOCKS.find((b) => b.id === id)!;
-const header = { productItemId: 'p', productCode: 'P', productName: 'P', batchSize: '50000', coreWeightMg: '600.0', dispensingRooms: ['RM-101'] };
+const header = { productItemId: 'p', productCode: 'P', productName: 'P', type: 'dry syrup' as const, batchSize: '50000', batchUnit: 'kg' as const, dispensingRooms: ['RM-101'] };
 const room = (code: string, name: string, area: string | null, active = true) => ({ itemId: code, code, name, version: 1, active, area, grade: 'D' });
 const machine = (code: string, type: string | null, at: string | null, active = true) => ({ itemId: code, code, name: code, version: 1, active, kind: 'instrument' as const, type, room: at });
 const MD = {
@@ -89,7 +89,7 @@ describe('designer findings of the 17 Nov 2026 run', () => {
     const good = rec.calcs.find((c) => /good tablets/i.test(c.label));
     if (good) expect(sentenceText(tablet(), rec, {}, sentence(rec, good))).toMatch(/^The good tablets are /);
     const lines = describeMaster(granulated()).flatMap((s) => s.lines.map((l) => l.text));
-    expect(lines).toContain('Batch size 50,000 tablets.');
+    expect(lines).toContain('Batch 50,000 kg.');
     expect(lines.find((l) => l.includes('Produces dry syrup powder'))).toMatch(/to be used within 720 hours \(30 days\)\./);
     // A charged material by its name and code, as the floor names it.
     const d = tablet();

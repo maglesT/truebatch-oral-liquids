@@ -42,8 +42,7 @@ test('TL-P2 packing journey: packing master from the skeleton, approved; a packi
   await author.page.getByLabel('Bulk product').fill('PRD-001');
   await author.page.getByRole('button', { name: /PRD-001/ }).click();
   await author.page.getByLabel('Packs per carton').fill('10');
-  await author.page.getByLabel('Standard packing batch (tablets)').fill('100000');
-  await author.page.getByLabel('Tablet weight (mg)').fill('250.0');
+  await author.page.getByLabel('Standard packing batch (packs)').fill('1000');
   await author.page.getByLabel('MRP per pack').fill('125.00');
   await author.page.getByText('Process skeleton: Packing record').click();
   await author.page.getByRole('button', { name: 'Create draft' }).click();

@@ -48,9 +48,9 @@ async function approved(doc = placed(tablet())) {
 describe('master review and approval', () => {
   it('TL-01 a version with master-check errors cannot be sent for review', async () => {
     const doc = placed(tablet());
-    doc.formula[0]!.mgPerTablet = '90.0';
+    delete doc.formula[1]!.mg;
     const { id } = await draft(doc);
-    expect((await review(id, 'author')).refusals.submit).toMatch(/master check shows 1 problem/);
+    expect((await review(id, 'author')).refusals.submit).toMatch(/master check shows 2 problems/);
     const res = await act('author', id, 'submit');
     expect(res.statusCode).toBe(409);
     expect(res.json().error).toBe('master_has_errors');

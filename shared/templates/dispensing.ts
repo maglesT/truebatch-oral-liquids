@@ -41,11 +41,17 @@ export function t8BatchScaling(i: T8Input): Outcome {
     if (i.mode === 'per unit') {
       const per = parse(i.perUnit, 'The quantity per unit');
       const n = parse(i.count, 'The number of units');
-      needKind(n, ['count', 'number'], 'The number of units');
+      // A liquid formula per mL × the batch volume (as TrueBatch Injectables), or a dry syrup formula per g (mg/g) × the
+      // batch mass: the mass in the batch.
+      const perMl = per.unit.kind === 'mass concentration';
+      const perG = per.unit.kind === 'fraction' && n.unit.kind === 'mass';
+      needKind(n, perMl ? ['volume'] : perG ? ['mass'] : ['count', 'number'], perMl ? 'The batch volume' : perG ? 'The batch mass' : 'The number of units');
       if (n.v.isNegative() || per.v.isNegative()) refuse('Quantities and counts cannot be negative');
-      const def = per.unit.kind === 'mass' ? 'kg' : per.unit.kind === 'volume' ? 'L' : per.unit.symbol;
+      const def = perMl || perG || per.unit.kind === 'mass' ? 'kg' : per.unit.kind === 'volume' ? 'L' : per.unit.symbol;
       u = unitOf(i.unit ?? def);
-      value = to(per, u).times(n.v);
+      if (perMl) value = to({ v: to(per, 'mg/mL').times(to(n, 'mL')), unit: unitOf('mg'), text: '' }, u);
+      else if (perG) value = to({ v: to(n, 'g').times(to(per, '%')).div(HUNDRED), unit: unitOf('g'), text: '' }, u);
+      else value = to(per, u).times(n.v);
       line = `${per.text} × ${n.text}`;
     } else if (i.mode === 'percent') {
       const pc = percent(i.percent, 'The % w/w');

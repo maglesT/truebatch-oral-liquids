@@ -25,9 +25,10 @@ export function packing(x: Partial<Pack> = {}): MasterDoc {
     if (t.block.id === 'forming-check') t.settings.sealLimit = { low: '160', high: '190', unit: '°C' };
     if (t.block.id === 'leak-test') t.settings.vacuumLimit = { low: '400', high: '600', unit: 'mbar' };
     if (t.block.id === 'bulk-issue') t.checker = true;
+    if (t.block.id === 'finished-goods') t.settings.meanWeight = '250.0 mg';
   }
   stages[0]!.machineTypes = ['blister line'];
-  return masterSchema.parse({ header: { productItemId: 'pk-1', productCode: 'PK-001', productName: 'Examplol 100 mg tablets, 10 x 10 blister', batchSize: '100000', coreWeightMg: '250.0' },
+  return masterSchema.parse({ header: { productItemId: 'pk-1', productCode: 'PK-001', productName: 'Examplol 100 mg tablets, 10 x 10 blister', batchSize: '1000', batchUnit: 'packs' },
     formula: [], stages, pack: p });
 }
 

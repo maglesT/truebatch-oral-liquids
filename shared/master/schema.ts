@@ -16,7 +16,9 @@ export const limitSchema = z.object({
 
 // A step setting: a value as written ("0.5", "250.0 mg"), a limit, or a reference to an earlier step's field or
 // calculation ("stage/step/name"), to a formula line (its batch quantity, adjusted when asked) or to the header.
-export const HEADER_VALUES = ['batchSize', 'coreWeight', 'coatedWeight', 'coreBatch', 'coatedBatch'] as const;
+// Header values (shared/engine/values.ts headerValue): the batch as written, its volume (L; a batch in kg by the
+// density), its mass (kg), the density, and for a dry syrup the fill weight per container and the containers expected.
+export const HEADER_VALUES = ['batchSize', 'batchVolume', 'batchMass', 'density', 'fillWeight', 'containers'] as const;
 export const settingValueSchema = z.union([
   text(),
   limitSchema,
@@ -51,7 +53,7 @@ export const stepSchema = z.object({
   everyMinutesLater: z.object({ afterMinutes: z.number().int().positive().max(10_000), everyMinutes: z.number().int().positive().max(10_000) }).strict().optional(),
   // F4 by a rule: the step is done only when a header value is within the limit (F0040: the bag premix only for a
   // batch of at most 50 kg); otherwise it is not applicable, with no operator choice.
-  onlyIf: z.object({ header: z.enum(['batchSize', 'coreBatch']), limit: limitSchema }).strict().optional(),
+  onlyIf: z.object({ header: z.enum(HEADER_VALUES), limit: limitSchema }).strict().optional(),
   // A spray of a liquid made in excess: the amount of liquid to apply per amount charged (F0339: 971 g per 150 g).
   applyPerCharge: z.object({ liquid: text(40), charge: text(40) }).strict().optional(),
   // Order-critical: this step must come after the step with this key in the same stage (F0318: the drug after the PVP).
@@ -87,14 +89,17 @@ export const lineSchema = z.object({
   materialItemId: z.string().min(1).max(100),
   code: text(),
   name: text(),
-  mgPerTablet: decimal,
-  // A solvent is removed in processing (granulation water) and is not part of the tablet weight.
+  // mg per mL of a liquid batch (a batch in L, or in kg by the density), or mg per g of a dry syrup powder. The
+  // vehicle made up to volume (purified water "q.s.") has none: it is whatever makes the volume or weight.
+  mg: decimal.optional(),
+  // solvent: the vehicle made up to volume, or a solvent removed in processing (granulation water of a dry syrup).
   role: z.enum(['api', 'excipient', 'solvent']),
-  place: z.enum(['intragranular', 'extragranular', 'binder', 'coating']),
-  layer: z.number().int().min(1).max(10).optional(),
-  // The API's label claim per tablet ("20 mg", "10 mEq"), on the basis the label-basis answer gives; checked, never used.
+  // A granulated dry syrup only: where the material goes (granules, blended after, binder, coating of the granules).
+  place: z.enum(['intragranular', 'extragranular', 'binder', 'coating']).optional(),
+  // The API's label claim per the header's "claim per" ("120 mg", "10 mEq"), as the header's "claim as" substance;
+  // checked, never used.
   labelClaim: text(40).optional(),
-  // A batch quantity as written in the source ("120.000 kg"); only checked against mg per tablet × batch size (T8).
+  // A batch quantity as written in the source ("12.000 kg"); only checked against mg per mL (or g) × the batch (T8).
   batchQuantity: text(40).optional(),
   // Settings of the adjustment templates, applied in this order: T11 salt factor, T9 potency or T18 content, T16
   // overage; or, for a filler, T10 compensation of the named lines.
@@ -118,17 +123,36 @@ export const lineSchema = z.object({
   }).strict().optional(),
 }).strict();
 
+// The liquid batch header (plan data change 1, the shape of TrueBatch Injectables' header). A liquid is made in L or
+// kg (the formula per mL; a batch in kg turns into its volume by the density); a dry syrup powder in kg (the formula
+// per g). A packing master's standard batch is in packs. Nothing worked out from these is typed in the batch.
+export const PRODUCT_TYPES = ['solution', 'drops', 'suspension', 'emulsion', 'dry syrup'] as const;
+export const BATCH_UNITS = ['L', 'kg', 'packs'] as const;
+// What the label claim is per: 1 mL, a dose volume (5 mL, 10 mL …: doseVolumeMl), a drop (dropsPerMl), the whole
+// container, 1 g of powder (scoop or weighed per dose), or none (a diluent or vehicle batch: the claim check is
+// answered instead).
+export const CLAIM_PER = ['mL', 'dose volume', 'drop', 'container', 'g of powder', 'none'] as const;
 export const headerSchema = z.object({
   productItemId: z.string().min(1).max(100),
   productCode: text(),
   productName: text(),
-  batchSize: z.string().regex(/^[1-9]\d{0,9}$/, 'a whole number of tablets'),
-  coreWeightMg: decimal,
-  coatedWeightMg: decimal.optional(),
-  // The die bore area from the tooling record, to check that the target weight fits the tooling (F0135).
-  dieAreaMm2: decimal.optional(),
-  // Other strengths compressed from the same blend at their own core weight (F0225, F0366).
-  otherStrengths: z.array(z.object({ name: text().min(1), labelClaim: text(40), coreWeightMg: decimal }).strict()).max(10).optional(),
+  // solution covers syrups, oral solutions and elixirs; dry syrup covers powders for oral suspension or solution.
+  type: z.enum(PRODUCT_TYPES).optional(),
+  batchSize: decimal,
+  batchUnit: z.enum(BATCH_UNITS),
+  // g/mL at the stated temperature (°C): every liquid batch has one (a batch in kg, a make-up by weight, the fill).
+  densityGPerMl: decimal.optional(),
+  densityAtC: decimal.optional(),
+  claimPer: z.enum(CLAIM_PER).optional(),
+  doseVolumeMl: decimal.optional(),
+  dropsPerMl: decimal.optional(),
+  // The substance the claim is of: base, salt, ion or element, with its hydrate ("paracetamol", "potassium (K+)").
+  claimAs: text(120).optional(),
+  // A dry syrup: the powder filled per container (g) and the volume after the patient makes it up (mL).
+  fillWeightG: decimal.optional(),
+  reconstitutedMl: decimal.optional(),
+  doses: z.enum(['single-dose', 'multi-dose']).optional(),
+  rxOtc: z.enum(['Rx', 'OTC']).optional(),
   // TL-11: the rooms of master data (codes) where this product's materials are weighed; a balance is offered there or
   // in a room the stage allows (shared/engine/picks.ts). A version made before this setting has none.
   dispensingRooms: z.array(text()).max(20).optional(),
@@ -139,8 +163,8 @@ export const headerSchema = z.object({
 export const answerSchema = z.object({ about: text(1000), choice: text().min(1), reason: text(1000) }).strict();
 
 // TrueBatch Liquids Packing (TL-P1): a packing master is per product, pack type and size, and destination. Its header
-// names the finished pack product, the standard packing batch in tablets (batchSize) and the theoretical weight of one
-// bulk tablet (coreWeightMg, for counts by weight); `pack` holds the rest. Its formula is empty: the packing materials
+// names the finished pack product and the standard packing batch in packs (batchSize, batchUnit "packs"); `pack` holds
+// the rest (the bottle, its fill and closure). Its formula is empty: the packing materials
 // are `pack.materials`, and a step setting { formula: key } names one of them.
 export const PACK_TYPES = ['blister', 'strip', 'bottle'] as const;
 export const PACK_MATERIAL_KINDS = ['foil', 'forming film', 'carton', 'leaflet', 'label', 'shipper', 'bottle', 'closure', 'desiccant', 'other'] as const;

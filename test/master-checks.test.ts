@@ -81,9 +81,16 @@ describe('master checks', () => {
     expect(after((d) => { d.stages[2]!.steps.pop(); })).toEqual(['error - stages[2]: Stage Compression has no yield step']);
   });
 
-  it('the formula must add up to the theoretical core weight (coating and solvents left out)', () => {
-    expect(after((d) => { d.formula[4]!.mgPerTablet = '17.0'; })).toEqual(['error - formula: The core materials add up to 249.5 mg per tablet, not the theoretical core weight 250.0 mg']);
-    expect(after((d) => { d.formula[3]!.mgPerTablet = '80.0'; d.formula[6]!.mgPerTablet = '9.0'; d.header.coatedWeightMg = '259.0'; })).toEqual([]);
+  it('TL-01 a liquid formula is per mL: only the vehicle is made up to volume (q.s.), and only one', () => {
+    expect(after((d) => { delete d.formula[3]!.mg; })).toEqual([]);
+    expect(after((d) => { delete d.formula[4]!.mg; })).toEqual(['error - formula[4].mg: Microcrystalline cellulose has no quantity: only the vehicle made up to volume (q.s.) has none']);
+    expect(after((d) => { delete d.formula[3]!.mg; d.formula[4]!.role = 'solvent'; delete d.formula[4]!.mg; })).toEqual(['error - formula: Only one vehicle is made up to volume (q.s.)']);
+  });
+
+  it('TL-01 a dry syrup formula is per g of powder: its materials add up to 1000 mg', () => {
+    const powder = (d: MasterDoc) => { d.header = { ...d.header, type: 'dry syrup', batchUnit: 'kg', fillWeightG: '40.0', reconstitutedMl: '60', claimPer: 'dose volume', doseVolumeMl: '5' }; };
+    expect(after((d) => { powder(d); })).toEqual(['error - formula: The materials add up to 257.5 mg per g of powder, not 1000 mg']);
+    expect(after((d) => { powder(d); d.formula[1]!.mg = '862.5'; })).toEqual([]);
   });
 
   it('TL-13 adjustment settings the templates library refuses are errors (same basis, overage, salt factor)', () => {
@@ -246,7 +253,7 @@ it('calculation check ⚠️ the messages say what to answer, in plain words', (
   const d = tablet();
   d.formula[0]!.adjust = { salt: { from: { name: 'base', mw: '383.4' }, to: { name: 'sodium', mw: '405.4' }, factor: '1.10' } };
   expect(checks(d).map((p) => `${p.path}: ${p.message}`)).toEqual([
-    "formula[0]: Label claim for this master's market: is the strength of Examplol stated as base or as sodium? The formula gives 100.0 mg of base per tablet.",
+    "formula[0]: Label claim for this master's market: is the strength of Examplol stated as base or as sodium? The formula gives 100.0 mg of base per mL.",
     'formula[0].adjust.salt: The salt factor 1.10 written for Examplol differs by 4.0 % from the molecular weights of base and sodium (factor 1.0574), which the batch quantity uses. Confirm with a reason, or correct the factor or the molecular weights.',
   ]);
 });

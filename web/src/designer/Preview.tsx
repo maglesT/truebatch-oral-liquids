@@ -4,7 +4,8 @@ import { Fragment, useMemo, useState } from 'react';
 import { findBlock } from '../../../shared/blocks/index.js';
 import { evaluate } from '../../../shared/engine/index.js';
 import { masterSchema, type MasterDoc } from '../../../shared/master/schema.js';
-import { batchWeight, dispensing, type LotValues } from './example.js';
+import { dispensing, type LotValues } from './example.js';
+import { batchText } from '../../../shared/engine/values.js';
 import { settingText } from './sentences.js';
 import { grouped, qtyText } from './model.js';
 import { Decimal } from './ui.js';
@@ -24,8 +25,6 @@ export function Preview({ doc: raw }: { doc: MasterDoc }) {
   const doc = parsed.data;
   const rows = dispensing(doc, lots);
   const adjusted = doc.formula.filter((l) => l.adjust && (l.adjust.potency || l.adjust.content));
-  const core = batchWeight(doc, doc.header.coreWeightMg);
-  const coated = batchWeight(doc, doc.header.coatedWeightMg);
   const yields = doc.stages.flatMap((s, si) => s.steps.flatMap((t, ti) => {
     if (findBlock(t.block)?.gmp !== 'yield') return [];
     const v = t.settings.theoretical;
@@ -70,8 +69,7 @@ export function Preview({ doc: raw }: { doc: MasterDoc }) {
       <div className="card">
         <h2>Theoretical quantities and yields</h2>
         <dl className="details">
-          <dt>Core batch weight</dt><dd>{core?.ok ? grouped(core.shown) : '—'}</dd>
-          {coated && <><dt>Coated batch weight</dt><dd>{coated.ok ? grouped(coated.shown) : coated.message}</dd></>}
+          <dt>Batch</dt><dd>{grouped(batchText(doc))}</dd>
           {yields.map((y, i) => <Fragment key={i}><dt>Yield of {y.stage}: theoretical</dt><dd className={y.ok ? '' : 'error'}>{y.text}</dd></Fragment>)}
         </dl>
       </div>

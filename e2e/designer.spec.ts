@@ -29,10 +29,17 @@ test('TL-02 build a master from a skeleton, fix a master-check problem, then che
   // Master data's bulk products (and those without a kind yet), never a pack.
   await expect(author.locator('.picker .pick-list')).toContainText('PRD-002');
   await expect(author.locator('.picker .pick-list')).not.toContainText('PK-001');
-  await author.getByLabel('Product').fill('PRD-001');
+  await author.getByLabel('Product', { exact: true }).fill('PRD-001');
   await author.getByRole('button', { name: /PRD-001/ }).click();
-  await author.getByLabel('Batch size (tablets)').fill('100000');
-  await author.getByLabel('Theoretical core weight (mg per tablet)').fill('250.0');
+  await author.getByLabel('Product type').selectOption({ label: 'Dry syrup (powder for oral suspension or solution)' });
+  await author.getByLabel('Batch size', { exact: true }).fill('100');
+  await author.getByLabel('Batch unit').selectOption('kg');
+  await author.getByLabel('Label claim is per').selectOption('dose volume');
+  await author.getByLabel('Dose volume', { exact: true }).fill('5');
+  await author.getByLabel('Label claim is of', { exact: true }).fill('Examplol');
+  await author.getByLabel('Fill weight', { exact: true }).fill('25.0');
+  await author.getByLabel('Volume after reconstitution', { exact: true }).fill('60');
+  await expect(author.locator('.calc-note')).toContainText('Containers expected: 4000 units');
   // A new master names no dispensing rooms; the rooms with a weighing balance are listed first, by name.
   await expect(author.getByText('None chosen yet: choose the rooms of master data where the materials are weighed')).toBeVisible();
   await author.getByLabel('Add to dispensing rooms (where the materials are weighed)').selectOption({ label: 'DSP-01 · Dispensing booth 1 (Dispensing)' });
@@ -45,9 +52,9 @@ test('TL-02 build a master from a skeleton, fix a master-check problem, then che
   await author.getByRole('button', { name: '+ Add a material' }).click();
   await author.getByLabel('Material').fill('Examplol');
   await author.getByRole('button', { name: /MAT-001/ }).click();
-  await author.getByLabel('mg per tablet of Examplol').fill('250.0');
+  await author.getByLabel('mg per g of Examplol').fill('1000.0');
   await author.getByLabel('Role of Examplol').selectOption('api');
-  await expect(author.locator('.total.ok')).toContainText('equals the theoretical core weight');
+  await expect(author.locator('.total.ok')).toContainText('1000 mg per g');
 
   // The process: 1 stage, starting with line clearance (TL-10); the dry-mix step of blending is removed, leaving 5.
   await author.getByRole('button', { name: 'Process', exact: true }).click();
@@ -68,7 +75,7 @@ test('TL-02 build a master from a skeleton, fix a master-check problem, then che
   await expect(author.getByRole('heading', { name: 'Weigh a material' })).toBeVisible();
   const sentence = author.locator('.sentence', { hasText: 'must be within ±' });
   await sentence.getByLabel('Target quantity').selectOption({ label: 'Examplol' });
-  await expect(author.locator('.ex-results')).toContainText('250.0 mg × 100000 tablets = 25.000 kg');
+  await expect(author.locator('.ex-results')).toContainText('1000.0 mg/g × 100 kg = 100.000 kg');
   await expect(check.getByRole('button', { name: /Target quantity is not set/ })).toBeHidden();
 
   await check.getByRole('button', { name: /Sieve no\. \(mesh and aperture\) is not set/ }).click();

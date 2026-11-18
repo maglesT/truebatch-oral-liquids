@@ -6,7 +6,7 @@ import { findBlock, type Block } from '../blocks/index.js';
 import { materialLines, type MasterDoc, type Step } from '../master/schema.js';
 import { keyId, stepState, type EventKind, type State, type StepEvent, type StepKey } from './state.js';
 import { c1WithinLimits, convert, Dec, findUnit } from '../templates/index.js';
-import { currentValues, durationId, durations, evaluate, failed, headerValue, inputChanges, type Current } from './values.js';
+import { currentValues, durationId, durations, evaluate, failed, headerValue, HEADER_WORDS, inputChanges, type Current } from './values.js';
 import { CERTIFICATE, fieldLabel, handEntered, handFields } from './links.js';
 
 export interface StepView extends Current {
@@ -74,7 +74,7 @@ export function leftOutBy(doc: MasterDoc, st: Step): string | null {
   const h = headerValue(doc, st.onlyIf.header);
   const value = typeof h === 'string' ? h : h.ok ? { value: h.value, unit: h.unit } : undefined;
   const r = value === undefined ? undefined : c1WithinLimits({ value, limit: st.onlyIf.limit });
-  return r?.ok && r.check?.pass ? null : `Left out by the master's rule: only when the ${st.onlyIf.header === 'batchSize' ? 'batch size' : 'core batch weight'} is ${r?.ok ? r.check?.shown ?? '' : 'within its limit'}`;
+  return r?.ok && r.check?.pass ? null : `Left out by the master's rule: only when the ${HEADER_WORDS[st.onlyIf.header]} is ${r?.ok ? r.check?.shown ?? '' : 'within its limit'}`;
 }
 export interface StageView { index: number; key: string; name: string; open: boolean; blocked?: string; closed: boolean }
 export interface Timer {

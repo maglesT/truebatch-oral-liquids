@@ -161,6 +161,3 @@ export function dispensing(doc: MasterDoc, lots: Record<string, LotValues>): Dis
   return doc.formula.map((l) => out.get(l.key)!);
 }
 
-/** The theoretical batch weights (T8): tablet weight × batch size. */
-export const batchWeight = (doc: MasterDoc, mg: string | undefined) =>
-  (mg ? store(callTemplate('T8', { mode: 'per unit', perUnit: `${mg} mg`, count: `${doc.header.batchSize} tablets`, unit: 'kg' })) : undefined);

@@ -30,7 +30,7 @@ const WET: StagePlan[] = [
     steps: [weighStep('weigh-api'), { block: 'sift' }, { block: 'charge', key: 'charge-api' }, { block: 'dry-mix' }, { block: 'granulate', checker: true }, { block: 'dry' },
       { block: 'sieve', key: 'mill' }, yieldStep('')] },
   { key: 'blending', name: 'Blending', role: 'Granulation operator', produces: ['dry syrup powder', 720], uses: ['granulation'],
-    steps: [weighStep('weigh-extragranular'), { block: 'dry-mix', key: 'blend' }, { block: 'blend-uniformity' }, yieldStep({ header: 'coreBatch' })] },
+    steps: [weighStep('weigh-extragranular'), { block: 'dry-mix', key: 'blend' }, { block: 'blend-uniformity' }, yieldStep({ header: 'batchMass' })] },
 ];
 
 const SKELETONS: { id: string; name: string; text: string; stages: StagePlan[] }[] = [
@@ -39,7 +39,7 @@ const SKELETONS: { id: string; name: string; text: string; stages: StagePlan[] }
     text: 'Sifting and blending of the dispensed materials, blend uniformity, yield in kg.',
     stages: [
       { key: 'blending', name: 'Blending', role: 'Production operator', produces: ['dry syrup powder', 720],
-        steps: [weighStep('weigh'), { block: 'sift' }, { block: 'dry-mix', key: 'blend' }, { block: 'blend-uniformity' }, yieldStep({ header: 'coreBatch' })] },
+        steps: [weighStep('weigh'), { block: 'sift' }, { block: 'dry-mix', key: 'blend' }, { block: 'blend-uniformity' }, yieldStep({ header: 'batchMass' })] },
     ],
   },
   {
@@ -90,7 +90,7 @@ export function packingStages(pack: Pack): Stage[] {
       ...(blister ? [packStep('forming-check', 'forming'), packStep('leak-test', 'leak', { vacuumUnit: 'mbar', level: 'S-2', aql: '0.65' })] : []),
       packStep('online-inspection', 'inspection'), packStep('carton-check', 'cartons'), ...(serial ? [packStep('serial-sample', 'serial-sample')] : [])], ['Packing']),
     packStage('end', 'Reconciliation and line clearance', 'Packing supervisor', [
-      packStep('finished-goods', 'finished', { meanWeight: { header: 'coreWeight' }, yieldLimit: { low: '98.0', high: '100.5', unit: '%' }, accountabilityLimit: { low: '99.5', high: '100.5', unit: '%' } }),
+      packStep('finished-goods', 'finished', { yieldLimit: { low: '98.0', high: '100.5', unit: '%' }, accountabilityLimit: { low: '99.5', high: '100.5', unit: '%' } }),
       ...pack.materials.filter((m) => m.printed).map(reconcileStep),
       ...(serial ? [packStep('serial-reconciliation', 'serial-reconciliation', { received: { ref: 'packing/serials/received' } })] : []),
       packStep('destruction'), packStep('pack-clearance-after', 'clearance-after')], ['Packing']),
