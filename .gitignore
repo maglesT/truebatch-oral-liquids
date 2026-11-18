@@ -1,0 +1,14 @@
+node_modules/
+dist/
+.env
+.env*
+*.env
+secrets/
+*.secret
+*.secrets.yaml
+*.pem
+*.key
+test-results/
+playwright-report/
+*.log
+*.local.config.ts

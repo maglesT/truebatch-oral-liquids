@@ -1,0 +1,197 @@
+/* The master designer. Built on the Medhanta tokens of styles.css; pieces copied from the Logbook (pick lists,
+   sub-tabs, segmented choice, skeleton placeholders, counts) are marked "Logbook". */
+
+/* Logbook: pick lists, sub-tabs, segmented choice, placeholders, counts, header row */
+/* Rows keep their own height in a list that scrolls (a grid with a max height would squeeze them onto each other). */
+.pick-list { display: grid; grid-auto-rows: max-content; align-content: start; gap: 4px; max-height: 260px; overflow: auto; border: 1px solid var(--line); border-radius: 10px; padding: 6px; background: #fff; }
+.pick { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; text-align: left; border: 0; background: none; padding: 8px 10px; border-radius: 8px; cursor: pointer; font: inherit; color: inherit; min-height: 0; justify-content: flex-start; }
+.pick:hover:not(:disabled) { background: var(--brand-soft); }
+.pick.off { color: var(--muted); cursor: not-allowed; }
+.pick .chip { margin-left: auto; }
+.pick-head { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); padding: 6px 10px 2px; }
+.fields.pulled dd { color: var(--fg); font-weight: 600; }
+.subtabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; align-items: center; }
+.subtabs button.on { background: var(--brand); color: #fff; border-color: var(--brand); }
+.seg { display: inline-flex; flex-wrap: wrap; border: 1px solid var(--line-strong); border-radius: 10px; overflow: hidden; width: fit-content; max-width: 100%; background: #fff; }
+.seg button { border: 0; border-radius: 0; border-right: 1px solid var(--line); min-height: 40px; padding: 8px 16px; font-weight: 600; color: var(--brand-grey); background: #fff; }
+.seg button:last-child { border-right: 0; }
+.seg button.on { background: var(--brand); color: #fff; }
+.skel { background: linear-gradient(90deg, #efe9e4 0%, #f8f4f1 40%, #efe9e4 80%); background-size: 200% 100%; animation: shimmer 1.2s ease-in-out infinite; border-radius: 8px; }
+@keyframes shimmer { from { background-position: 100% 0; } to { background-position: -100% 0; } }
+.skel-block { height: 120px; } .skel-block.tall { height: 320px; }
+.count { min-width: 22px; height: 22px; padding: 0 7px; border-radius: 99px; display: inline-grid; place-items: center; font-size: 0.78rem; font-weight: 700; background: var(--warn-soft); color: var(--warn); }
+.count.bad { background: var(--bad-soft); color: var(--bad); }
+.all-good { margin: 0; display: flex; gap: 8px; align-items: center; color: var(--ok); background: var(--ok-soft); border-radius: 10px; padding: 10px 12px; }
+.home-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; flex-wrap: wrap; }
+.cell-sub { display: block; color: var(--muted); font-size: 0.8rem; }
+.small { font-size: 0.85rem; }
+.plain-table { box-shadow: none; margin-bottom: 0; }
+label.check.route { display: grid; grid-template-columns: 22px 1fr; align-items: start; margin-right: 0; }
+label.check.route small { display: block; color: var(--muted); font-size: 0.85rem; }
+
+/* The designer page: full width, the master check beside the work */
+.page:has(.designer-page) { max-width: 1680px; }
+.d-top { display: grid; gap: 6px; margin-bottom: 4px; }
+.d-top > .link { justify-self: start; }
+.d-title { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: baseline; }
+.d-title h1 { margin: 0; font-size: 1.5rem; }
+.save { font-size: 0.82rem; font-weight: 600; color: var(--ok); }
+.subtabs .save { margin-left: 4px; }
+.save-pending, .save-saving { color: var(--muted); }
+.save-invalid, .save-error { color: var(--bad); }
+.designer { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 16px; align-items: start; }
+.d-main { min-width: 0; }
+fieldset.plain { border: 0; padding: 0; margin: 0; min-width: 0; }
+.check-panel { position: sticky; top: 76px; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); padding: 14px; display: grid; gap: 8px; max-height: calc(100vh - 96px); overflow: auto; }
+.check-panel::before { content: ''; display: block; height: 3px; margin: -14px -14px 4px; border-radius: var(--radius) var(--radius) 0 0; background: var(--brand-gradient); }
+.cp-head { display: flex; gap: 8px; align-items: center; } .cp-head h2 { font-size: 1.05rem; }
+.cp-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.cp-list > li > button { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 6px; text-align: left; justify-content: stretch; align-items: start; width: 100%; min-height: 0; padding: 8px 10px; font-size: 0.86rem; border-radius: 8px; overflow-wrap: anywhere; }
+/* The card is the item: a warning's answer sits inside it, under the message, and wraps. */
+.cp-list > li { border: 1px solid transparent; border-radius: 8px; }
+.cp-list li.error { background: #fff5f4; border-color: #f5c6c1; }
+.cp-list li.warning { background: #fffbea; border-color: #f1dfa6; }
+.cp-list li.info { background: #f3f7fd; border-color: #cfdcf0; }
+.cp-list li > button { background: transparent; border: 0; }
+.cp-where { display: flex; gap: 6px; align-items: center; font-weight: 650; font-size: 0.8rem; color: var(--brand-grey); margin-bottom: 2px; }
+.cp-invalid { margin: 0; font-size: 0.88rem; color: var(--bad); }
+.cp-answer { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 4px 0 0 28px; }
+.cp-answer select, .cp-answer input { min-width: 0; flex: 1 1 120px; font-size: 0.84rem; }
+.cp-answer button { min-height: 0; padding: 4px 10px; font-size: 0.82rem; }
+.check-panel .cp-answer select, .check-panel .cp-answer input { flex-basis: 100%; }
+.check-panel .cp-answer { margin: 0 10px 8px 38px; overflow-wrap: anywhere; }
+p.cp-answer { display: block; }
+p.cp-answer .link { margin-left: 8px; }
+@media (max-width: 1180px) {
+  .designer { grid-template-columns: minmax(0, 1fr); }
+  .check-panel { position: static; order: -1; max-height: 220px; }
+}
+
+/* Forms */
+.form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px 14px; align-items: end; }
+.field-label { display: block; color: var(--muted); font-size: 0.9rem; font-weight: 500; margin-bottom: 5px; }
+.header-fields { display: grid; gap: 16px; }
+.calc-note { font-size: 0.9rem; align-self: center; }
+.picker { display: grid; gap: 6px; }
+input.dec { text-align: right; font-variant-numeric: tabular-nums; padding: 7px 9px; }
+.order { display: inline-flex; gap: 2px; flex: none; margin: 0 0 6px auto; align-self: center; }
+.order button { min-height: 30px; min-width: 30px; padding: 2px 6px; font-size: 0.85rem; border-radius: 6px; }
+.chipset { display: grid; gap: 5px; }
+.chipset-label { color: var(--muted); font-size: 0.9rem; font-weight: 500; }
+.chipset-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.chipset select { min-height: 34px; padding: 4px 8px; }
+.vchip { display: inline-flex; gap: 4px; align-items: center; padding: 2px 4px 2px 10px; border-radius: 99px; background: var(--info-soft); color: var(--info); font-size: 0.86rem; font-weight: 600; }
+.vchip button { min-height: 24px; padding: 0 6px; border: 0; background: none; color: inherit; }
+.d-section { display: grid; gap: 8px; border-top: 1px solid var(--line); padding-top: 12px; margin-top: 4px; }
+.d-section h3 { margin: 0; font-size: 0.95rem; color: var(--brand-grey); }
+.d-section-head { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; justify-content: space-between; }
+.checklist .form-grid { margin-top: 4px; }
+/* The new-master dialog keeps to its width: a long room or master name in a list never pushes it wider (and so it never
+   shifts sideways when a field takes the focus). */
+.header-fields { grid-template-columns: minmax(0, 1fr); }
+.header-fields > *, .picker, .chipset, .chipset-row, .checklist { min-width: 0; }
+.chipset select, .checklist select { max-width: 100%; }
+.pick > * { overflow-wrap: anywhere; }
+
+/* Formula */
+.formula-table td { vertical-align: middle; padding: 8px 10px; }
+.formula-table select { padding: 7px 8px; }
+.formula-table tr.sel td { background: var(--brand-soft); }
+.formula-table tr.bad-row td:first-child, tr.bad-row td:first-child { box-shadow: inset 4px 0 0 var(--bad); }
+.num { text-align: right; font-variant-numeric: tabular-nums; }
+/* A number cell stays a table cell (the floor's .num is a flex box for an input and its unit). */
+td.num { display: table-cell; max-width: none; }
+.totals { display: flex; flex-wrap: wrap; gap: 10px; }
+.total { display: grid; gap: 1px; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--line); background: #fcfaf8; min-width: 220px; }
+.total b { font-size: 1.2rem; font-variant-numeric: tabular-nums; }
+.total.ok { background: var(--ok-soft); border-color: #bfe5cc; } .total.ok .small { color: var(--ok); }
+.total.bad { background: var(--bad-soft); border-color: #f5c6c1; } .total.bad .small { color: var(--bad); }
+.add-box { display: grid; gap: 8px; border: 1px dashed var(--line-strong); border-radius: 10px; padding: 12px; }
+.adjust { border-top: 4px solid var(--brand); }
+
+/* Process: stages | steps | settings */
+.process { display: grid; grid-template-columns: minmax(190px, 0.8fr) minmax(220px, 1fr) minmax(320px, 1.6fr); gap: 14px; align-items: start; }
+.process .col { margin-bottom: 0; align-content: start; }
+.olist { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.olist li { display: flex; flex-wrap: wrap; gap: 0 6px; align-items: center; justify-content: space-between; padding: 0 8px 0 0; border-radius: 9px; border: 1px solid var(--line); background: #fff; }
+.olist li:hover { background: #fdfaf8; }
+.olist li.on { background: var(--brand-soft); border-color: #f6c7ab; box-shadow: inset 3px 0 0 var(--brand); }
+.olist li:focus-visible, .stage-pick:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
+.ol-main { display: grid; min-width: 0; flex: 1 1 110px; padding: 8px 0 8px 10px; cursor: pointer; border-radius: 9px; }
+.ol-main:focus-visible { outline: 2px solid var(--brand); outline-offset: -2px; }
+.ol-main b { font-size: 0.92rem; font-weight: 600; overflow-wrap: anywhere; }
+.ol-main small { color: var(--muted); font-size: 0.78rem; }
+.stage-pick { padding: 7px 10px; border-radius: 9px; border: 1px dashed var(--line-strong); color: var(--brand-dark); font-weight: 600; font-size: 0.9rem; cursor: pointer; }
+.stage-pick.on { background: var(--brand-soft); border-style: solid; border-color: #f6c7ab; }
+.library { display: grid; gap: 8px; } .library .search { margin: 0; max-width: none; }
+.block-pick { display: grid; gap: 2px; }
+.stage-form, .step-settings { display: grid; gap: 10px; }
+.tokens { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; }
+.tok { display: inline-block; padding: 0 8px; border-radius: 6px; font-size: 0.9em; font-weight: 600; line-height: 1.7; }
+.tok.field { background: var(--info-soft); color: var(--info); }
+.tok.calc { background: var(--ok-soft); color: var(--ok); }
+.sentence { margin: 0; padding: 10px 12px; border-radius: 10px; background: #fcfaf8; border: 1px solid var(--line); line-height: 2.1; }
+.slot select, .slot input, .loose select, .loose input { min-height: 0; padding: 4px 8px; font-size: 0.92rem; vertical-align: baseline; }
+.slot select { max-width: 100%; }
+.missing select, select.missing, input.missing, .missing input { border-color: var(--bad); background: #fff5f4; }
+.loose { display: grid; gap: 4px; }
+.example { background: #fbfcfe; border-radius: 10px; }
+.ex-values { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.ex-values label { font-size: 0.82rem; } .ex-values input { padding: 5px 8px; font-size: 0.9rem; }
+.ex-results { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: 0.88rem; }
+.ex-results li { padding: 6px 10px; border-radius: 8px; border-left: 4px solid var(--line-strong); background: #fff; }
+.ex-results li.pass { border-left-color: var(--ok); } .ex-results li.alert { border-left-color: #e0a800; }
+.ex-results li.fail, .ex-results li.refused { border-left-color: var(--bad); }
+.ex-results .chip { margin-left: 8px; }
+.more summary { cursor: pointer; color: var(--brand-dark); font-weight: 600; padding: 6px 0; }
+.more[open] { display: grid; gap: 10px; }
+@media (max-width: 1100px) { .process { grid-template-columns: minmax(170px, 0.8fr) minmax(0, 1.6fr); } .process .settings-col { grid-column: 1 / -1; } }
+@media (max-width: 700px) { .process { grid-template-columns: 1fr; } }
+
+/* Preview */
+.lot-grid { display: flex; flex-wrap: wrap; gap: 12px; }
+.lot { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: end; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: #fcfaf8; }
+.lot > b { width: 100%; }
+
+/* Review */
+.review-bar { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px; align-items: start; }
+.review-actions { display: grid; gap: 8px; justify-items: end; max-width: 300px; }
+.review-actions p { margin: 2px 0 0; text-align: right; }
+.timeline { list-style: none; margin: 8px 0 0; padding: 0 0 0 14px; border-left: 3px solid var(--line); display: grid; gap: 6px; font-size: 0.9rem; }
+.timeline li { position: relative; }
+/* Not the floor's step-history grid (floor.css): a long reason wraps in its column, never over the actions. */
+.review-bar .timeline li { display: block; overflow-wrap: anywhere; }
+.timeline li::before { content: ''; position: absolute; left: -20.5px; top: 6px; width: 10px; height: 10px; border-radius: 50%; background: var(--line-strong); }
+.timeline li.passed::before, .timeline li.approved::before, .timeline li.effective::before { background: var(--ok); }
+.timeline li.returned::before { background: var(--bad); } .timeline li.submitted::before { background: var(--info); }
+.plain-view { gap: 4px; }
+.pv-section h3 { display: flex; gap: 8px; align-items: center; margin: 10px 0 4px; }
+.pv-line { margin: 0 0 6px; line-height: 1.5; }
+.pv-line.added { background: var(--ok-soft); padding: 4px 8px; border-radius: 6px; }
+.pv-line.changed { background: var(--warn-soft); padding: 4px 8px; border-radius: 6px; }
+.pv-line.removed { background: var(--bad-soft); padding: 4px 8px; border-radius: 6px; text-decoration: line-through; text-decoration-color: rgba(0, 0, 0, 0.3); }
+.chg { display: inline-block; margin-right: 8px; padding: 0 7px; border-radius: 99px; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; background: #fff; text-decoration: none; }
+.chg.added { color: var(--ok); } .chg.changed { color: var(--warn); } .chg.removed { color: var(--bad); }
+.was { display: block; color: var(--muted); font-size: 0.86rem; text-decoration: line-through; text-decoration-color: rgba(0, 0, 0, 0.25); }
+.comment { border-left: 3px solid var(--line-strong); padding: 2px 10px; } .comment p { margin: 2px 0 0; }
+.comment-form { display: grid; gap: 6px; } .comment-form .row { margin: 0; }
+@media (max-width: 760px) { .review-bar { grid-template-columns: 1fr; } .review-actions { justify-items: start; } }
+.designer-page input[type='radio'], .overlay input[type='radio'] { accent-color: var(--brand); width: 18px; height: 18px; }
+
+/* Inputs fit their grid cells; sentence inputs stay small */
+.form-grid > label > select, .form-grid > label > input, .ex-values input, .step-settings textarea { width: 100%; min-width: 0; }
+.form-grid > label, .ex-values label { min-width: 0; }
+.ex-values label { overflow-wrap: anywhere; }
+.card > *, .step-settings > * { min-width: 0; }
+.slot input.dec, .limit input.dec, .quantity input.dec { padding: 3px 7px; min-height: 0; }
+.slot select { max-width: 22em; }
+.formula-table select { width: auto; max-width: 11em; padding: 6px 8px; }
+.formula-table input.dec { width: 5.5em !important; }
+.formula-table th { padding: 10px; }
+.step-settings > select, .d-section > select { max-width: 100%; }
+.formula-table select[aria-label^='Role'] { max-width: 8.5em; }
+.formula-table select[aria-label^='Place'] { max-width: 10em; }
+.formula-table td .link { font-size: 0.85rem; text-align: left; min-height: 0; padding: 2px 0; }
+.formula-table td, .formula-table th { padding-left: 8px; padding-right: 8px; }
+.chip-draft { background: #efe9e4; color: var(--brand-grey); }
+td.small { overflow-wrap: anywhere; min-width: 16em; }

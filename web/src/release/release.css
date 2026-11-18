@@ -1,0 +1,18 @@
+/* QC and QA release screens: the review list and the decision panel, on the floor screens' panels. */
+.rv-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.rv-list li { display: grid; gap: 2px; padding: 10px 12px 10px 14px; border-radius: 10px; background: #fbf8f6; border-left: 4px solid var(--line-strong); }
+.rv-list li.ok { border-left-color: var(--ok); }
+.rv-list li.bad { border-left-color: var(--bad); background: #fff7f6; }
+.rv-list li.sig { grid-template-columns: 220px 160px minmax(0, 1fr); gap: 4px 16px; align-items: baseline; padding: 7px 12px; }
+.rv-list b { font-weight: 650; }
+.rv-list small { color: var(--muted); font-size: .84rem; }
+.rv-list s { color: var(--bad); }
+.rv-list li > button { justify-self: start; margin-top: 6px; }
+.rv-none { margin: 0; font-size: .92rem; }
+.decide { display: flex; flex-wrap: wrap; gap: 12px 16px; align-items: flex-end; padding: 14px 0 0; border-top: 1px solid var(--line); }
+.decide label { flex: 0 1 320px; }
+.decide.reject label { flex: 1 1 420px; }
+.decide .why { flex: 1 1 320px; margin: 0; color: var(--muted); font-size: .92rem; }
+.dash-panel .panel-head a.button { margin-left: auto; text-decoration: none; }
+@media (max-width: 640px) { .rv-list li.sig { grid-template-columns: 1fr; } }
+.pending-what a { color: inherit; }

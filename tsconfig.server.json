@@ -1,0 +1,5 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "noEmit": false, "outDir": "dist", "rootDir": ".", "jsx": "preserve" },
+  "include": ["server", "db", "shared", "packing/server", "packing/product.ts", "packing/migrate.ts"]
+}
