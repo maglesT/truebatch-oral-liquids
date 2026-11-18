@@ -28,31 +28,47 @@ const SETTINGS: Record<string, Step['settings']> = {
   granulate: { endPointLimit: { low: '8.0', high: '12.0', unit: 'kW' } },
   dry: { lodLimit: { high: '2.0', unit: '%' } },
   'dry-constant': { maxChange: '0.5 g' },
-  lubricate: { lubricant: { formula: 'x' }, granuleWeight: '0.098 kg', theoretical: '0.100 kg', window: pct('90.0', '102.0'), tolerance: '1.0', mixTimeLimit: minutes },
   'sub-batch-combine': { accountabilityLimit: pct('99.0', '100.5') },
   'blend-uniformity': { meanLimit: pct('90.0', '110.0'), rsdLimit: { high: '5.0', unit: '%' }, individualLimit: pct('85.0', '115.0') },
   'density-flow': { carrLimit: { high: '20', unit: '%' }, hausnerLimit: { high: '1.25', unit: '' }, reposeLimit: { high: '40', unit: '°' } },
-  'sieve-analysis': { sieve1: '850 µm', sieve2: '425 µm', sieve3: '250 µm', sieve4: '180 µm', sieve5: '150 µm', finesBelow: '150 µm', finesLimit: { high: '20.0', unit: '%' },
-    recoveryLimit: pct('98.0', '102.0') },
-  'press-setup': { toolingType: '8.0 mm round', pressureLimit: { low: '100', high: '250', unit: 'MPa' }, speedLimit: { low: '10', high: '60', unit: 'rpm' } },
-  'compression-release': weights,
   compress: weights,
-  friability: { lossLimit: { high: '1.0', unit: '%' } },
-  disintegration: { maxTime: '15', temperatureLimit: { low: '35', high: '39', unit: '°C' } },
-  'uniformity-by-weight': { coating: 'uncoated', labelClaim: '50 mg' },
-  'content-uniformity': { coating: 'uncoated' },
-  coat: { coreWeight: { header: 'coreWeight' }, gainLimit: pct('2.8', '3.2') },
-  'spray-coat': { coreWeight: { header: 'coreWeight' }, base: 'start', gainLimit: pct('2.8', '3.2'), inletLimit: { low: '50', high: '70', unit: '°C' },
+  // TrueBatch Liquids (shared/blocks/liquids.ts).
+  water: { water: 'hot', temperatureLimit: { low: '70', high: '80', unit: '°C' }, quantityLimit: { low: '0.9', high: '1.1', unit: 'kg' } },
+  dissolve: { speedLimit: { low: '10', high: '20', unit: 'rpm' }, temperatureLimit: { low: '20', high: '30', unit: '°C' }, timeLimit: minutes },
+  'sugar-syrup': { temperatureLimit: { low: '70', high: '80', unit: '°C' }, densityLimit: { low: '1.30', high: '1.33', unit: 'g/mL' }, timeLimit: minutes },
+  hydrate: { speedLimit: { low: '10', high: '20', unit: 'rpm' }, timeLimit: minutes },
+  'phase-prep': { phase: 'oil phase', temperatureLimit: { low: '70', high: '75', unit: '°C' } },
+  'ph-adjust': { phLimit: { low: '4.5', high: '5.5', unit: 'pH' }, totalLimit: { high: '50', unit: 'mL' } },
+  homogenise: { pressureLimit: { low: '150', high: '200', unit: 'bar' }, pressure2Limit: { low: '30', high: '50', unit: 'bar' }, speedLimit: { low: '2000', high: '3000', unit: 'rpm' }, temperatureLimit: { high: '40', unit: '°C' } },
+  'size-check': { sizeLimit: { high: '10', unit: 'µm' }, d90Limit: { high: '30', unit: 'µm' } },
+  'make-up': { volume: '1.0 L', density: '1.000 g/mL', tolerance: '0.5', temperatureLimit: { low: '20', high: '30', unit: '°C' }, mixTimeLimit: minutes },
+  'make-up-volume': { volume: '1.0 L', tolerance: '0.5', temperatureLimit: { low: '20', high: '30', unit: '°C' }, mixTimeLimit: minutes },
+  filtration: { filterType: 'filter bag', size: '100 µm', pressureLimit: { high: '2', unit: 'bar' }, timeLimit: minutes },
+  'bulk-test': { phLimit: { low: '4.5', high: '5.5', unit: 'pH' }, densityLimit: { low: '1.20', high: '1.30', unit: 'g/mL' }, viscosityLimit: { low: '50', high: '150', unit: 'mPa·s' },
+    assayLimit: pct('95.0', '105.0'), ethanolLimit: { low: '9.0', high: '11.0', unit: '%v/v' }, preservativeLimit: pct('90.0', '110.0') },
+  'bulk-adjust': { target: '24.0 mg/mL', donor: '0 mg/mL', direction: 'dilute with the vehicle', largestLimit: { high: '5', unit: 'kg' }, tolerance: '1.0' },
+  'bulk-transfer': { unit: 'L', quantityLimit: { low: '0.9', high: '1.1', unit: 'L' } },
+  'bulk-yield': { unit: 'L', theoretical: '1.0 L', yieldLimit: pct('97.0', '101.0'), accountabilityLimit: pct('99.0', '101.0') },
+  'bulk-yield-weight': { density: '1.000 g/mL', theoretical: '1.0 L', yieldLimit: pct('97.0', '101.0'), accountabilityLimit: pct('99.0', '101.0') },
+  'room-status': { temperatureLimit: { high: '30', unit: '°C' }, humidityLimit: { high: '60', unit: '%RH' }, pressureLimit: { low: '10', high: '20', unit: 'Pa' } },
+  'bottle-wash': { what: 'bottles' },
+  'liquid-fill-stirred': { fillUnit: 'g', meanLimit: { low: '0.9', high: '1.1', unit: 'g' }, eachLimit: { low: '0.8', high: '1.2', unit: 'g' } },
+  'liquid-fill': { fillUnit: 'g', meanLimit: { low: '0.9', high: '1.1', unit: 'g' }, eachLimit: { low: '0.8', high: '1.2', unit: 'g' } },
+  'liquid-fill-unit': { container: 'sachet', fillUnit: 'g', meanLimit: { low: '0.9', high: '1.1', unit: 'g' }, eachLimit: { low: '0.8', high: '1.2', unit: 'g' } },
+  'powder-fill': { meanLimit: { low: '0.9', high: '1.1', unit: 'g' }, eachLimit: { low: '0.8', high: '1.2', unit: 'g' }, humidityLimit: { high: '40', unit: '%RH' } },
+  'powder-fill-sachet': { meanLimit: { low: '0.9', high: '1.1', unit: 'g' }, eachLimit: { low: '0.8', high: '1.2', unit: 'g' }, humidityLimit: { high: '40', unit: '%RH' } },
+  'cap-check': { defectLimit: { high: '0', unit: 'units' }, torqueLimit: { low: '0.5', high: '2', unit: 'N·cm' } },
+  coat: { coreWeight: '250.0 mg', gainLimit: pct('2.8', '3.2') },
+  'spray-coat': { coreWeight: '250.0 mg', base: 'start', gainLimit: pct('2.8', '3.2'), inletLimit: { low: '50', high: '70', unit: '°C' },
     bedLimit: { low: '35', high: '45', unit: '°C' }, sprayRateLimit: { low: '50', high: '150', unit: 'g/min' } },
-  'polish-print': { print: 'Logo in black' },
   check: { what: 'Weight', unit: 'mg', limit: { low: '95', high: '105', unit: 'mg' } },
   'qa-sample': { sampleLimit: { low: '50', high: '60', unit: 'tablets' } },
-  'stage-yield': { theoretical: { header: 'coreBatch' }, yieldLimit: pct('97.0', '100.5'), accountabilityLimit: pct('99.0', '100.5') },
-  'tablet-reconciliation': { theoretical: { header: 'batchSize' }, meanWeight: '100.0 mg', yieldLimit: pct('97.0', '100.5'), accountabilityLimit: pct('99.0', '100.5') },
+  'stage-yield': { theoretical: { header: 'batchMass' }, yieldLimit: pct('97.0', '100.5'), accountabilityLimit: pct('99.0', '100.5') },
   'pack-material-issue': { material: { formula: 'foil' }, unit: 'm' },
   'forming-check': { sealLimit: { low: '160', high: '190', unit: '°C' }, formLimit: { low: '110', high: '140', unit: '°C' } },
   'leak-test': { vacuumUnit: 'mbar', vacuumLimit: { low: '400', high: '600', unit: 'mbar' }, level: 'S-1', aql: '0' },
-  'finished-goods': { meanWeight: { header: 'coreWeight' }, yieldLimit: pct('98.0', '100.5'), accountabilityLimit: pct('99.5', '100.5') },
+  'liquid-finished-goods': { yieldLimit: pct('98.0', '100.5'), accountabilityLimit: pct('99.5', '100.5') },
+  'powder-finished-goods': { yieldLimit: pct('98.0', '100.5'), accountabilityLimit: pct('99.5', '100.5') },
   'printed-reconciliation': { material: { formula: 'foil' }, unit: 'm', issued: '100 m' },
   'serial-reconciliation': { received: '1000 nos' },
 };
@@ -95,14 +111,14 @@ function crashes(doc: MasterDoc, all: boolean): string[] {
   return out;
 }
 
-const header = { productItemId: 'p', productCode: 'P', productName: 'P', batchSize: '1000', coreWeightMg: '100.0', coatedWeightMg: '103.0', dispensingRooms: ['DSP-01'] };
-const formula = [{ key: 'x', materialItemId: 'm', code: 'M', name: 'M', mgPerTablet: '100.0', role: 'api', place: 'intragranular',
+const header = { productItemId: 'p', productCode: 'P', productName: 'P', batchSize: '1000', batchUnit: 'L', dispensingRooms: ['DSP-01'] };
+const formula = [{ key: 'x', materialItemId: 'm', code: 'M', name: 'M', mg: '100.0', role: 'api', place: 'intragranular',
   adjust: { potency: { basis: 'as is', standardIs: 'anhydrous' }, overage: { percent: '2' } } }];
 /** A small master of one block with all its settings set; a packing block after the bulk issue (its batch facts). */
 function using(b: Block): MasterDoc {
   const step = (x: Block) => ({ key: x.id, block: { id: x.id, version: x.version }, checker: x.checker, settings: SETTINGS[x.id] ?? {} });
-  const bulk = findBlock({ id: 'bulk-issue', version: 1 })!;
-  const steps = b.packing && b.id !== bulk.id ? [step(bulk), step(b)] : [step(b)];
+  const bulk = findBlock({ id: b.id.startsWith('powder') ? 'powder-bulk-issue' : 'liquid-bulk-issue', version: 1 })!;
+  const steps = b.packing && !b.atIssue ? [step(bulk), step(b)] : [step(b)];
   return masterSchema.parse({ header, formula, stages: [{ key: 's', name: 'Stage', kind: 'normal', steps }], ...(b.packing ? { pack: pack({ gtin: GTIN, serialisation: true }) } : {}) });
 }
 
@@ -115,7 +131,8 @@ describe('the sweep: no template crashes on any block or test master', () => {
   });
 
   it.each([['tablet', tablet()], ['packing', packing()], ['packing, serialised', packing({ gtin: GTIN, serialisation: true })],
-    ['packing, bottles', packing({ type: 'bottle' })]] as const)('the %s test master', (_name, doc) => {
+    ['packing, suspension', packing({}, 'suspension')], ['packing, sachets', packing({ type: 'sachet', closure: 'none' })],
+    ['packing, dry syrup', packing({ fillWeightG: '25.0' }, 'dry syrup')]] as const)('the %s test master', (_name, doc) => {
     for (const all of [false, true]) expect(crashes(doc, all)).toEqual([]);
     expect(masterChecks(doc).filter((p) => /every reading would be refused/.test(p.message))).toEqual([]);
   });

@@ -15,7 +15,7 @@ export const TEMPLATES: Record<string, Template> = {
   C1: T.c1WithinLimits, C2: T.c2Count, C3: T.c3AllIndividual, C4: T.c4Observation, C5: T.c5SameBasis,
   C6: T.c6StagedTest, C7: T.c7SamplingPlan,
   // Packing: expiry from the shelf life, printed data against the batch data, serialisation codes of sample packs.
-  T27: T.t27Expiry, C8: T.c8PrintedData, C9: T.c9SerialCodes,
+  T27: T.t27Expiry, C8: T.c8PrintedData, C9: T.c9SerialCodes, I18: T.i18Density,
   // F2 "no further change": this round's reading against the previous round's ("$prev.name").
   F2: (i: { previous: T.Q; current: T.Q; limit: Parameters<typeof T.noFurtherChange>[2] }) => T.noFurtherChange(i.previous, i.current, i.limit),
 };

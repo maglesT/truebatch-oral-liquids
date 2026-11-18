@@ -521,7 +521,8 @@ describe('the views TrueBatch publishes', () => {
       'record_kind text', 'status text', 'issued_at timestamp with time zone', 'completed_at timestamp with time zone', 'released boolean',
       'read_at timestamp with time zone', 'data_as_of timestamp with time zone'];
     expect(await columns('batch_fact_v1')).toEqual([...batchwright, 'manufactured_on date', 'product_name text', 'master_version integer',
-      'good_quantity numeric', 'good_unit text', 'yield_percent numeric', 'released_at timestamp with time zone', 'released_by text']);
+      'good_quantity numeric', 'good_unit text', 'yield_percent numeric', 'released_at timestamp with time zone', 'released_by text',
+      'bulk_ready_at timestamp with time zone', 'bulk_hold_hours numeric']);
     expect(await columns('equipment_use_v1')).toEqual(['batch_number text', 'equipment_code text', 'equipment_type text', 'room_code text', 'step text',
       'started_at timestamp with time zone', 'ended_at timestamp with time zone', 'read_at timestamp with time zone', 'data_as_of timestamp with time zone', 'step_name text']);
     expect(await columns('deviation_note_v1')).toEqual(['note_id bigint', 'source_ref text', 'batch_number text', 'product_code text', 'step text', 'note text',
@@ -568,32 +569,62 @@ describe('the views TrueBatch publishes', () => {
     expect(rows).toEqual([{ batch_number: 'MFG-NOT-STARTED', issued: '2026-10-30', manufactured_on: null }, { batch_number: 'MFG-STARTED', issued: '2026-10-30', manufactured_on: '2026-11-03' }]);
   });
 
-  it('batch_fact_v1 gives the batch\'s output (for OEE and packing): the good tablets and the yield of its tablet reconciliation, once that step is done; null before', async () => {
+  it('TL-18 batch_fact_v1 gives the bulk (for OEE and packing): the output of the last yield step in L or kg and its yield, once that step is done; null before', async () => {
     const [u] = await t.owner<{ id: number }[]>`select id::int from users order by id limit 1`;
-    // Only what the view reads of a master: a stage yield, then the tablet reconciliation (the batch's).
+    // Only what the view reads of a master: a stage yield, then the bulk yield (the batch's), read in the tank (a field).
     const doc = { header: { productCode: 'OUT', productName: 'Output' }, stages: [{ key: 'c', steps: [{ key: 'y', block: { id: 'stage-yield', version: 1 } },
-      { key: 'r', block: { id: 'tablet-reconciliation', version: 1 } }] }] };
+      { key: 'r', block: { id: 'bulk-yield', version: 1 } }] }] };
     const [v] = await t.owner<{ id: number }[]>`insert into master_versions (version_no, doc, created_by) values (1, ${t.owner.json(doc as never)}, ${u!.id}) returning id::int`;
     const [b] = await t.owner<{ id: number }[]>`insert into batches (batch_no, master_version_id, issued_by) values ('OUT-1', ${v!.id}, ${u!.id}) returning id::int`;
-    const res = (good: string, y: string) => ({ results: { goodTablets: { ok: true, value: good, unit: 'tablets', shown: '' }, yield: { ok: true, value: y, unit: '%', shown: '' },
-      accountability: { ok: false, message: 'not yet' } } });
+    const res = (bulk: string, y: string) => ({ values: { output: { value: bulk, unit: 'L' } }, results: { yield: { ok: true, value: y, unit: '%', shown: '' }, accountability: { ok: false, message: 'not yet' } } });
     const add = (step: number, kind: string, payload: object) => t.owner`insert into step_events (batch_id, stage, sub, step, round, kind, payload, person_id)
       values (${b!.id}, 0, 1, ${step}, 1, ${kind}, ${t.owner.json(payload as never)}, ${u!.id})`;
     const out = async () => (await t.owner.unsafe(`select good_quantity::text, good_unit, yield_percent::text from ${rep()}.batch_fact_v1 where batch_number = 'OUT-1'`))[0];
-    await add(0, 'value', { results: { yield: { ok: true, value: '99', unit: '%', shown: '' } } });
+    await add(0, 'value', { values: { output: { value: '40', unit: 'kg' } }, results: { yield: { ok: true, value: '99', unit: '%', shown: '' } } });
     await add(0, 'done', {});
-    await add(1, 'value', res('198765.4', '99.382716'));
-    // Recorded but not signed: not yet the batch's output.
-    expect(await out()).toEqual({ good_quantity: null, good_unit: 'tablets', yield_percent: null });
+    await add(1, 'value', res('987.6543', '98.76543'));
+    // Recorded but not signed: not yet the batch's bulk.
+    expect(await out()).toEqual({ good_quantity: null, good_unit: null, yield_percent: null });
     await add(1, 'done', {});
-    expect(await out()).toEqual({ good_quantity: '198765', good_unit: 'tablets', yield_percent: '99.38' });
+    expect(await out()).toEqual({ good_quantity: '987.654', good_unit: 'L', yield_percent: '98.77' });
     // Sent back: null again until signed again; a correction after that gives the corrected figures.
-    await add(1, 'sent_back', { reason: 'recount' });
+    await add(1, 'sent_back', { reason: 'read again' });
     expect((await out())!.good_quantity).toBeNull();
-    await add(1, 'value', res('197000', '98.5'));
+    await add(1, 'value', res('985', '98.5'));
     await add(1, 'done', {});
-    await add(1, 'corrected', res('197500', '98.75'));
-    expect(await out()).toEqual({ good_quantity: '197500', good_unit: 'tablets', yield_percent: '98.75' });
+    await add(1, 'corrected', res('990', '99'));
+    expect(await out()).toEqual({ good_quantity: '990.000', good_unit: 'L', yield_percent: '99.00' });
+  });
+
+  it('TL-18 batch_fact_v1 reads a bulk yield by weight from its worked-out litres, and a dry syrup from its stage yield in kg', async () => {
+    const [u] = await t.owner<{ id: number }[]>`select id::int from users order by id limit 1`;
+    const batch = async (no: string, block: string, payload: object) => {
+      const doc = { header: { productCode: no, productName: no }, stages: [{ key: 'c', steps: [{ key: 'y', block: { id: block, version: 1 } }] }] };
+      const [v] = await t.owner<{ id: number }[]>`insert into master_versions (version_no, doc, created_by) values (1, ${t.owner.json(doc as never)}, ${u!.id}) returning id::int`;
+      const [b] = await t.owner<{ id: number }[]>`insert into batches (batch_no, master_version_id, issued_by) values (${no}, ${v!.id}, ${u!.id}) returning id::int`;
+      for (const [kind, p] of [['value', payload], ['done', {}]] as const) {
+        await t.owner`insert into step_events (batch_id, stage, sub, step, round, kind, payload, person_id) values (${b!.id}, 0, 1, 0, 1, ${kind}, ${t.owner.json(p as never)}, ${u!.id})`;
+      }
+      return (await t.owner.unsafe(`select good_quantity::text, good_unit from ${rep()}.batch_fact_v1 where batch_number = '${no}'`))[0];
+    };
+    expect(await batch('OUT-W', 'bulk-yield-weight', { values: { gross: { value: '1475', unit: 'kg' } }, results: { output: { ok: true, value: '980', unit: 'L', shown: '' } } }))
+      .toEqual({ good_quantity: '980.000', good_unit: 'L' });
+    expect(await batch('OUT-D', 'stage-yield', { values: { output: { value: '198.4', unit: 'kg' } }, results: {} })).toEqual({ good_quantity: '198.400', good_unit: 'kg' });
+  });
+
+  it('TL-17 batch_fact_v1 gives when the bulk was ready (the last stage closed) and the master\'s bulk hold, for packing', async () => {
+    const [u] = await t.owner<{ id: number }[]>`select id::int from users order by id limit 1`;
+    const doc = { header: { productCode: 'HOLD', productName: 'Hold' }, stages: [
+      { key: 'p', produces: { name: 'sugar syrup', holdHours: 24 }, steps: [] }, { key: 'm', steps: [] }, { key: 'b', produces: { name: 'bulk', holdHours: 168 }, steps: [] }] };
+    const [v] = await t.owner<{ id: number }[]>`insert into master_versions (version_no, doc, created_by) values (1, ${t.owner.json(doc as never)}, ${u!.id}) returning id::int`;
+    const [b] = await t.owner<{ id: number }[]>`insert into batches (batch_no, master_version_id, issued_by) values ('HOLD-1', ${v!.id}, ${u!.id}) returning id::int`;
+    const out = async () => (await t.owner.unsafe(`select bulk_ready_at, bulk_hold_hours::text from ${rep()}.batch_fact_v1 where batch_number = 'HOLD-1'`))[0];
+    const close = (stage: number, at: string) => t.owner`insert into batch_events (batch_id, kind, payload, person_id, at) values (${b!.id}, 'stage_closed', ${t.owner.json({ stage })}, ${u!.id}, ${at})`;
+    await close(0, '2026-11-18T05:00:00Z');
+    await close(1, '2026-11-18T07:00:00Z');
+    expect(await out()).toEqual({ bulk_ready_at: null, bulk_hold_hours: '168' });
+    await close(2, '2026-11-18T09:30:00Z');
+    expect(await out()).toEqual({ bulk_ready_at: new Date('2026-11-18T09:30:00Z'), bulk_hold_hours: '168' });
   });
 
   it('batch_fact_v1 names the product and gives the master version as its number', async () => {

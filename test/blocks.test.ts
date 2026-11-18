@@ -26,9 +26,8 @@ const NEW: [string, Record<string, unknown>, object?][] = [
   ['sub-batch-combine', { accountabilityLimit: pct('99.0', '100.5') }],
   ['blend-uniformity', { meanLimit: pct('90.0', '110.0'), rsdLimit: { high: '5.0', unit: '%' }, individualLimit: pct('85.0', '115.0') }],
   ['density-flow', { carrLimit: { high: '20', unit: '%' }, hausnerLimit: { high: '1.25', unit: '' }, reposeLimit: { high: '40', unit: '°' } }],
-  ['spray-coat', { coreWeight: { header: 'coreWeight' }, base: 'start', gainLimit: pct('2.8', '3.2'), inletLimit: { low: '50', high: '70', unit: '°C' }, bedLimit: { low: '38', high: '45', unit: '°C' } }, { everyMinutes: 15, flow: { kind: 'repeat-until', maxRounds: 20 } }],
+  ['spray-coat', { coreWeight: '100.000 kg', base: 'start', gainLimit: pct('2.8', '3.2'), inletLimit: { low: '50', high: '70', unit: '°C' }, bedLimit: { low: '38', high: '45', unit: '°C' } }, { everyMinutes: 15, flow: { kind: 'repeat-until', maxRounds: 20 } }],
   ['qa-sample', { sampleLimit: { low: '50', high: '60', unit: 'tablets' } }, { flow: { kind: 'qa-hold' } }],
-  ['tablet-reconciliation', { theoretical: { header: 'batchSize' }, meanWeight: '100.0 mg', yieldLimit: pct('97.0', '100.5'), accountabilityLimit: pct('99.0', '100.5') }],
 ];
 const using = (id: string, settings: object, options: object = {}): MasterDoc => {
   const b = findBlock({ id, version: 1 })!;

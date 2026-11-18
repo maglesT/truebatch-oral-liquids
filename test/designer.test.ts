@@ -79,11 +79,14 @@ describe('master designer', () => {
   });
 
   it('TL-10 the process skeletons are valid drafts and start every stage with line clearance; what they leave open is listed by the master check', () => {
-    const header = { productItemId: 'p', productCode: 'P', productName: 'P', batchSize: '100000', coreWeightMg: '250.0', coatedWeightMg: '257.5', dispensingRooms: ['RM-101'] };
+    const header = { productItemId: 'p', productCode: 'P', productName: 'P', type: 'dry syrup' as const, batchSize: '200', batchUnit: 'kg' as const, dispensingRooms: ['RM-101'] };
+    const liquid = { ...header, type: 'solution' as const, batchSize: '1000', batchUnit: 'L' as const, densityGPerMl: '1.250', densityAtC: '25' };
+    expect(SKELETON_LIST.map((s) => s.id)).toEqual(['syrup', 'drops', 'suspension', 'emulsion', 'dry-syrup', 'dry-syrup-granulated']);
     for (const s of SKELETON_LIST) {
-      const doc = masterSchema.parse({ header, formula: [], stages: skeletonStages(s.id, header) });
+      const h = s.id.startsWith('dry') ? header : liquid;
+      const doc = masterSchema.parse({ header: h, formula: [], stages: skeletonStages(s.id, h) });
       expect(doc.stages.every((st) => st.steps.every((t) => findBlock(t.block)))).toBe(true);
-      expect(masterChecks(doc).every((p) => /not set|not checked|no core materials|choose the rooms/.test(p.message))).toBe(true);
+      expect(masterChecks(doc).filter((p) => !/not set|not checked|no materials|choose/i.test(p.message))).toEqual([]);
     }
     // TL-11: a master that weighs names its dispensing rooms; a new one starts with none (the author picks them).
     const bare = masterSchema.parse({ header: { ...header, dispensingRooms: undefined }, formula: [], stages: skeletonStages(SKELETON_LIST[0]!.id, header) });
@@ -101,7 +104,7 @@ describe('master designer', () => {
     const at = (stage: string, step: string) => wg.find((s) => s.key === stage)!.steps.find((t) => t.key === step)!;
     // Blending adds the extragranular materials: its yield is on the batch weight (17 Nov 2026 run, F11); the
     // granulation end point is checked by a second person.
-    expect(at('blending', 'yield').settings.theoretical).toEqual({ header: 'coreBatch' });
+    expect(at('blending', 'yield').settings.theoretical).toEqual({ header: 'batchMass' });
     expect(at('granulation', 'granulate').checker).toBe(true);
     expect(wg.map((s) => s.key)).toEqual(['binder', 'granulation', 'blending']);
   });
@@ -112,17 +115,17 @@ describe('master designer', () => {
   });
 
   it('copy to a new batch size scales typed batch quantities, not limits or quantities per tablet', () => {
-    const d = scaleDoc(tablet(), '50000');
-    expect(d.header.batchSize).toBe('50000');
+    const d = scaleDoc(tablet(), '50');
+    expect(d.header.batchSize).toBe('50');
     expect(d.stages[1]!.steps[6]!.settings.theoretical).toBe('11.500 kg');
     expect(d.stages[1]!.steps[6]!.settings.yieldLimit).toEqual({ low: '97.0', high: '100.5', unit: '%' });
-    expect(d.formula[0]!.mgPerTablet).toBe('100.0');
+    expect(d.formula[0]!.mg).toBe('100.0');
   });
 
   it('the changes view shows what changed, was added or removed since the previous version', () => {
     const prev = tablet();
     const next = tablet();
-    next.formula[4]!.mgPerTablet = '18.0';
+    next.formula[4]!.mg = '18.0';
     next.stages[2]!.steps.pop();
     next.stages[1]!.produces!.holdHours = 48;
     const diff = diffMasters(prev, next);
@@ -136,27 +139,25 @@ describe('master designer', () => {
     expect([top!.title, materials!.title]).toEqual(['Pack', 'Packing materials']);
     const text = [top, materials].flatMap((s) => s!.lines.map((l) => l.text)).join(' ');
     expect(text).not.toMatch(/formula|uncoated|coated weight/i);
-    expect(text).toMatch(/Blister of 10 tablets; \d+ packs per carton\./);
+    expect(text).toMatch(/Bottle, child-resistant cap, measuring cup; fill 60 mL \+ 1\.5 mL excess; 48 packs per shipper\./);
     expect(materials!.lines.length).toBe(packing().pack!.materials.length);
   });
 
   it('TL-P1 the plain view names a step\'s packing material by its name and code, and a count in master data\'s unit (nos), as the floor does', () => {
-    const units = new Map([['pm-foil', 'm'], ['pm-ctn', 'nos']]);
+    const units = new Map([['pm-ctn', 'nos']]);
     const sections = describeMaster(packing(), units);
     const all = sections.flatMap((s) => s.lines.map((l) => l.text)).join(' ');
     expect(all).not.toMatch(/the batch quantity of/);
-    expect(sections[1]!.lines.find((l) => l.key === 'carton')!.text).toBe('Carton (PM-103), carton: 1 carton per 10 packs; printed, issued with a second person and reconciled; coded with the batch details.');
+    expect(sections[1]!.lines.find((l) => l.key === 'carton')!.text).toBe('Carton (PM-205), carton: 1 nos per pack; printed, issued with a second person and reconciled; coded with the batch details.');
     // Without master data, as the master has it; a material master data counts in another unit keeps the master's.
-    expect(describeMaster(packing()).flatMap((s) => s.lines).find((l) => l.key === 'carton')!.text).toMatch(/: 1 carton per 10 packs/);
-    expect(all).toMatch(/Leaflet \(PM-104\), leaflet: 1 leaflet per 10 packs/);
-    // A count used once or more per pack, or a length, per pack (17 Nov 2026 run, F6).
-    expect(all).toMatch(/Printed aluminium foil \(PM-101\), foil: 0\.120 m per pack/);
+    expect(describeMaster(packing()).flatMap((s) => s.lines).find((l) => l.key === 'carton')!.text).toMatch(/: 1 carton per pack/);
+    expect(all).toMatch(/Measuring cup 10 mL \(PM-203\), measuring device: 1 measuring device per pack/);
     expect(perPackText({ perPack: '0.002', unit: 'units', kind: 'shipper' })).toBe('1 shipper per 500 packs');
     expect(perPackText({ perPack: '2', unit: 'units', kind: 'desiccant' }, 'nos')).toBe('2 nos per pack');
     expect(perPackText({ perPack: '0.3', unit: 'units', kind: 'other' }, 'nos')).toBe('0.3 nos per pack');
     const steps = sections.flatMap((s) => s.lines).filter((l) => /^\d+\. (Issue|Reconcile) /.test(l.text)).map((l) => l.text);
-    expect(steps.find((x) => /^\d+\. Issue Carton \(PM-103\): /.test(x))).toMatch(/Packing material: Carton \(PM-103\)\. Unit: nos\./);
-    expect(steps.find((x) => /^\d+\. Reconcile Printed aluminium foil \(PM-101\): /.test(x))).toMatch(/Printed material: Printed aluminium foil \(PM-101\)\. Unit: m\./);
+    expect(steps.find((x) => /^\d+\. Issue Carton \(PM-205\): /.test(x))).toMatch(/Packing material: Carton \(PM-205\)\. Unit: nos\./);
+    expect(steps.find((x) => /^\d+\. Reconcile Printed label \(PM-204\): /.test(x))).toMatch(/Printed material: Printed label \(PM-204\)\. Unit: units\./);
   });
 
   it('the plain view titles each step as the floor does and never shows a step\'s internal key', () => {
@@ -164,11 +165,13 @@ describe('master designer', () => {
     const all = d.stages.flatMap((s) => s.steps);
     d.stages[1]!.steps[2]!.orderAfter = d.stages[1]!.steps[1]!.key;
     const lines = describeMaster(d).filter((s) => s.key.startsWith('stage:')).flatMap((s) => s.lines.filter((l) => l.key !== 'about'));
-    expect(lines.map((l) => /^\d+\. ([^:]+):/.exec(l.text)?.[1])).toEqual(d.stages.flatMap((s) => s.steps.map((t) => stepTitle(d, t))));
+    const titles = d.stages.flatMap((s) => s.steps.map((t) => stepTitle(d, t)));
+    expect(lines.map((l, i) => l.text.startsWith(`${/^\d+/.exec(l.text)![0]}. ${titles[i]}:`))).toEqual(titles.map(() => true));
     for (const l of lines) for (const t of all) expect(l.text, l.key).not.toContain(`(${t.key})`);
     expect(lines.map((l) => l.text).filter((x) => /Order-critical/.test(x)).map((x) => /Order-critical: [^.]*\.[^.]*\./.exec(x)![0]))
       .toEqual([`Order-critical: after step 2. ${stepTitle(d, d.stages[1]!.steps[1]!)}.`]);
-    expect(lines.map((l) => /^\d+\. Issue [^:]+/.exec(l.text)?.[0]).filter(Boolean)).toEqual(['2. Issue Printed aluminium foil (PM-101)', '3. Issue PVC/PVDC film (PM-102)', '4. Issue Carton (PM-103)', '5. Issue Leaflet (PM-104)']);
+    expect(lines.map((l) => /^\d+\. Issue [^:]+/.exec(l.text)?.[0]).filter(Boolean)).toEqual(['2. Issue Amber PET bottle 60 mL (PM-201)', '3. Issue Child-resistant cap 25 mm (PM-202)',
+      '4. Issue Measuring cup 10 mL (PM-203)', '5. Issue Printed label (PM-204)', '6. Issue Carton (PM-205)', '7. Issue Leaflet (PM-206)']);
   });
 
   it('calculation checks: the author answers a warning; the answer is kept in the master and shown in the review and changes views', () => {
@@ -185,7 +188,7 @@ describe('master designer', () => {
     expect(line).toMatch(/^Formula › Examplol hydrochloride: Label claim .* Answered: as Examplol hydrochloride\. Reason: The label for this market states the salt\.$/);
     expect(diffMasters(prev, next).flatMap((s) => s.lines.filter((l) => l.change !== 'same').map((l) => `${s.title} ${l.change}: ${l.text}`))).toEqual([`Calculation checks changed: ${line}`]);
     // A changed item asks again: the answer was for the warning as it read then.
-    const changed = { ...next, formula: next.formula.map((l, i) => (i === 0 ? { ...l, mgPerTablet: '90.0' } : l)) };
+    const changed = { ...next, formula: next.formula.map((l, i) => (i === 0 ? { ...l, mg: '90.0' } : l)) };
     expect(masterChecks(changed).find((p) => p.question?.key === 'label-basis/api')?.question?.answer).toBeUndefined();
   });
 });

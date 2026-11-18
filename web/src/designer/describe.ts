@@ -5,6 +5,7 @@ import { masterChecks } from '../../../shared/master/checks.js';
 import { materialLines, type FormulaLine, type MasterDoc, type Stage, type Step } from '../../../shared/master/schema.js';
 import { perPackText, unitName } from '../../../shared/engine/stock.js';
 import { stepTitle } from '../../../shared/engine/batch.js';
+import { batchText, claimWords, packText } from '../../../shared/engine/values.js';
 import { neededText } from '../../../shared/engine/training.js';
 import { grouped, placeLabel } from './model.js';
 import { sentence, sentenceText, settingText, slotsOf } from './sentences.js';
@@ -12,8 +13,9 @@ import { sentence, sentenceText, settingText, slotsOf } from './sentences.js';
 export interface Line { key: string; text: string }
 export interface Section { key: string; title: string; lines: Line[] }
 
-const PLACE: Record<FormulaLine['place'], string> = { intragranular: 'intragranular', extragranular: 'extragranular', binder: 'in the binder solution', coating: 'coating' };
-const ROLE: Record<FormulaLine['role'], string> = { api: 'API', excipient: 'excipient', solvent: 'solvent, removed in processing' };
+const PLACE: Record<NonNullable<FormulaLine['place']>, string> = { intragranular: 'in the granules', extragranular: 'blended after granulation', binder: 'in the binder solution', coating: 'coating the granules' };
+const TYPE_TEXT: Record<string, string> = { solution: 'Syrup, oral solution or elixir', drops: 'Oral drops', suspension: 'Oral suspension', emulsion: 'Oral emulsion', 'dry syrup': 'Dry syrup' };
+const ROLE: Record<FormulaLine['role'], string> = { api: 'API', excipient: 'excipient', solvent: 'vehicle made up to volume, or removed in processing' };
 
 function adjustText(doc: MasterDoc, l: FormulaLine): string {
   const a = l.adjust;
@@ -79,9 +81,9 @@ export function describeMaster(doc: MasterDoc, units?: Units): Section[] {
   const top: Section[] = p ? [
     { key: 'header', title: 'Pack', lines: [
       { key: 'product', text: `Pack product ${h.productCode}, ${h.productName}.` },
-      { key: 'bulk', text: `Packs the bulk tablets ${p.bulkCode}, ${p.bulkName}; tablet weight ${h.coreWeightMg} mg (for counts by weight).` },
-      { key: 'batch', text: `Standard packing batch ${grouped(h.batchSize)} tablets.` },
-      { key: 'pack', text: `${p.type[0]!.toUpperCase()}${p.type.slice(1)} of ${p.unitsPerPack} tablets; ${p.packsPerCarton} packs per carton.` },
+      { key: 'bulk', text: `Fills and packs the bulk ${p.bulkCode}, ${p.bulkName}.` },
+      { key: 'batch', text: `Standard packing batch ${grouped(h.batchSize)} packs.` },
+      { key: 'pack', text: `${packText(p)[0]!.toUpperCase()}${packText(p).slice(1)}; ${p.packsPerCarton} packs per shipper.` },
       { key: 'expiry', text: `Approved shelf life ${p.shelfLifeMonths} months; expiry ${p.expiryRule === 'same month' ? 'month of manufacture + shelf life' : 'month of manufacture + shelf life − 1'}.` },
       { key: 'market', text: `For ${p.destination}${p.mrp ? `; MRP Rs. ${p.mrp} per pack` : ''}.` },
       ...(p.serialisation ? [{ key: 'serialisation', text: `Serialisation checked${p.gtin ? `; pack GTIN ${p.gtin}` : ''}.` }] : []),
@@ -91,13 +93,13 @@ export function describeMaster(doc: MasterDoc, units?: Units): Section[] {
   ] : [
     { key: 'header', title: 'Header', lines: [
       { key: 'product', text: `Product ${h.productCode}, ${h.productName}.` },
-      { key: 'batch', text: `Batch size ${grouped(h.batchSize)} tablets.` },
-      { key: 'weights', text: `Theoretical core weight ${h.coreWeightMg} mg per tablet${h.coatedWeightMg ? `; coated weight ${h.coatedWeightMg} mg` : '; uncoated'}${h.dieAreaMm2 ? `; die bore area ${h.dieAreaMm2} mm²` : ''}.` },
+      ...(h.type ? [{ key: 'type', text: `${TYPE_TEXT[h.type]}${h.rxOtc ? `, ${h.rxOtc}` : ''}${h.doses ? `, ${h.doses}` : ''}.` }] : []),
+      { key: 'batch', text: `Batch ${grouped(batchText(doc))}.` },
+      { key: 'claim', text: h.claimPer === 'none' ? 'No label claim (a diluent or vehicle batch).' : `Label claim ${claimWords(doc)}${h.claimAs ? `, as ${h.claimAs}` : ''}${h.claimPer === 'drop' && h.dropsPerMl ? `; ${h.dropsPerMl} drops per mL` : ''}.` },
       ...(h.dispensingRooms?.length ? [{ key: 'dispensing', text: `Weighed in the dispensing rooms ${h.dispensingRooms.join(', ')}.` }] : []),
-      ...(h.otherStrengths ?? []).map((x, n) => ({ key: `strength:${n}`, text: `Also compressed from the same blend: ${x.name}, label claim ${x.labelClaim}, core weight ${x.coreWeightMg} mg.` })),
     ] },
     { key: 'formula', title: 'Formula', lines: doc.formula.map((l) => ({ key: l.key,
-      text: `${l.name} (${l.code}), ${ROLE[l.role]}, ${PLACE[l.place]}${l.place === 'coating' ? ` layer ${l.layer ?? 1}` : ''}: ${l.mgPerTablet} mg per tablet${l.labelClaim ? ` (label claim ${l.labelClaim})` : ''}${l.batchQuantity ? ` (batch quantity written as ${l.batchQuantity})` : ''}${adjustText(doc, l)}.` })) },
+      text: `${l.name} (${l.code}), ${ROLE[l.role]}${l.place ? `, ${PLACE[l.place]}` : ''}: ${l.mg === undefined ? 'q.s. (made up to volume)' : `${l.mg} mg per ${h.type === 'dry syrup' ? 'g' : 'mL'}`}${l.labelClaim ? ` (label claim ${l.labelClaim})` : ''}${l.batchQuantity ? ` (batch quantity written as ${l.batchQuantity})` : ''}${adjustText(doc, l)}.` })) },
   ];
   return [
     ...top,

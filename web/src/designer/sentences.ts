@@ -18,9 +18,9 @@ const isAre = (label: string) => (/[^su]s$/.test(label.split(' ').at(-1) ?? '') 
 
 // Packing: the master's pack facts and the batch facts recorded at issue, in words.
 const FACTS: Record<string, string> = {
-  'pack.unitsPerPack': 'the tablets per pack', 'pack.packsPerCarton': 'the packs per carton', 'pack.shelfLifeMonths': 'the approved shelf life',
+  'pack.fillTarget': 'the fill target (nominal fill + excess)', 'pack.fillWeight': 'the fill weight', 'pack.packsPerCarton': 'the packs per shipper', 'pack.shelfLifeMonths': 'the approved shelf life',
   'pack.expiryRule': 'the expiry rule', 'pack.type': 'the pack type', 'pack.destination': 'the destination', 'pack.gtin': 'the pack GTIN', 'pack.mrp': 'the MRP of the master',
-  'batch.bulk': 'the bulk batch number', 'batch.mfgDate': 'the date of manufacture of the bulk', 'batch.tablets': 'the bulk tablets issued',
+  'batch.bulk': 'the bulk batch number', 'batch.mfgDate': 'the date of manufacture of the bulk', 'batch.quantity': 'the bulk issued', 'batch.readyAt': 'when the bulk was ready', 'batch.holdHours': 'the bulk hold (hours)',
   'batch.packs': 'the theoretical packs', 'batch.line': 'the packing line',
 };
 

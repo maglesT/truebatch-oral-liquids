@@ -14,7 +14,9 @@ export type Kind =
   | 'fraction' | 'mass concentration' | 'density' | 'rotation speed' | 'angle' | 'mass per area' | 'Strong-Cobb hardness'
   | 'mass rate' | 'volume rate' | 'count rate' | 'current' | 'power' | 'specific energy'
   | 'relative humidity' | 'absolute humidity' | 'absolute humidity per volume' | 'log' | 'frequency' | 'rpm per Hz' | 'charge'
-  | 'IU' | 'CFU' | 'activity units' | 'IU per mass' | 'CFU per mass' | 'activity units per mass' | 'mass per IU';
+  | 'IU' | 'CFU' | 'activity units' | 'IU per mass' | 'CFU per mass' | 'activity units per mass' | 'mass per IU'
+  // TrueBatch Liquids (library section 3).
+  | 'volume fraction' | 'viscosity' | 'torque' | 'IU per volume' | 'IU per drop' | 'pH';
 
 export interface Unit {
   readonly symbol: string;
@@ -77,6 +79,17 @@ const TABLE: [string, Kind, Dec | string, string?][] = [
   ['CFU/g', 'CFU per mass', '1'], ['CFU/mg', 'CFU per mass', '1000'],
   ['U/g', 'activity units per mass', '1'], ['U/mg', 'activity units per mass', '1000'],
   ['mg/IU', 'mass per IU', '1'],
+  // TrueBatch Liquids (library section 3): containers and drops counted; a strength per 5 mL is a concentration; an
+  // alcohol strength in % v/v is a volume fraction, never % w/w or % w/v; viscosity; cap removal torque; vitamins in
+  // IU per mL or per drop (a drop is counted, never a volume: drops per mL is the product's setting).
+  ['bottles', 'count', '1'], ['sachets', 'count', '1'], ['cups', 'count', '1'], ['ampoules', 'count', '1'], ['drops', 'count', '1'],
+  ['bottles/min', 'count rate', '60'],
+  ['µg/mL', 'mass concentration', '0.001'], ['mg/5 mL', 'mass concentration', '0.2'],
+  ['%v/v', 'volume fraction', '1'],
+  ['mPa·s', 'viscosity', '1'],
+  ['N·m', 'torque', '1'], ['N·cm', 'torque', '0.01'],
+  ['IU/mL', 'IU per volume', '1'], ['IU/drop', 'IU per drop', '1'],
+  ['pH', 'pH', '1'], // the pH of a solution: its own kind, never a plain number
 ];
 
 /** Other spellings people type. */
@@ -85,6 +98,8 @@ const ALIASES: Record<string, string> = {
   mm2: 'mm²', cm2: 'cm²', sec: 's', hr: 'h', degC: '°C', degF: '°F', kP: 'kp', Kp: 'kp',
   '% w/w': '%w/w', '% w/v': '%w/v', '% RH': '%RH', RH: '%RH', cfu: 'CFU', 'cfu/g': 'CFU/g', 'cfu/mg': 'CFU/mg',
   'kg/cm²': 'kgf/cm²', 'N/mm2': 'N/mm²', 'g/m3': 'g/m³', 'ft³/min': 'cfm', 'ft3/min': 'cfm', meq: 'mEq', mEQ: 'mEq', 'US gallon': 'US gal', 'imperial gallon': 'imp gal', 'kg/cm2': 'kgf/cm²', 'g/cm3': 'g/cm³', 'm3/h': 'm³/h', tablet: 'tablets', unit: 'units', pack: 'packs', no: 'nos', 'nos.': 'nos',
+  bottle: 'bottles', sachet: 'sachets', cup: 'cups', ampoule: 'ampoules', drop: 'drops', 'bottle/min': 'bottles/min', 'ug/mL': 'µg/mL', 'mcg/mL': 'µg/mL',
+  'mg/5mL': 'mg/5 mL', '% v/v': '%v/v', cP: 'mPa·s', 'mPa.s': 'mPa·s', 'mPa s': 'mPa·s', Nm: 'N·m', 'N m': 'N·m', Ncm: 'N·cm', 'IU/ml': 'IU/mL',
 };
 
 /** Every unit symbol with its kind, in table order (the designer's unit pick lists). */

@@ -19,6 +19,9 @@ describe('T8 Batch scaling', () => {
     [{ mode: 'rate x time' as const, rate: '10 kg/h', time: '24 h' }, 'kg', '240.000'], // continuous line (formulation 50): 10 kg/h × 24 h
     [{ mode: 'rate x time' as const, rate: '135000 tablets/h', time: '90 min' }, 'units', '202500.000'], // 135000/h × 1.5 h
     [{ mode: 'rate x time' as const, rate: '500 g/min', time: '2 h' }, 'kg', '60.000'], // 0.5 kg/min × 120 min
+    [{ mode: 'per unit' as const, perUnit: '24 mg/mL', count: '1000 L' }, 'kg', '24.000'], // paracetamol 120 mg/5 mL × 1000 L = 24 kg
+    [{ mode: 'per unit' as const, perUnit: '2.5 %w/v', count: '500 L' }, 'kg', '12.500'], // 2.5 g per 100 mL × 500 L
+    [{ mode: 'per unit' as const, perUnit: '125.0 mg/g', count: '200 kg' }, 'kg', '25.000'], // dry syrup: 125 mg per g × 200 kg = 25 kg
   ])('T8: %o = %s %s', (i, unit, want) => {
     const r = ok(t8BatchScaling(i));
     expect(r.unit).toBe(unit);
@@ -31,6 +34,8 @@ describe('T8 Batch scaling', () => {
 
   it.each([
     [{ mode: 'per unit' as const, perUnit: '478 mg', count: '350 kg' }, /number of units must be a count/],
+    [{ mode: 'per unit' as const, perUnit: '24 mg/mL', count: '1000 kg' }, /batch volume must be a volume/],
+    [{ mode: 'per unit' as const, perUnit: '125 mg/g', count: '200 L' }, /number of units must be a count/],
     [{ mode: 'percent' as const, percent: '120 %', batch: '210 kg' }, /between 0 and 100/],
     [{ mode: 'rate x time' as const, rate: '10 kg', time: '24 h' }, /mass, volume or count per time/],
     [{ mode: 'rate x time' as const, rate: '10 kg/h', time: '24 kg' }, /must be a time/],

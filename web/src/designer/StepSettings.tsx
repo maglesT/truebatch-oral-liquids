@@ -108,8 +108,8 @@ export function StepSettings({ doc, si, ti, onChange }: { doc: MasterDoc; si: nu
             <label>After (minutes from the first round)<input type="number" min={1} value={step.everyMinutesLater?.afterMinutes ?? ''} onChange={(e) => opt('everyMinutesLater', e.target.value ? { afterMinutes: Number(e.target.value), everyMinutes: step.everyMinutesLater?.everyMinutes ?? step.everyMinutes! } : undefined)} /></label>
             {step.everyMinutesLater && <label>then a round every (minutes)<input type="number" min={1} value={step.everyMinutesLater.everyMinutes} onChange={(e) => opt('everyMinutesLater', { ...step.everyMinutesLater!, everyMinutes: Number(e.target.value) || 1 })} /></label>}
           </>}
-          <label>Only when the core batch is at most (kg)<Decimal label="Only when the core batch is at most (kg)" placeholder="always" value={step.onlyIf?.limit.high}
-            onChange={(v) => opt('onlyIf', v ? { header: 'coreBatch', limit: { high: v, unit: 'kg' } } : undefined)} /></label>
+          <label>Only when the batch mass is at most (kg)<Decimal label="Only when the batch mass is at most (kg)" placeholder="always" value={step.onlyIf?.limit.high}
+            onChange={(v) => opt('onlyIf', v ? { header: 'batchMass', limit: { high: v, unit: 'kg' } } : undefined)} /></label>
           <label>Order-critical: must come after<select value={step.orderAfter ?? ''} onChange={(e) => opt('orderAfter', e.target.value || undefined)}>
             <option value="">(not order-critical)</option>{doc.stages[si]!.steps.map((t, j) => t.key !== step.key && <option key={t.key} value={t.key}>{j + 1}. {stepTitle(doc, t)}</option>)}</select></label>
           {/^(coat|spray-coat)$/.test(block.id) && <>
@@ -247,7 +247,7 @@ function QuantitySource({ doc, si, ti, label, kind, value, onChange, missing }: 
         )}
         {HEADER_VALUES.some((h) => fits(HEADER_LABEL[h].kind)) && (
           <optgroup label="Header">
-            {HEADER_VALUES.filter((h) => fits(HEADER_LABEL[h].kind) && (!h.startsWith('coated') || doc.header.coatedWeightMg)).map((h) => <option key={h} value={`h:${h}`}>{HEADER_LABEL[h].label}</option>)}
+            {HEADER_VALUES.filter((h) => fits(HEADER_LABEL[h].kind)).map((h) => <option key={h} value={`h:${h}`}>{HEADER_LABEL[h].label}</option>)}
           </optgroup>
         )}
         {refs.length > 0 && <optgroup label="An earlier step">{refs.map((r) => <option key={r.ref} value={`r:${r.ref}`}>{r.label}</option>)}</optgroup>}

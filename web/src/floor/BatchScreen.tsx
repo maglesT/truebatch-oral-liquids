@@ -53,9 +53,9 @@ export function BatchScreen({ me, id, step, approve }: { me: Me; id: number; ste
 
 export function BatchHeader({ d }: { d: BatchDetail }) {
   const h = d.master.doc.header;
-  // A packing batch: the bulk tablets issued to it (recorded at issue), not the master's standard packing batch.
-  const issued = d.master.doc.pack ? d.steps.find((s) => s.id === '0.1.0.1')?.values.tablets : undefined;
-  const tablets = issued && typeof issued === 'object' && 'value' in issued ? issued.value : undefined;
+  // A packing batch: the bulk issued to it (recorded at issue), not the master's standard packing batch.
+  const issued = d.master.doc.pack ? d.steps.find((s) => s.id === '0.1.0.1')?.values.quantity : undefined;
+  const bulk = issued && typeof issued === 'object' && 'value' in issued ? issued : undefined;
   return (
     <section className="dash-panel bh" aria-label="Batch">
       <div>
@@ -63,8 +63,8 @@ export function BatchHeader({ d }: { d: BatchDetail }) {
         <h1>{h.productName}</h1>
         <div className="meta">
           <span>Product <b>{h.productCode}</b></span>
-          {tablets ? <span>Bulk tablets issued <b>{Number(tablets).toLocaleString('en-IN')} tablets</b></span>
-            : <span>Batch size <b>{Number(h.batchSize).toLocaleString('en-IN')} tablets</b></span>}
+          {bulk ? <span>Bulk issued <b>{Number(bulk.value).toLocaleString('en-IN')} {bulk.unit}</b></span>
+            : <span>Batch size <b>{Number(h.batchSize).toLocaleString('en-IN')} {h.batchUnit}</b></span>}
           <span>Master version <b>{d.master.versionNo}</b></span>
           <span>Issued <b>{plainClock(d.batch.issuedAt)}</b></span>
         </div>

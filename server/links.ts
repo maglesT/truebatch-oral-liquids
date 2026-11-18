@@ -146,15 +146,19 @@ export const mmsClient = (l: Link) => ({
 // ---- TrueBatch Liquids: report.batch_fact_v1 and deviation_note_v1 (published), read by TrueBatch Liquids Packing for its bulk batch. The
 // date of manufacture is its manufactured_on (owner, 15 Nov 2026): the plant-time date the bulk batch's first
 // processing step started (db/migrations/0007_batch_fact_manufactured_on.sql); null until a step has started.
-// goodQuantity (owner, 17 Nov 2026: pull, don't type): its good_quantity, the good tablets of its reconciliation
-// (db/migrations/0015_batch_fact_output.sql), what the packing batch is issued; read through to_jsonb, so a view from
-// before the column was appended reads as null (the tablets are then typed).
-export interface BulkRead { batchNo: string; productCode: string | null; status: string; released: boolean; mfgDate: string | null; dataAsOf: string | null; goodQuantity: string | null }
-type BulkRow = { batch_number: string; product_code: string | null; status: string; released: boolean; mfg_date: string | null; data_as_of: string | null; good_quantity: string | null };
+// goodQuantity, goodUnit (owner, 17 Nov 2026: pull, don't type): its good_quantity in L or kg, the bulk of its last
+// yield step (db/migrations/0018_batch_fact_liquid_bulk.sql), what the packing batch is issued; readyAt and holdHours
+// (bulk_ready_at, bulk_hold_hours, TL-17): when the bulk was ready and its hold. Read through to_jsonb, so a view from
+// before a column was appended reads as null (the value is then typed).
+export interface BulkRead { batchNo: string; productCode: string | null; status: string; released: boolean; mfgDate: string | null; dataAsOf: string | null;
+  goodQuantity: string | null; goodUnit: string | null; readyAt: string | null; holdHours: string | null }
+type BulkRow = { batch_number: string; product_code: string | null; status: string; released: boolean; mfg_date: string | null; data_as_of: string | null;
+  good_quantity: string | null; good_unit: string | null; ready_at: string | null; hold_hours: string | null };
 const bulkOf = (r: BulkRow): BulkRead => ({ batchNo: r.batch_number, productCode: r.product_code, status: r.status, released: r.released, mfgDate: r.mfg_date, dataAsOf: r.data_as_of,
-  goodQuantity: r.good_quantity });
+  goodQuantity: r.good_quantity, goodUnit: r.good_unit, readyAt: r.ready_at ? new Date(r.ready_at).toISOString().slice(0, 19) + 'Z' : null, holdHours: r.hold_hours });
 const BULK_COLS = `batch_number, product_code, status, released, manufactured_on::text as mfg_date, data_as_of::text,
-  nullif(to_jsonb(f) ->> 'good_quantity', '') as good_quantity`;
+  nullif(to_jsonb(f) ->> 'good_quantity', '') as good_quantity, nullif(to_jsonb(f) ->> 'good_unit', '') as good_unit,
+  nullif(to_jsonb(f) ->> 'bulk_ready_at', '') as ready_at, nullif(to_jsonb(f) ->> 'bulk_hold_hours', '') as hold_hours`;
 export const truebatchClient = (l: Link) => ({
   batch: (batchNo: string) => l.read(async (q, v) => {
     const [r] = await q<BulkRow[]>`select ${q.unsafe(BULK_COLS)} from ${v('batch_fact_v1')} f where batch_number = ${batchNo} limit 1`;

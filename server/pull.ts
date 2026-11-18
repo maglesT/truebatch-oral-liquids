@@ -10,7 +10,7 @@ import { plantDate } from '../shared/plant-time.js';
 // refusal in plain words; when the link is absent or down, the value is typed by hand (its questions in
 // shared/engine/links.ts). Nothing read is kept but what the record keeps (PL-07).
 
-// taken: typed fields the pull has read itself (the tablets of a part issue), not read again as typed.
+// taken: typed fields the pull has read itself (the bulk of a part issue), not read again as typed.
 export interface Pulled { source: Source; values: Record<string, Value>; sources: Record<string, Source>; problems: string[]; taken?: string[] }
 const hand = (link: Provider, state: 'absent' | 'down'): Pulled => ({ source: { from: 'hand', link, state }, values: {}, sources: {}, problems: [] });
 // A refusal: nothing is stored, so its source is never used.
@@ -92,37 +92,45 @@ export async function pullLot(app: FastifyInstance, doc: MasterDoc, st: Step, bl
 
 /**
  * Packing: a bulk batch TrueBatch Liquids has RELEASED, of this pack's bulk product; its date of manufacture (the date
- * its first processing step started, batch_fact_v1.manufactured_on) comes with it, and so do the tablets issued (its
- * good tablets, batch_fact_v1.good_quantity; owner 17 Nov 2026: pull, don't type). Without a good quantity (not given
- * by its view) the tablets are typed.
- * Bug fix (17 Nov 2026): the tablets offered are what is LEFT of the bulk batch: its good tablets less what the other
+ * its first processing step started, batch_fact_v1.manufactured_on) comes with it, and so do the bulk issued (its
+ * good quantity in L or kg, batch_fact_v1.good_quantity; owner 17 Nov 2026: pull, don't type), when it was ready and its
+ * hold (TL-17). Without a good quantity (not given by its view) the bulk issued is typed.
+ * Bug fix (17 Nov 2026): the bulk offered is what is LEFT of the bulk batch: its good quantity less what the other
  * packing batches of it were issued (`others`, net of what a terminated one gave back; shared/engine/stock.ts bulkLeft).
  * `typed`: a part issue, more than 0 and up to what is left; none issues all that is left.
  */
-export async function pullBulk(app: FastifyInstance, doc: MasterDoc, block: Block, batchNo: string, typed: unknown, others: () => Promise<BulkIssue[]>): Promise<Pulled> {
+export async function pullBulk(app: FastifyInstance, doc: MasterDoc, block: Block, batchNo: string, typed: unknown, others: () => Promise<BulkIssue[]>, now = new Date()): Promise<Pulled> {
   const r = await app.links.truebatch_liquids.batch(batchNo);
   if (r.state !== 'ok') return hand('truebatch_liquids', r.state);
   const b = r.value;
   if (!b) return refused(`Bulk batch ${batchNo} is not in TrueBatch Liquids.`);
   const problems: string[] = [];
   if (doc.pack && b.productCode !== doc.pack.bulkCode) problems.push(`Bulk batch ${batchNo} is ${b.productCode ?? 'another product'} in TrueBatch Liquids, not ${doc.pack.bulkCode} ${doc.pack.bulkName}.`);
-  if (!b.released) problems.push(`Bulk batch ${batchNo} is ${b.status.toLowerCase().replaceAll('_', ' ')} in TrueBatch Liquids: only a released bulk batch may be packed.`);
+  if (!b.released) problems.push(`Bulk batch ${batchNo} is ${b.status.toLowerCase().replaceAll('_', ' ')} in TrueBatch Liquids: only a released bulk batch may be filled.`);
   if (!b.mfgDate) problems.push(`Bulk batch ${batchNo} has no date of manufacture in TrueBatch Liquids (no processing step started).`);
+  // TL-17, TL-P2: the bulk hold runs from the end of manufacturing; a bulk past its hold is not issued.
+  const holdEnd = b.readyAt && b.holdHours ? new Date(new Date(b.readyAt).getTime() + Number(b.holdHours) * 3_600_000) : null;
+  if (holdEnd && now > holdEnd) problems.push(`Bulk batch ${batchNo} was ready at ${b.readyAt} and its hold of ${b.holdHours} h ended at ${holdEnd.toISOString().slice(0, 16)}Z: it may not be issued for filling.`);
   const source: Source = { from: 'truebatch_liquids', asOf: b.dataAsOf, shown: `TrueBatch Liquids batch ${batchNo}: ${b.status}, ${b.productCode ?? '—'}, manufactured ${b.mfgDate ?? '—'}` };
   const out: Pulled = { source, values: {}, sources: {}, problems };
   if (b.mfgDate && block.fields.some((x) => x.name === 'mfgDate')) { out.values.mfgDate = b.mfgDate; out.sources.mfgDate = source; }
-  const tablets = block.fields.find((x) => x.name === 'tablets');
-  if (b.goodQuantity && tablets) {
-    const unit = tablets.unit ?? 'tablets';
-    out.taken = ['tablets'];
+  if (b.readyAt && b.holdHours && block.fields.some((x) => x.name === 'readyAt')) {
+    out.values.readyAt = b.readyAt; out.values.holdHours = b.holdHours;
+    out.sources.readyAt = out.sources.holdHours = { ...source, shown: `${source.shown}, ready ${b.readyAt}, hold ${b.holdHours} h` };
+  }
+  const quantity = block.fields.find((x) => x.name === 'quantity');
+  if (b.goodQuantity && quantity) {
+    const unit = quantity.unit!;
+    if (b.goodUnit && b.goodUnit !== unit) { problems.push(`Bulk batch ${batchNo} is given in ${b.goodUnit} in TrueBatch Liquids; this packing master fills a bulk in ${unit}.`); return out; }
+    out.taken = ['quantity'];
     const left = bulkLeft(b.goodQuantity, await others());
-    const part = typed === undefined || typed === null || (typeof typed === 'string' && !typed.trim()) ? null : readValue(tablets, typed, unit);
+    const part = typed === undefined || typed === null || (typeof typed === 'string' && !typed.trim()) ? null : readValue(quantity, typed, unit);
     if (part && typeof part === 'object' && 'error' in part) { problems.push(part.error); return out; }
     const value = part && typeof part === 'object' && 'value' in part ? part.value : left.left;
-    const no = bulkIssueProblem(batchNo, part ? value : null, b.goodQuantity, left);
+    const no = bulkIssueProblem(batchNo, part ? value : null, b.goodQuantity, left, unit);
     if (no) { problems.push(no); return out; }
-    out.values.tablets = { value, unit };
-    out.sources.tablets = { ...source, shown: `${source.shown}, ${b.goodQuantity} good tablets, ${left.issued} issued to other packing batches, ${left.left} left${part ? `, ${value} issued (typed, a part issue)` : ''}` };
+    out.values.quantity = { value, unit };
+    out.sources.quantity = { ...source, shown: `${source.shown}, ${b.goodQuantity} ${unit} good, ${left.issued} ${unit} issued to other packing batches, ${left.left} ${unit} left${part ? `, ${value} ${unit} issued (typed, a part issue)` : ''}` };
   }
   return out;
 }

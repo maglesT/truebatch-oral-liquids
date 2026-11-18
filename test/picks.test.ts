@@ -8,22 +8,31 @@ import { pack } from './packing-fixture.js';
 // share a word with them and must not be offered (filter press, air compressor, dry heat steriliser, case packer).
 const TYPES = ['Balance', 'Analytical balance', 'Micro balance', 'IPC balance', 'Platform balance', 'Bin blender', 'Blender', 'Auto coater', 'Blister packer',
   'Strip packer', 'High speed blister line', 'Rapid mixer granulator', 'Fluid bed dryer', 'Tablet compression machine', 'Tablet press', 'Cold forming machine',
-  'Filter press', 'Air compressor', 'Dry heat steriliser', 'Case packer', 'Sifter', 'Multimill', 'Friabilator', 'Disintegration tester', 'Manufacturing vessel'];
+  'Filter press', 'Air compressor', 'Dry heat steriliser', 'Case packer', 'Sifter', 'Multimill', 'Friabilator', 'Disintegration tester', 'Manufacturing vessel',
+  // TrueBatch Liquids: filling lines, cappers and bottle washers.
+  'Bottle filling line', 'Filling and capping machine', 'Capping machine', 'Bottle washing machine', 'Air rinser', 'Holding tank', 'Colloid mill', 'Homogeniser', 'Stirrer'];
 const MACHINES = TYPES.map((type, i) => ({ code: `EQ-${i}`, type, room: null }));
 const BALANCES = ['Balance', 'IPC balance', 'Platform balance'];
 const BLENDERS = ['Bin blender', 'Blender'];
-const LINES = ['Blister packer', 'Strip packer', 'High speed blister line', 'Cold forming machine'];
+const LINES = ['Bottle filling line', 'Filling and capping machine'];
 const OFFERS: Record<string, string[]> = {
   'weigh.balance': BALANCES, 'blend-uniformity.machine': BLENDERS,
   'dry-mix.machine': [...BLENDERS, 'Rapid mixer granulator'], 'granulate.machine': ['Rapid mixer granulator'], 'dry.machine': ['Fluid bed dryer'],
   'sift.machine': ['Sifter'],
-  'sieve.machine': ['Sifter', 'Multimill'], 'binder-solution.machine': ['Manufacturing vessel'],
-  'charge.machine': [...BLENDERS, 'Rapid mixer granulator', 'Fluid bed dryer', 'Manufacturing vessel'],
-  'bulk-issue.line': LINES, 'pack-clearance.line': LINES, 'pack-clearance-after.line': LINES,
+  'sieve.machine': ['Sifter', 'Multimill', 'Colloid mill'], 'binder-solution.machine': ['Manufacturing vessel', 'Holding tank', 'Stirrer'],
+  'charge.machine': [...BLENDERS, 'Rapid mixer granulator', 'Fluid bed dryer', 'Manufacturing vessel', 'Stirrer'],
+  'liquid-bulk-issue.line': LINES, 'pack-clearance.line': LINES, 'pack-clearance-after.line': LINES,
+  'bottle-wash.washer': ['Bottle washing machine', 'Air rinser'], 'liquid-fill.machine': ['Bottle filling line', 'Filling and capping machine'],
+  'cap-check.capper': ['Filling and capping machine', 'Capping machine'],
+  // The liquids: vessels and tanks (never a granulator), mills and homogenisers for homogenising.
+  'sugar-syrup.machine': ['Manufacturing vessel', 'Holding tank', 'Stirrer'], 'dissolve.machine': ['Manufacturing vessel', 'Holding tank', 'Stirrer'],
+  'hydrate.machine': ['Manufacturing vessel', 'Holding tank', 'Stirrer'], 'phase-prep.machine': ['Manufacturing vessel', 'Holding tank', 'Stirrer'],
+  'make-up.machine': ['Manufacturing vessel', 'Holding tank'], 'bulk-transfer.from': ['Manufacturing vessel', 'Holding tank'], 'bulk-transfer.to': ['Manufacturing vessel', 'Holding tank'],
+  'homogenise.machine': ['Colloid mill', 'Homogeniser'], 'mix.machine': ['Bin blender', 'Blender', 'Rapid mixer granulator', 'Manufacturing vessel', 'Stirrer'],
 };
 
 describe('machine pickers on the demo master-data types', () => {
-  const header = { productItemId: 'p', productCode: 'P', productName: 'P', batchSize: '100000', coreWeightMg: '250.0' };
+  const header = { productItemId: 'p', productCode: 'P', productName: 'P', batchSize: '100000', batchUnit: 'L' as const };
   // The types alone: here every stage allows any room (the rooms are tested below).
   const stages = [...SKELETON_LIST.flatMap((s) => skeletonStages(s.id, header)), ...packingStages(pack())].map((s) => ({ ...s, roomTypes: [] }));
 
@@ -65,7 +74,7 @@ describe('machine pickers on the demo master-data types', () => {
     expect(machineRefusal(stage, field('weigh', 'balance'), BALS[5]!, ROOMS, ['RM-101'])).toBe('INL-BAL-01 stands in RM-301, neither in a dispensing room of the master nor in a room this stage allows (Granulation, Coating)');
     expect(machineRefusal(stage, field('weigh', 'balance'), BALS[3]!, ROOMS, ['RM-101'])).toBe('IN-BAL-01 stands in RM-110 (QC), a laboratory area: weigh with a balance of a dispensing room of the master or of a room this stage allows');
     // A version made before the setting: the rooms whose area is exactly "Dispensing".
-    const old = { header: { productItemId: 'p', productCode: 'P', productName: 'P', batchSize: '1', coreWeightMg: '1' } };
+    const old = { header: { productItemId: 'p', productCode: 'P', productName: 'P', batchSize: '1', batchUnit: 'L' as const } };
     expect(dispensingRooms(old, ROOMS)).toEqual(['RM-101']);
     expect(dispensingRooms({ header: { ...old.header, dispensingRooms: ['RM-102'] } }, ROOMS)).toEqual(['RM-102']);
   });
@@ -73,10 +82,11 @@ describe('machine pickers on the demo master-data types', () => {
   it('TL-11 a packing line is offered only standing in a room the stage allows; one with no type is named in the note', () => {
     const stage = { ...stages[0]!, roomTypes: ['Packing'] };
     const line = field('pack-clearance', 'line');
-    const lines = [{ code: 'EQ-BLS-01', type: 'Blister packer', room: 'RM-108' }, { code: 'EQ-X', type: 'Blister packer', room: 'RM-107' },
-      { code: 'CFORM-01', type: 'Blister packer', room: null }, { code: 'CFORM-BL-01', type: null, room: 'RM-108' }];
-    expect(lines.map((m) => machineRefusal(stage, line, m, ROOMS))).toEqual([null, 'EQ-X stands in RM-107, not in a room this stage allows (Packing)',
-      'CFORM-01 stands in no room in master data, so it is not in a room this stage allows (Packing)', 'CFORM-BL-01 has no type in master data, so it is not offered as a packing line']);
+    const lines = [{ code: 'FL-01', type: 'Bottle filling line', room: 'RM-108' }, { code: 'FL-X', type: 'Bottle filling line', room: 'RM-107' },
+      { code: 'FL-02', type: 'Bottle filling line', room: null }, { code: 'FL-03', type: null, room: 'RM-108' }, { code: 'BLS-01', type: 'Blister packer', room: 'RM-108' }];
+    expect(lines.map((m) => machineRefusal(stage, line, m, ROOMS))).toEqual([null, 'FL-X stands in RM-107, not in a room this stage allows (Packing)',
+      'FL-02 stands in no room in master data, so it is not in a room this stage allows (Packing)', 'FL-03 has no type in master data, so it is not offered as a packing line',
+      'BLS-01 is not a packing line (master data: Blister packer)']);
     expect(untypedNote(line, lines)).toBe('1 machine has no type in master data, so it is not offered.');
   });
 
