@@ -5,7 +5,7 @@ import { audit } from '../audit.js';
 import { parseId, requirePermission, type SessionUser } from '../auth.js';
 import { usableItem } from '../master.js';
 import { dispensingRooms, machineRefusal, roomRefusal } from '../../shared/engine/picks.js';
-import { handProblem, lineOf, mfgDateProblem, pullBulk, pullCoa, pullItem, pullLot, pullQcResult, pulledWords, usableCoas, usableResults } from '../pull.js';
+import { handProblem, lineOf, mfgDateProblem, pullBulk, pullCoa, pullInProcess, pullItem, pullLot, pullQcResult, pulledWords, usableCoas, usableInProcess, usableResults } from '../pull.js';
 import { SignError, authenticateSigner, contentHash, sign, signBody } from '../signatures.js';
 import { masterVersion } from './masters.js';
 import { batchRecordDoc, type RecordInput, type Signature } from '../batch-record.js';
@@ -16,7 +16,7 @@ import type { MasterDoc } from '../../shared/master/schema.js';
 import { Dec } from '../../shared/templates/index.js';
 import {
   ACTIONS, BATCH_ACTIONS, CERTIFICATE, DEVIATION_DONE, LINK_OF, bulkRefusal, MATERIAL_USE, batchRefusal, filedKey, inLotUnit, issuedLots, bulkLeft, returnProblems, returnsOf, usedQuantity, usesOfLot, stepLabel, stepPlace, stepTitle, handFields, isHand, batchView, doneProblems, evaluate, lateItems, openSteps, parseKey, readValue, refusal, review, timers,
-  trainingCheck, trainingTyped, coaText, resultText, type Training,
+  trainingCheck, trainingTyped, coaText, resultText, inProcessText, isPick, keyId, labRequestId, labTests, currentValues, endsTheRounds, requestRound, type Training,
   type Action, type BatchAction, type BatchEvent, type BulkChecked, type BulkDeviation, type BulkIssue, type BulkDeviations, type DeviationStatus, type LinkState, type Source, type StageView, type Stored, type StepEvent, type StepKey, type StepView, type Timer, type Value,
 } from '../../shared/engine/index.js';
 
@@ -155,6 +155,56 @@ export async function bulkIssues(tx: Tx | Sql, bulk: string, except = '', lock =
     where lower(k.bulk) = ${bulk.toLowerCase()} and b.batch_no <> ${except} and t.quantity is not null`;
 }
 
+/**
+ * Round 42: the lab request a step instance opens when it starts, kept with its "started" event (insert-only, as every
+ * step event): the stage and step in words and the in-process tests of the step, in the units of this step. Published
+ * by report.lab_request_v1 (db/migrations/0020, 0021) with its id '<batch>/<step key>'; null for a step without such a test.
+ */
+export function labRequestOf(doc: MasterDoc, key: StepKey): { stage: string; step: string; tests: ReturnType<typeof labTests> } | null {
+  const stage = doc.stages[key.stage];
+  const st = stage?.steps[key.step];
+  const block = st && findBlock(st.block);
+  if (!stage || !st || !block) return null;
+  const tests = labTests(block.fields, (f) => { const u = f.unit?.startsWith('$') ? st.settings[f.unit.slice(1)] : f.unit; return typeof u === 'string' ? u : ''; });
+  if (!tests.length) return null;
+  const extra = [stage.kind === 'sub-batch' ? `sub-batch ${key.sub}` : '', st.flow.kind === 'repeat-until' ? `round ${key.round}` : ''].filter(Boolean).join(', ');
+  return { stage: stage.name, step: `${stepTitle(doc, st)}${extra ? ` (${extra})` : ''}`, tests };
+}
+
+/**
+ * Round 43: what an in-process pick of this step instance needs from the other rounds of the step: the results they
+ * picked already for its in-process fields (one result fills one round), and the round and time each request of the
+ * step opened (its "started" event). A step without rounds says only when its request opened.
+ */
+function otherRounds(doc: MasterDoc, events: readonly StepEvent[], key: StepKey, batchNo: string) {
+  const st = doc.stages[key.stage]?.steps[key.step];
+  const fields = (st && findBlock(st.block)?.fields.filter((f) => f.qc === 'in_process').map((f) => f.name)) ?? [];
+  const mine = events.filter((e) => e.stage === key.stage && e.sub === key.sub && e.step === key.step);
+  const taken = new Set<string>();
+  for (const round of new Set(mine.map((e) => e.round))) {
+    if (round === key.round) continue;
+    const c = currentValues(mine.filter((e) => e.round === round));
+    for (const name of fields) { const s = c.source[name]; if (s && s.from === 'lims' && s.ref) taken.add(s.ref); }
+  }
+  const rounds = st?.flow.kind === 'repeat-until';
+  const step = requestRound(labRequestId(batchNo, keyId({ ...key, round: 1 })))?.step;
+  const sampled = (request: string) => {
+    const r = requestRound(request);
+    if (!r || r.step !== step) return undefined;
+    const started = mine.find((e) => e.round === r.round && e.kind === 'started');
+    return { ...(rounds ? { round: r.round } : {}), ...(started ? { at: started.at.toISOString() } : {}) };
+  };
+  return { taken, sampled };
+}
+
+/**
+ * Round 43 (found by the Injectables edition): a step started before round 42 opened no lab request (its "started" event
+ * has no labRequest), so LIMS never samples it and a pick could never come: its in-process fields are typed by hand
+ * (marked "started before LIMS in-process requests", checked by a second person and listed for QA, as when LIMS is
+ * down). A step not started yet (issue) is not one.
+ */
+const noLabRequest = (v: StepView) => { const s = v.events.find((e) => e.kind === 'started'); return !!s && !s.payload.labRequest; };
+
 // What a signer is shown of a step, and its hash: the signature is refused if the step changed since (PL-05).
 const stepContent = (batchId: number, v: StepView) => ({ batch: batchId, step: v.id, values: v.values, results: v.results });
 const stepHash = (batchId: number, v: StepView) => contentHash('batch_step', batchId, stepContent(batchId, v));
@@ -164,7 +214,7 @@ const stepHash = (batchId: number, v: StepView) => contentHash('batch_step', bat
  * like lots, through their link (Logbook, MMS): pulled when it answers, else typed by hand with the label questions
  * (server/pull.ts). A pulled value cannot be typed over; certificate values come with the lot.
  */
-async function readValues(app: FastifyInstance, tx: Tx, doc: MasterDoc, key: StepKey, raw: Record<string, unknown>, now: Date, current: StepView, batchNo: string) {
+async function readValues(app: FastifyInstance, tx: Tx, doc: MasterDoc, key: StepKey, raw: Record<string, unknown>, now: Date, current: StepView, batchNo: string, events: readonly StepEvent[] = []) {
   const stage = doc.stages[key.stage]!;
   const step = stage.steps[key.step]!;
   const block = findBlock(step.block)!;
@@ -220,7 +270,23 @@ async function readValues(app: FastifyInstance, tx: Tx, doc: MasterDoc, key: Ste
     const setting = f.unit?.startsWith('$') ? step.settings[f.unit.slice(1)] : f.unit;
     // A QC result (readers round 2): picked from this batch's approved CoA in LIMS while it answers (a new pick replaces
     // an earlier one, as a correction); absent or down, typed by hand below, with a second-person check.
-    if (f.qc) {
+    // An in-process result (round 42): picked from an approved in-process report of this step's lab request in LIMS
+    // (a list: its individual values; a staged list may fill the other stage's field too); absent or down, typed below.
+    if (f.qc === 'in_process' && noLabRequest(current)) {
+      // Round 43: started before LIMS in-process requests: typed by hand below (a pick is refused: no request to pick from).
+      if (isPick(x)) { problems.push(`${f.label}: this step was started before LIMS in-process requests: type it from the QC report.`); continue; }
+      source[name] = { from: 'hand', link: 'lims', state: 'no_request' };
+    } else if (f.qc === 'in_process') {
+      const unitOf = (y: typeof f) => { const u = y.unit?.startsWith('$') ? step.settings[y.unit.slice(1)] : y.unit; return typeof u === 'string' ? u : ''; };
+      const coating = typeof step.settings.coating === 'string' ? step.settings.coating : undefined;
+      const o = otherRounds(doc, events, key, batchNo);
+      const q = await pullInProcess(app, block, f, x, unitOf, { batchNo, productCode: doc.header.productCode, request: labRequestId(batchNo, keyId(key)) }, { ...current.values, ...out }, coating,
+        o.taken, o.sampled);
+      if (q.problems.length) { problems.push(...q.problems); continue; }
+      if (!isHand(q.source)) { Object.assign(out, q.values); Object.assign(source, q.sources); continue; }
+      source[name] = q.source;
+    }
+    if (f.qc === true) {
       const q = await pullQcResult(app, f, x, typeof setting === 'string' ? setting : '', batchNo, doc.header.productCode);
       if (q.problems.length) { problems.push(...q.problems); continue; }
       source[name] = q.source;
@@ -640,7 +706,7 @@ export function batchRoutes(app: FastifyInstance, sql: Sql) {
   // LIMS (readers round 2): the approved CoAs of this batch (QC approval), or of a lot typed by hand at a step (`key`,
   // `lot`: its QC report or certificate number), and the results of this batch's approved CoAs in a unit (a QC result
   // field), for the pick lists. Only what may be used is offered; the server checks a pick again when it is recorded.
-  app.get<{ Params: { id: string }; Querystring: { key?: string; lot?: string; unit?: string; units?: string } }>('/api/batches/:id/lims', anyUser, async (req, reply) => {
+  app.get<{ Params: { id: string }; Querystring: { key?: string; lot?: string; unit?: string; units?: string; request?: string } }>('/api/batches/:id/lims', anyUser, async (req, reply) => {
     const id = parseId(req.params.id);
     const l = id === null ? null : await loadBatch(sql, id);
     if (!l) return reply.code(404).send({ error: 'not_found' });
@@ -652,6 +718,23 @@ export function batchRoutes(app: FastifyInstance, sql: Sql) {
       return { link: r.link, coas: r.coas.map((c) => ({ coaNumber: c.coaNumber, shown: coaText(c) })), results: [] };
     }
     const want = { kind: 'PRODUCT' as const, batchNo: l.batch.batchNo, productCode: l.doc.header.productCode };
+    // Round 42: `request` (a step key) gives the results of that step's lab request (its in-process fields) in `units`,
+    // with their individual values; each field then checks its own fit (shared/engine/lims.ts inProcessFit).
+    const reqKey = req.query.request ? parseKey(req.query.request) : null;
+    if (req.query.request !== undefined) {
+      if (!reqKey || !l.doc.stages[reqKey.stage]?.steps[reqKey.step]) return reply.code(404).send({ error: 'not_found' });
+      const request = labRequestId(l.batch.batchNo, keyId(reqKey));
+      // Round 43: a step started before LIMS in-process requests has none: its in-process fields are typed (noRequest).
+      const v = openSteps(l.doc, l.events, l.now).steps.find((s) => s.id === keyId(reqKey));
+      if (v && noLabRequest(v)) return { link: 'ok', request, noRequest: true, coas: [], results: [] };
+      const units = (req.query.units ?? '').split(',').filter(Boolean).map((u) => decodeURIComponent(u));
+      // Round 43: an earlier round's sample too, not one another round picked; it says which round it was sampled in.
+      const o = otherRounds(l.doc, l.events, reqKey, l.batch.batchNo);
+      const r = await usableInProcess(app, { batchNo: want.batchNo, productCode: want.productCode, request }, units, o.taken);
+      return { link: r.link, request, coas: [], results: r.results.map((x) => ({ resultId: x.resultId, coaNumber: x.coaNumber, testName: x.testName, reported: x.reported, unit: x.unit,
+        individual: x.individual ?? null, figure: x.figure ?? null, requestId: x.requestId ?? null, analysisNumber: x.analysisNumber, limitText: x.limitText, outsideLab: x.outsideLab,
+        shown: inProcessText(x, x.requestId ?? request, o.sampled(x.requestId ?? request)) })) };
+    }
     // Round 41: `units` (comma-separated, each URI-encoded) gives the results for every QC field of a step in one read.
     const units = req.query.units !== undefined ? req.query.units.split(',').map((u) => decodeURIComponent(u)) : req.query.unit !== undefined ? [req.query.unit] : null;
     if (units) {
@@ -771,7 +854,7 @@ export function batchRoutes(app: FastifyInstance, sql: Sql) {
           let payload: Record<string, unknown> = {};
           const uses: number[] = [];
           if (b.values) {
-            const typed = await readValues(app, tx, l.doc, key, b.values, l.now, v, l.batch.batchNo);
+            const typed = await readValues(app, tx, l.doc, key, b.values, l.now, v, l.batch.batchNo, l.events);
             payload = { values: typed.values, results: evaluate(l.doc, l.events, key, { ...v.values, ...typed.values }, uses), uses,
               ...(Object.keys(typed.source).length ? { source: typed.source } : {}) };
             const no = await stockProblem(app, tx, l, v, { ...v.values, ...typed.values }, payload.results as Record<string, Stored>, { ...v.source, ...typed.source });
@@ -793,6 +876,11 @@ export function batchRoutes(app: FastifyInstance, sql: Sql) {
           if (action === 'note') payload.where = stepLabel(l.doc, key);
           // Where the step is, in words, for the uses other products read (equipment_use_v1, material_use_v1: step_name).
           if (action === 'start') payload.where = stepPlace(l.doc, key);
+          // Round 42: a step with in-process QC fields opens its lab request as it starts (report.lab_request_v1).
+          if (action === 'start') { const lab = labRequestOf(l.doc, key); if (lab) payload.labRequest = lab; }
+          // Round 43: the round that ends the step's rounds (a step without rounds: when signed) closes the requests of the
+          // step no round picked (cancelled in lab_request_v1).
+          if (action === 'done' && labRequestOf(l.doc, key) && endsTheRounds(v, l.doc.stages[key.stage]!.steps[key.step]!)) payload.labClosed = true;
           // A material used: its unit in master data as read at signing (material_use_v1 gives MMS the quantity in it).
           if (action === 'done') { const unit = await stockUnit(app, l.doc, key); if (unit) payload.stockUnit = unit; }
           if (b.reference) {

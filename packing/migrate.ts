@@ -6,6 +6,7 @@ import { MIGRATIONS_DIR, migrate, type Plan } from '../db/migrate.js';
 // TrueBatch Liquids Packing's own database: TrueBatch Liquids' migrations (accounts, audit trail, signatures, masters,
 // batches and their events: the same tables, no copy of them), with its own app role and without the views TrueBatch
 // Liquids publishes (0006 to 0008, 0011 to 0018), then its own migrations (packing/migrations: the views packing publishes).
+// Round 42: lab_request_v1 (0020, 0021) is migrated here too: LIMS reads it from every TrueBatch edition, the same view.
 const here = path.dirname(fileURLToPath(import.meta.url));
 export const PACKING_MIGRATIONS_DIR = path.resolve(here, here.includes(`${path.sep}dist${path.sep}`) ? '../../packing/migrations' : 'migrations');
 export const PACKING_APP_ROLE = 'truebatch_liquids_packing_app';

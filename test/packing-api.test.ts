@@ -109,7 +109,7 @@ describe('TrueBatch Liquids Packing: its own product on the platform', () => {
     for (const p of m.permissions) expect(p.code).toMatch(/^truebatch_liquids_packing(\.[a-z0-9_]+)+$/);
     // deviation_note_v1: the bulk batch's deviation notes, for QA's release review (whole-suite run, S24).
     expect(m.reads.truebatch_liquids).toEqual(['batch_fact_v1', 'deviation_note_v1']);
-    expect(m.publishes).toEqual(['packing_batch_v1', 'equipment_use_v1', 'material_use_v1', 'deviation_note_v1']);
+    expect(m.publishes).toEqual(['packing_batch_v1', 'equipment_use_v1', 'material_use_v1', 'deviation_note_v1', 'lab_request_v1']);
   });
 
   it('PL-06 the packing app login keeps the step events and signatures insert-only', async () => {

@@ -6,7 +6,7 @@ import type { MasterDoc, Step } from '../../shared/master/schema.js';
 import type { Action, EventKind, Payload, State, StepKey } from '../../shared/engine/state.js';
 import type { Stored, Value } from '../../shared/engine/values.js';
 import { unitName, type Returned } from '../../shared/engine/stock.js';
-import { PROVIDER_NAME, type Source } from '../../shared/engine/links.js';
+import { handWhy, PROVIDER_NAME, type Source } from '../../shared/engine/links.js';
 import { stepTitle as sharedStepTitle, TERMINATED_STATE } from '../../shared/engine/batch.js';
 import { plantClock, plantText } from '../../shared/plant-time.js';
 import { statusWords } from '../../shared/engine/release.js';
@@ -44,7 +44,7 @@ export interface PickItem { itemId: string; code: string; name: string; active: 
 
 /** Where a value came from, in plain words. */
 export const sourceWords = (s: Source | undefined) => (!s ? '' : s.from === 'hand'
-  ? `Typed by hand: ${PROVIDER_NAME[s.link]} ${s.state === 'down' ? 'link is down' : 'is not linked'}. A second person checks it.`
+  ? `Typed by hand: ${s.state === 'no_request' ? handWhy(s) : `${PROVIDER_NAME[s.link]} ${s.state === 'down' ? 'link is down' : 'is not linked'}`}. A second person checks it.`
   : `From ${PROVIDER_NAME[s.from]}: ${plantText(s.shown)}`);
 
 /** A pick list read through a link (pull, don't type): empty when the link is absent or down, and then the value is typed. */
@@ -64,7 +64,12 @@ export function useLinked<T>(url: string | null, list: string): T[] {
  * results of them in a unit; null while not read, absent or down (then typed by hand). `again` reads it once more.
  */
 export interface LimsPicks { link: 'ok' | 'absent' | 'down'; coas: { coaNumber: string; shown: string }[];
-  results: { resultId: string; coaNumber: string | null; testName: string | null; reported: string | null; unit: string | null; shown: string }[] }
+  results: { resultId: string; coaNumber: string | null; testName: string | null; reported: string | null; unit: string | null; shown: string;
+    // Round 42 (?request=): an in-process result's individual values (in LIMS's order), what `reported` is, its request.
+    individual?: string[] | null; figure?: string | null; requestId?: string | null; analysisNumber?: string | null; limitText?: string | null; outsideLab?: string | null }[];
+  request?: string;
+  // Round 43: the step was started before LIMS in-process requests (it has none): its in-process fields are typed.
+  noRequest?: boolean }
 export function useLims(url: string | null, again?: unknown): LimsPicks | null {
   const [r, setR] = useState<{ url: string; picks: LimsPicks } | null>(null);
   useEffect(() => {

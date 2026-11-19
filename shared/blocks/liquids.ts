@@ -152,14 +152,15 @@ export const sizeCheck: Block = {
 };
 
 // The bulk sample to QC, held for its results (a QA hold): pH, density, viscosity, assay, alcohol and preservative
-// content where the master asks (QC results: picked from the bulk's approved CoA in LIMS while it answers), appearance; a bioburden sample's reference (results through the QC sign, TL-21).
+// content where the master asks (in-process QC results, round 42: the step opens a LIMS lab request when it starts and
+// each figure is picked from the approved in-process report of that request while LIMS answers), appearance; a bioburden sample's reference (results through the QC sign, TL-21).
 export const bulkTest: Block = {
   id: 'bulk-test', version: 1, name: 'Bulk test (hold)', checker: true, qaHold: true,
   instruction: 'Take the bulk sample, send it to QC and record the results when they come. Wait for QA to release the hold.',
   fields: [
     text('reference', 'Sample reference'),
     ...[num('ph', 'pH', 'pH', true), num('density', 'Density', 'g/mL', true), num('viscosity', 'Viscosity', 'mPa·s', true), num('assay', 'Assay (% of target)', '%', true),
-      num('ethanol', 'Alcohol content', '%v/v', true), num('preservative', 'Preservative content (% of target)', '%', true)].map((f) => ({ ...f, qc: true as const })),
+      num('ethanol', 'Alcohol content', '%v/v', true), num('preservative', 'Preservative content (% of target)', '%', true)].map((f) => ({ ...f, qc: 'in_process' as const })),
     text('bioburden', 'Bioburden sample reference', true),
     yes('appearance', 'Appearance as specified'),
   ],

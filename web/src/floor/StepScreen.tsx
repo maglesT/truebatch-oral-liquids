@@ -7,11 +7,11 @@ import {
 } from '../api-floor.js';
 import { Alerts } from './BatchScreen.js';
 import { deviationText } from '../../../shared/engine/release.js';
-import { FieldInput, type QcPick } from './Fields.js';
+import { FieldInput, type InProcessPicks, type QcPick } from './Fields.js';
 import { DemoSkip } from './DemoSkip.js';
 import { ReasonDialog } from './ReasonDialog.js';
 import { CERTIFICATE, fieldLabel, handEntered, LINK_OF } from '../../../shared/engine/links.js';
-import { sameUnit } from '../../../shared/engine/lims.js';
+import { inProcessFit, labRequestId, sameUnit } from '../../../shared/engine/lims.js';
 import { askedFields, cutShort, notYetText } from '../../../shared/engine/batch.js';
 import { lineQuantity } from '../../../shared/engine/values.js';
 import { plantText } from '../../../shared/plant-time.js';
@@ -101,13 +101,33 @@ export function StepScreen({ me, d, blocks, row, now, reload }: { me: Me; d: Bat
   // LIMS (readers round 2): a QC result of this batch is picked from its approved CoA; the QC report of a lot typed by
   // hand is picked from the lot's approved CoAs. Null while LIMS is absent or down: typed as before.
   // Round 41: every QC field of the step, each in its own unit, in one read (not only the first one).
-  const qcUnits = [...new Set(block.fields.filter((f) => f.qc).map((f) => unitOf(f, st)))];
+  const qcUnits = [...new Set(block.fields.filter((f) => f.qc === true).map((f) => unitOf(f, st)))];
   const limsResults = useLims(qcUnits.length ? `/api/batches/${d.batch.id}/lims?units=${qcUnits.map((u) => encodeURIComponent(encodeURIComponent(u))).join(',')}` : null, last);
   const lotNo = lotField && !lotPulled && typeof row.values[lotField.name] === 'string' ? row.values[lotField.name] as string : null;
   const limsCoas = useLims(lotNo && row.handFields.some((f) => f.name === `${lotField!.name}.report`)
     ? `/api/batches/${d.batch.id}/lims?key=${encodeURIComponent(row.id)}&lot=${encodeURIComponent(lotNo)}` : null, last);
   const optionsFor = (f: BlockField) => (f.kind === 'lot' ? lots.map((l) => l.lotNumber) : lotField && f.name === `${lotField.name}.report` ? limsCoas?.coas.map((c) => c.coaNumber) ?? [] : []);
-  const resultsFor = (f: BlockField) => (f.qc ? limsResults?.results.filter((r) => sameUnit(r.unit, unitOf(f, st))) : undefined);
+  const resultsFor = (f: BlockField) => (f.qc === true ? limsResults?.results.filter((r) => sameUnit(r.unit, unitOf(f, st))) : undefined);
+  // Round 42: in-process QC fields pick from this step's own lab request (opened when the step started); each field is
+  // offered the results that fit it (its unit, its number of values, LIMS's figure agreeing) and told why others do not.
+  const ipUnits = [...new Set(block.fields.filter((f) => f.qc === 'in_process').map((f) => unitOf(f, st)))];
+  const ipResults = useLims(ipUnits.length ? `/api/batches/${d.batch.id}/lims?request=${encodeURIComponent(row.id)}&units=${ipUnits.map((u) => encodeURIComponent(encodeURIComponent(u))).join(',')}` : null, last);
+  const coating = typeof st.settings.coating === 'string' ? st.settings.coating : undefined;
+  const inProcessFor = (f: BlockField): InProcessPicks | undefined => {
+    // Round 43: a step started before LIMS in-process requests has none: its in-process fields are typed by hand.
+    if (f.qc !== 'in_process' || !ipResults || ipResults.noRequest) return undefined;
+    const offered: QcPick[] = [];
+    const refused: string[] = [];
+    for (const r of ipResults.results.filter((x) => sameUnit(x.unit, unitOf(f, st)))) {
+      const fit = inProcessFit(r, f, unitOf(f, st), block.fields, row.values, coating);
+      if ('error' in fit) refused.push(fit.error); else offered.push(r);
+    }
+    return { request: ipResults.request ?? labRequestId(d.batch.batchNo, row.id), offered, refused };
+  };
+  // A staged list's next stage (content uniformity: 20 more) is asked for only once the step's own calculation says the
+  // first stage did not pass (or it holds values already).
+  const laterStage = (f: BlockField) => block.fields.some((x) => x.nextStage === f.name) && row.values[f.name] === undefined
+    && !Object.values(row.results).some((r) => r.ok && (r as { decision?: unknown }).decision === 'next stage');
   // Only trained people sign (owner, 17 Nov 2026): the signer's training in the step's skill, read when the sign dialog opens.
   const signing = dialog?.kind === 'done' || dialog?.kind === 'repeat' || dialog?.kind === 'check';
   const [training, setTraining] = useState<TrainingRead | null>(null);
@@ -215,6 +235,7 @@ export function StepScreen({ me, d, blocks, row, now, reload }: { me: Me; d: Bat
         </div>
       );
     }
+    if (laterStage(f)) return null;
     const unit = shownUnit(f);
     const src = row.source[f.name];
     // Pulled through a link: shown, never typed over. Certificate values come only with an MMS lot. A pick from LIMS
@@ -224,7 +245,7 @@ export function StepScreen({ me, d, blocks, row, now, reload }: { me: Me; d: Bat
     if (!pulled && (can('record') || (v === undefined && row.state === 'open') || (f.count && v !== undefined))) {
       return (
         <div key={f.name}>
-          <FieldInput f={f} unit={unit} saved={v} picks={picksFor(f)} note={noteFor(f)} options={optionsFor(f)} results={resultsFor(f)}
+          <FieldInput f={f} unit={unit} saved={v} picks={picksFor(f)} note={noteFor(f)} options={optionsFor(f)} results={resultsFor(f)} inProcess={inProcessFor(f)}
             disabled={!can('record')} out={outOf(f)} onSave={can('record') ? (raw) => record(f.name, raw) : undefined} />
           {src && <p className="muted small">{sourceWords(src)}</p>}
           {!can('record') && can('correct') && <button className="big" onClick={() => setDialog({ kind: 'correct', field: f })}>Correct {f.label.toLowerCase()}</button>}
@@ -296,6 +317,7 @@ export function StepScreen({ me, d, blocks, row, now, reload }: { me: Me; d: Bat
           ) : (
             <section className="dash-panel" aria-label="Record">
               <div className="panel-head"><h2>Record</h2>{can('record') && <span className="muted">each value is saved when you leave the field</span>}</div>
+              {ipResults?.noRequest && <p className="notice warn">This step was started before LIMS in-process requests: type the in-process results from the QC report. They are marked typed by hand; a second person checks them.</p>}
               {fields.map(fieldView)}
             </section>
           )}
@@ -385,7 +407,7 @@ export function StepScreen({ me, d, blocks, row, now, reload }: { me: Me; d: Bat
       )}
       {dialog?.kind === 'correct' && (
         <Correct f={dialog.field} unit={shownUnit(dialog.field)} mdUnit={mdUnit} saved={row.values[dialog.field.name]} picks={picksFor(dialog.field)}
-          options={optionsFor(dialog.field)} results={resultsFor(dialog.field)}
+          options={optionsFor(dialog.field)} results={resultsFor(dialog.field)} inProcess={inProcessFor(dialog.field)}
           onCancel={() => setDialog(null)} onSave={async (raw, reason) => { await post('correct', { values: { [dialog.field.name]: raw }, reason }); setDialog(null); await reload(); }} />
       )}
     </>
@@ -504,14 +526,14 @@ function History_({ h, block, deviations }: { h: History | null; block: Block; d
   );
 }
 
-function Correct({ f, unit, mdUnit, saved, picks, options, results, onSave, onCancel }: { f: BlockField; unit: string; mdUnit: string | null; saved: StepRow['values'][string] | undefined; picks: PickItem[];
-  options: string[]; results?: QcPick[]; onSave: (raw: unknown, reason: string) => Promise<void>; onCancel: () => void }) {
+function Correct({ f, unit, mdUnit, saved, picks, options, results, inProcess, onSave, onCancel }: { f: BlockField; unit: string; mdUnit: string | null; saved: StepRow['values'][string] | undefined; picks: PickItem[];
+  options: string[]; results?: QcPick[]; inProcess?: InProcessPicks; onSave: (raw: unknown, reason: string) => Promise<void>; onCancel: () => void }) {
   const [raw, setRaw] = useState<unknown>(rawOf(saved));
   return (
     <ReasonDialog title={`Correct: ${f.label}`} label="Reason for the correction" submit="Save the correction" onCancel={onCancel}
       hint={`Now: ${valueText(saved, mdUnit)}. The original value stays in the record, crossed out, with your reason; the step must be signed again.`}
       onSubmit={(reason) => onSave(raw, reason)}>
-      <FieldInput f={f} unit={unit} saved={saved} picks={picks} options={options} results={results} onChange={setRaw} />
+      <FieldInput f={f} unit={unit} saved={saved} picks={picks} options={options} results={results} inProcess={inProcess} onChange={setRaw} />
     </ReasonDialog>
   );
 }

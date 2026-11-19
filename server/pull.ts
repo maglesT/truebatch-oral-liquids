@@ -4,7 +4,7 @@ import type { Block, BlockField } from '../shared/blocks/index.js';
 import { materialLines, type FormulaLine, type MasterDoc, type PackMaterial, type Step } from '../shared/master/schema.js';
 import { CERTIFICATE, PROVIDER_NAME, bulkIssueProblem, bulkLeft, clauses, readValue, type BulkIssue, type Provider, type Source, type Value } from '../shared/engine/index.js';
 import { LOT_USABLE } from './links.js';
-import { coaRefusal, coaText, isPick, resultRefusal, resultText, type Coa, type CoaFor, type QcResult } from '../shared/engine/lims.js';
+import { coaRefusal, coaText, inProcessFit, inProcessText, isPick, requestFits, resultRefusal, resultText, sameUnit, type Coa, type CoaFor, type QcResult } from '../shared/engine/lims.js';
 import type { LinkState } from '../shared/engine/links.js';
 import { plantDate } from '../shared/plant-time.js';
 
@@ -206,4 +206,51 @@ export async function pullCoa(app: FastifyInstance, number: string, want: CoaFor
   const other = r.all.find((x) => x.coaNumber?.trim().toLowerCase() === number.trim().toLowerCase());
   const what = want.kind === 'PRODUCT' ? `batch ${want.batchNo}` : `lot ${want.lot}`;
   return refused(other ? coaRefusal(other, want)! : `${number} is not an approved CoA of ${what} in LIMS: pick one${r.coas.length ? '' : ' once QC has approved it there'}.`);
+}
+
+/** Round 42: the step's lab request: this batch and product, the request '<batch>/<step key>'. */
+export type InProcessFor = { batchNo: string; productCode: string; request: string };
+
+/**
+ * The results of the approved in-process reports of this step's lab request, or (round 43) of an earlier round of the
+ * same step, in any of `units` (each field checks its own fit). `taken`: results another round of the step picked
+ * already (one result fills one round). Each result keeps the request it was sampled for.
+ */
+export async function usableInProcess(app: FastifyInstance, want: InProcessFor, units: string[], taken: ReadonlySet<string> = new Set()): Promise<{ link: LinkState; results: QcResult[] }> {
+  const c = await usableCoas(app, { kind: 'PRODUCT', ...want });
+  if (c.link !== 'ok' || !c.coas.length) return { link: c.link, results: [] };
+  const r = await app.links.lims.results(c.coas.map((x) => x.coaId));
+  if (r.state !== 'ok') return { link: r.state, results: [] };
+  const requestOf = new Map(c.coas.map((x) => [x.coaId, x.requestId ?? null]));
+  return { link: 'ok', results: r.value.map((x) => ({ ...x, requestId: x.requestId ?? requestOf.get(x.coaId) ?? null }))
+    .filter((x) => requestOf.has(x.coaId) && requestFits(x.requestId, want.request) && !taken.has(x.resultId) && units.some((u) => sameUnit(x.unit, u))) };
+}
+
+/**
+ * An in-process QC field (qc 'in_process', round 42): while LIMS answers, the answer is a pick ({ lims: result id }) of a
+ * result of an approved in-process report of THIS step's lab request or (round 43) an earlier round's; a list takes its
+ * individual values (and a staged list the other stage's too: `values`), a single number the reported figure. A typed
+ * value is refused. Absent or down: typed by hand (a second person checks it, QA's review lists it); a pick is then
+ * refused. `taken`: results another round of the step picked (one result fills one round); `sampled`: the round and
+ * time a request of the step opened (the record says which sample was used).
+ */
+export async function pullInProcess(app: FastifyInstance, block: Block, f: BlockField, raw: unknown, unitOf: (f: BlockField) => string, want: InProcessFor,
+  recorded: Record<string, Value>, coating: string | undefined, taken: ReadonlySet<string>, sampled: (request: string) => { round?: number; at?: string } | undefined): Promise<Pulled> {
+  const r = await usableInProcess(app, want, [unitOf(f)]);
+  if (r.link !== 'ok') return isPick(raw) ? refused(`LIMS does not answer now: type ${f.label} from the QC report.`) : hand('lims', r.link);
+  if (!isPick(raw)) return refused(`${f.label} comes from LIMS: pick the result of in-process request ${want.request} once QC has approved it there.`);
+  const x = r.results.find((y) => y.resultId === raw.lims);
+  if (!x) return refused(`${f.label}: that result is not a result in ${unitOf(f)} of an approved in-process report of request ${want.request} (this step) in LIMS.`);
+  if (taken.has(x.resultId)) return refused(`${f.label}: in-process report ${x.coaNumber} (request ${x.requestId}) was used in another round of this step: one result fills one round.`);
+  const fit = inProcessFit(x, f, unitOf(f), block.fields, recorded, coating);
+  if ('error' in fit) return refused(fit.error);
+  const request = x.requestId ?? want.request;
+  const source: Source = { from: 'lims', asOf: null, shown: inProcessText(x, request, sampled(request)), ref: x.resultId, request };
+  const out: Pulled = { source, values: {}, sources: {}, problems: [] };
+  for (const [name, v] of Object.entries(fit.take)) {
+    const u = unitOf(block.fields.find((y) => y.name === name)!);
+    out.values[name] = Array.isArray(v) ? v.map((value) => ({ value, unit: u })) : { value: v, unit: u };
+    out.sources[name] = source;
+  }
+  return out;
 }

@@ -133,6 +133,8 @@ function stopPassed(v: StepView, st: Step): boolean {
   const r = v.results[stopName(st) ?? ''];
   return r?.ok === true && r.check?.pass === true;
 }
+/** Round 43: this round, signed done, ends the step's rounds (a step without rounds always): its open lab requests close. */
+export const endsTheRounds = (v: StepView, st: Step) => st.flow.kind !== 'repeat-until' || stopPassed(v, st) || v.key.round >= maxRounds(st);
 // Done enough for what follows: with `wait`, a step that needs a check must be checked.
 const finished = (v: StepView, wait: boolean) =>
   v.state === 'done' || v.state === 'checked' || v.state === 'not_applicable' || (v.state === 'done_awaiting_check' && !wait);

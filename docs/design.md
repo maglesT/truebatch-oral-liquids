@@ -85,6 +85,15 @@ answering) or **ok**.
   typed by hand (MMS off or down) is an approved CoA of that lot and the step's material. Only an APPROVED CoA (not one
   LIMS also rejected), of this batch number and product or this lot and material, of a release sample (a lot: release
   or retest). Absent or down: typed by hand as before, marked "typed by hand: LIMS …" (second-person check, listed for QA).
+- **LIMS in-process tests** (rounds 42 and 43, as Tablets; owner: "it has to be there"): a step with in-process QC
+  fields (`qc: 'in_process'`: the bulk test's pH, density, viscosity, assay, alcohol and preservative content, each one
+  figure; blend uniformity, 10 values with their mean) opens a lab request when it starts, published as
+  `report.lab_request_v1` ('<batch>/<step key>', 0020; its status follows the picks, 0021). Its fields pick a result of
+  an APPROVED in-process report of that request (or of an earlier round of the same step, each result filling one
+  round): a single figure takes LIMS's reported figure in the field's unit; a list takes exactly its count of values in
+  LIMS's order, and LIMS's mean is worked out again and must agree. A release CoA is never an in-process result. While
+  LIMS answers typing is refused; absent or down, typed and marked as above. A step started before round 42 has no
+  request: its fields are typed, marked "started before LIMS in-process requests", checked and listed for QA.
 - **Published** (`db/migrations/0006_report_views.sql`): `batch_fact_v1` and `equipment_use_v1` with Batchwright's
   names and columns, so the Logbook and Deviations read TrueBatch as they read Batchwright, and `deviation_note_v1`
   for Deviations to file notes later. `batch_fact_v1` has one more column at its end (`0007`): `manufactured_on`, the

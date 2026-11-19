@@ -35,7 +35,19 @@ export const fieldSchema = z.object({
   notTypes: z.array(z.string().regex(/^[a-z][a-z ]*$/)).optional(),
   // number: a QC result of this batch (from the QC report). While the LIMS link answers it is picked from the batch's
   // approved CoA in LIMS (result_v1, its reported figure); absent or down, typed by hand (shared/engine/lims.ts).
-  qc: z.literal(true).optional(),
+  // Round 42 (owner: in-process lab tests are picked from LIMS, not typed): 'in_process' is an in-process test done in
+  // the QC lab on a sample of THIS step. The step publishes a lab request when it starts (report.lab_request_v1); the
+  // field picks a result of an approved in-process report of that request (its reported figure; a list of readings
+  // picks LIMS's individual values, in order, exactly `count` of them). `true` stays the release CoA's result.
+  qc: z.union([z.literal(true), z.literal('in_process')]).optional(),
+  // An in-process list (qc 'in_process', count): what LIMS's reported figure of the result is, worked out again from the
+  // values picked and compared (rounded as LIMS wrote it): 'mean' of the values, or 'AV' the acceptance value of
+  // content uniformity (T14, with the step's coating). LIMS's own figure must then agree.
+  figure: z.enum(['mean', 'AV']).optional(),
+  // A staged in-process list: the field that holds the next stage's readings (content uniformity: 20 more after 10).
+  // LIMS keeps one result with every value in order (10, then 30 after the second stage): this field takes the first
+  // values, the next stage's field the rest.
+  nextStage: name.optional(),
 }).strict();
 // A packing line: master data's blister and strip packers, forming machines and bottle lines' tablet counters.
 export const PACKING_LINE = ['filling line', 'bottle filling', 'filling and capping', 'sachet', 'packing line'];
@@ -121,7 +133,16 @@ export function blockProblems(b: Block): string[] {
     if (f.kind === 'number' && !f.unit) p.push(`field ${f.name}: a number needs a unit`);
     if (f.unit?.startsWith('$') ? !settings.has(f.unit.slice(1)) : f.unit !== undefined && !findUnit(f.unit)) p.push(`field ${f.name}: unknown unit ${f.unit}`);
     if (f.kind === 'choice' && !f.options?.length) p.push(`field ${f.name}: a choice needs options`);
-    if (f.qc && (f.kind !== 'number' || f.count !== undefined)) p.push(`field ${f.name}: only a single number is a QC result from LIMS`);
+    if (f.qc === true && (f.kind !== 'number' || f.count !== undefined)) p.push(`field ${f.name}: only a single number is a QC result from LIMS`);
+    if (f.qc === 'in_process' && f.kind !== 'number') p.push(`field ${f.name}: only a number or a list of readings is an in-process result from LIMS`);
+    if (f.figure && (f.qc !== 'in_process' || f.count === undefined)) p.push(`field ${f.name}: only an in-process list of readings names LIMS's figure`);
+    if (f.figure === 'AV' && !b.settings.some((s) => s.name === 'coating')) p.push(`field ${f.name}: the acceptance value needs the coating setting`);
+    if (f.nextStage) {
+      const next = b.fields.find((x) => x.name === f.nextStage);
+      if (!next || next.qc !== 'in_process' || next.count === undefined || f.count === undefined || f.qc !== 'in_process' || next.nextStage) {
+        p.push(`field ${f.name}: the next stage is another in-process list of readings`);
+      }
+    }
   }
   for (const s of b.settings) if (s.options && (s.kind !== 'text' || !s.options.length)) p.push(`setting ${s.name}: only a text setting has a list`);
   for (const s of b.settings) if (s.notBatch && s.kind !== 'quantity') p.push(`setting ${s.name}: only a quantity setting is marked not a batch quantity`);

@@ -8,22 +8,38 @@
  *   line's material); a CoA of another batch, lot, product or material is refused;
  * - a batch's CoA is of a release sample (not stability or an investigation); a lot's of a release or retest sample;
  * - a result gives LIMS's `reported` figure (rounded as its limit is written), in the unit the step asks for (sameUnit).
+ * Round 42 (owner: in-process lab tests are picked, not typed): a step with an in-process QC field (block field flag
+ * qc 'in_process') opens a lab request when it starts, published as report.lab_request_v1 ('<batch>/<step key>'). Its
+ * fields pick a result of an APPROVED in-process report (purpose in_process, an IPR number) of THAT request: of this
+ * batch and product, this step. A list of readings (blend or content uniformity) takes LIMS's individual values in their
+ * order, exactly as many as the block asks for (never padded or cut); LIMS's reported figure of them (their mean, or the
+ * acceptance value) is worked out again from the values and must agree, rounded as LIMS wrote it. A single figure
+ * (no count) takes LIMS's reported figure, as a release CoA's result.
+ * Round 43 (found by the API edition's periodic reactions): a step with rounds also takes the report of an EARLIER
+ * round of the same step (requestFits), each result filling one round; the record says which round it was sampled in.
  */
+import type { BlockField } from '../blocks/format.js';
+import { Dec, roundHalfUp, t14ContentUniformity, writtenDecimals } from '../templates/index.js';
 
 /** A row of LIMS coa_v1, as read. `rejected`: LIMS has a rejection of the same sample too. */
 export interface Coa {
   coaId: string; coaNumber: string | null; sampleNumber: string; lotNumber: string | null; itemKind: string | null;
   itemMasterId: string | null; itemCode: string | null; itemName: string | null; purpose: string | null; decision: string;
   decidedAt: string | null; decidedBy: string | null; specNumber: string | null; specVersion: number | null; rejected?: boolean;
+  /** Round 42: the lab request of an in-process sample (lab_request_v1.request_id); null for other purposes. */
+  requestId?: string | null;
 }
 /** A row of LIMS result_v1 of an approved CoA, as read; `reported` is the figure as reported (null before LIMS kept it). */
 export interface QcResult {
   resultId: string; coaId: string; coaNumber: string | null; testName: string | null; reported: string | null; unit: string | null;
   limitText: string | null; analysisNumber: string | null; outsideLab: string | null;
+  /** Round 42: the lab request (in-process), the individual values in LIMS's order (null when not individual), and what
+   * `reported` is: 'mean' | 'AV' | 'result' (null from a LIMS without the column). */
+  requestId?: string | null; individual?: string[] | null; figure?: string | null;
 }
 /** What the CoA must be of: this batch (its product), or this lot of the step's material. */
 export type CoaFor =
-  | { kind: 'PRODUCT'; batchNo: string; productCode: string }
+  | { kind: 'PRODUCT'; batchNo: string; productCode: string; request?: string }
   | { kind: 'MATERIAL'; lot: string; materialId?: string; materialCode?: string };
 
 const same = (a: string | null | undefined, b: string) => (a ?? '').trim().toLowerCase() === b.trim().toLowerCase();
@@ -40,7 +56,13 @@ export function coaRefusal(c: Coa, want: CoaFor): string | null {
   if (want.kind === 'MATERIAL' && want.materialId && c.itemMasterId && c.itemMasterId !== want.materialId) {
     return `CoA ${no} is of ${c.itemCode ?? 'another material'}, not ${want.materialCode ?? 'the material of this step'}.`;
   }
-  if (!PURPOSES[want.kind].includes(c.purpose ?? '')) return `CoA ${no} is of a ${c.purpose ?? 'other'} sample: only the ${PURPOSES[want.kind].join(' or ')} CoA of ${what} may be used.`;
+  // Round 42: an in-process field takes only an in-process report of this step's own request.
+  if (want.kind === 'PRODUCT' && want.request !== undefined) {
+    if (c.purpose !== 'in_process') return `CoA ${no} is of a ${c.purpose ?? 'other'} sample: only an in-process report of request ${want.request} (this step) may be used.`;
+    if (!requestFits(c.requestId, want.request)) return `In-process report ${no} is for request ${c.requestId ?? '—'}, not request ${want.request} (this step) or an earlier round of it.`;
+    return null;
+  }
+  if (!PURPOSES[want.kind].includes(c.purpose ?? '')) return `CoA ${no} is of a${c.purpose === 'in_process' ? 'n' : ''} ${(c.purpose ?? 'other').replace(/_/g, '-')} sample: only the ${PURPOSES[want.kind].join(' or ')} CoA of ${what} may be used.`;
   return null;
 }
 
@@ -70,3 +92,112 @@ export const coaText = (c: Coa) => `LIMS CoA ${c.coaNumber}: sample ${c.sampleNu
 export const resultText = (r: QcResult) => `LIMS CoA ${r.coaNumber}: ${r.testName ?? 'result'} ${r.reported}${r.unit ? ` ${r.unit}` : ''} as reported${r.limitText ? ` (limit ${r.limitText})` : ''}${r.analysisNumber ? `, analysis ${r.analysisNumber}` : ''}${r.outsideLab ? `, outside lab ${r.outsideLab}` : ''}`;
 /** The answer that picks a LIMS result for a field (the step screen sends it in place of a typed number). */
 export const isPick = (x: unknown): x is { lims: string } => !!x && typeof x === 'object' && !Array.isArray(x) && typeof (x as { lims?: unknown }).lims === 'string';
+
+// ---- Round 42: in-process lab requests and their results.
+
+/** The lab request of a step instance: '<batch number>/<step key>' (a repeated round or sub-batch has its own key). */
+export const labRequestId = (batchNo: string, key: string) => `${batchNo}/${key}`;
+/** A request id's step (batch and stage.sub-batch.step, without case) and round; null when it is not one. */
+export function requestRound(id: string | null | undefined): { step: string; round: number } | null {
+  const m = /^(.+\/\d+\.\d+\.\d+)\.(\d+)$/.exec((id ?? '').trim());
+  return m ? { step: m[1]!.toLowerCase(), round: Number(m[2]) } : null;
+}
+/**
+ * Round 43 (general rule, found by the API edition's periodic reactions): a step takes an in-process report of its own
+ * request or of an EARLIER round of the same step. A sample taken in round 3 is often approved while the rounds go on:
+ * a later round uses it (the record says which round it was sampled in). A later round's sample never fills an earlier
+ * round, and a step without rounds (round 1) takes only its own request. Whether another round picked it already is
+ * the server's (pull.ts: one result fills one round).
+ */
+export function requestFits(candidate: string | null | undefined, want: string): boolean {
+  const c = requestRound(candidate);
+  const w = requestRound(want);
+  return !!c && !!w && c.step === w.step && c.round <= w.round;
+}
+/** A test of a lab request, as lab_request_v1.tests lists it. individual: the number of values (a list), else null. */
+export interface LabTest { name: string; label: string; unit: string; individual: number | null }
+/**
+ * The in-process QC fields of a step, as the tests of its lab request (`unitOf`: the field's unit in this step). Round
+ * 43: a field whose unit is not set is not asked for (Tablets' in-process fields have a fixed unit, %, so none is left
+ * out today; the rule is the same in every edition).
+ */
+export const labTests = (fields: readonly BlockField[], unitOf: (f: BlockField) => string): LabTest[] =>
+  fields.filter((f) => f.qc === 'in_process' && unitOf(f)).map((f) => ({ name: f.name, label: f.label, unit: unitOf(f), individual: f.count ?? null }));
+
+const FIGURE: Record<string, string> = { mean: 'mean', AV: 'acceptance value', result: 'result' };
+/**
+ * An in-process result as the step, the review and the PDF show it (kept with the record as the source's `shown`): the
+ * request it was sampled for and (round 43) when: "sampled in round 3 at <time>" in a step with rounds, else "requested
+ * <time>" (the time its request opened).
+ */
+export const inProcessText = (r: QcResult, request: string, sampled?: { round?: number; at?: string }) => `LIMS in-process report ${r.coaNumber}: ${r.testName ?? 'result'} (request ${request}`
+  + `${sampled?.round ? `, sampled in round ${sampled.round}` : ''}${sampled?.at ? `${sampled.round ? ' at' : ', requested'} ${sampled.at}` : ''})${r.individual ? `, ${r.individual.length} values` : ''}`
+  + `${r.reported ? `, ${r.individual ? `${FIGURE[r.figure ?? ''] ?? 'reported'} ` : ''}${r.reported}${r.unit ? ` ${r.unit}` : ''} as reported` : ''}${r.limitText ? ` (limit ${r.limitText})` : ''}`
+  + `${r.analysisNumber ? `, analysis ${r.analysisNumber}` : ''}${r.outsideLab ? `, outside lab ${r.outsideLab}` : ''}`;
+
+/** The step's own figure of the values (their mean, or the acceptance value of content uniformity), or why it has none. */
+function ownFigure(figure: 'mean' | 'AV', values: readonly string[], coating: string | undefined): Dec | { error: string } {
+  if (figure === 'mean') return values.reduce((a, v) => a.plus(v), new Dec(0)).div(values.length);
+  const t = t14ContentUniformity({ method: 'content uniformity', coating: (coating ?? 'uncoated') as 'uncoated', results: { values, unit: '%' } });
+  return t.ok ? new Dec(String(t.value)) : { error: t.message };
+}
+
+/**
+ * What an in-process result gives a field (and, for a staged list, the field of the other stage): the field values to
+ * record, by field name (a list: its values in LIMS's order; a single number: the reported figure), or why it may not
+ * (in plain words). `fields`: the block's fields; `recorded`: the step's values now (a second stage's pick checks the
+ * first stage's); `coating`: the step's coating (the acceptance value). Its CoA and request are checked by coaRefusal.
+ */
+export function inProcessFit(r: Pick<QcResult, 'testName' | 'coaNumber' | 'unit' | 'reported' | 'individual' | 'figure'>, f: BlockField, unit: string, fields: readonly BlockField[], recorded: Record<string, unknown> = {}, coating?: string):
+  { error: string } | { take: Record<string, string | string[]> } {
+  const what = `${r.testName ?? 'The result'} of in-process report ${r.coaNumber ?? '—'}`;
+  const no = (error: string) => ({ error });
+  if (!sameUnit(r.unit, unit)) return no(`${what} is in ${r.unit || 'no unit'}, not in ${unit}.`);
+  if (f.count === undefined) {
+    if (r.individual?.length) return no(`${what} is a list of ${r.individual.length} values: ${f.label} takes one result.`);
+    if (r.figure && r.figure !== 'result') return no(`${what} reports the ${FIGURE[r.figure] ?? r.figure}, not one result: it is not ${f.label}.`);
+    if (!r.reported || !NUMBER.test(r.reported.trim())) return no(`${what} has no reported figure in LIMS.`);
+    return { take: { [f.name]: r.reported.trim() } };
+  }
+  const vals = (r.individual ?? []).map((v) => String(v).trim());
+  if (!vals.length) return no(`${what} has no individual values in LIMS: ${f.label} takes ${f.count} values.`);
+  if (!vals.every((v) => NUMBER.test(v))) return no(`${what} has a value that is not a number in LIMS.`);
+  if (f.figure && r.figure && r.figure !== f.figure) return no(`${what} reports the ${FIGURE[r.figure] ?? r.figure}, not the ${FIGURE[f.figure]}: it is not ${f.label}.`);
+  const next = f.nextStage ? fields.find((x) => x.name === f.nextStage) : undefined;
+  const prev = fields.find((x) => x.nextStage === f.name);
+  const take: Record<string, string | string[]> = {};
+  const m = vals.length;
+  // The values LIMS's reported figure is of: all of the result's, or with the first stage's recorded ones.
+  let all = vals;
+  if (!prev) {
+    if (m === f.count) take[f.name] = vals;
+    else if (next?.count && m === f.count + next.count) { take[f.name] = vals.slice(0, f.count); take[next.name] = vals.slice(f.count); }
+    else return no(`${what} has ${m} values in LIMS; ${f.label} takes exactly ${f.count}${next?.count ? ` (or ${f.count + next.count} with ${next.label.toLowerCase()})` : ''}. Values are never added or left out: ask QC to check the result in LIMS.`);
+  } else {
+    const p = prev.count ?? 0;
+    const had = recorded[prev.name];
+    const hadVals = Array.isArray(had) ? had.map((x) => String((x as { value?: unknown })?.value ?? x)) : null;
+    if (m === f.count) {
+      // A result of the next stage only: its figure is of both stages, so the first stage is recorded first.
+      if (!hadVals) return no(`Pick ${prev.label.toLowerCase()} first: ${what} has only the ${m} values of the next stage.`);
+      take[f.name] = vals;
+      all = [...hadVals, ...vals];
+    } else if (m === p + f.count) {
+      const first = vals.slice(0, p);
+      if (hadVals && (hadVals.length !== p || hadVals.some((v, i) => !NUMBER.test(v) || !new Dec(v).eq(first[i]!)))) {
+        return no(`The first ${p} values of ${what} (${first.join(', ')}) are not the ${p} recorded for ${prev.label.toLowerCase()} (${hadVals.join(', ')}): ask QC to check the result in LIMS.`);
+      }
+      if (!hadVals) take[prev.name] = first;
+      take[f.name] = vals.slice(p);
+    } else return no(`${what} has ${m} values in LIMS; ${f.label} takes exactly ${f.count} (or ${p + f.count} with the first ${p} of ${prev.label.toLowerCase()}). Values are never added or left out: ask QC to check the result in LIMS.`);
+  }
+  // LIMS's reported figure of all its values must agree with the step's own, rounded as LIMS wrote it.
+  if (f.figure && r.figure === f.figure && r.reported && NUMBER.test(r.reported.trim())) {
+    const own = ownFigure(f.figure, all, coating);
+    if ('error' in own) return no(`${what}: ${own.error}.`);
+    const lims = r.reported.trim();
+    const mine = roundHalfUp(own, writtenDecimals(lims));
+    if (!mine.eq(lims)) return no(`LIMS reports the ${FIGURE[f.figure]} of ${what} as ${lims}; TrueBatch works it out from the same ${all.length} values as ${mine.toFixed(writtenDecimals(lims))}: ask QC to check the result in LIMS.`);
+  }
+  return { take };
+}

@@ -5,14 +5,24 @@ type Raw = string | string[];
 // A QC result picked from LIMS (shared/engine/lims.ts): the result's id, sent in place of a typed number.
 type Pick = { lims: string };
 /** A result of this batch's approved CoA in LIMS, as offered for a QC result field. */
-export interface QcPick { resultId: string; coaNumber: string | null; testName: string | null; reported: string | null; unit: string | null; shown: string }
+export interface QcPick { resultId: string; coaNumber: string | null; testName: string | null; reported: string | null; unit: string | null; shown: string;
+  individual?: string[] | null; figure?: string | null }
+/**
+ * Round 42: an in-process QC field (qc 'in_process') while LIMS answers: this step's lab request, the results that fit
+ * the field (shared/engine/lims.ts inProcessFit) and, in words, why the others do not.
+ */
+export interface InProcessPicks { request: string; offered: QcPick[]; refused: string[] }
+const FIGURE_WORD: Record<string, string> = { mean: 'mean', AV: 'AV' };
 
 /**
  * One field as the block describes it. Live (onSave): a typed value is saved when the person leaves the field, a tap
  * on yes/no, a choice or a machine saves at once (TL-04). In a dialog (onChange) it only reports the value.
  */
-export function FieldInput({ f, unit, saved, picks = [], note, options = [], results, disabled, out, onSave, onChange }: {
+export function FieldInput({ f, unit, saved, picks = [], note, options = [], results, inProcess, disabled, out, onSave, onChange }: {
   f: BlockField; unit: string; saved?: Value; picks?: PickItem[]; disabled?: boolean;
+  // An in-process QC field (f.qc 'in_process') while LIMS answers (typing is refused then); undefined while LIMS is
+  // absent or down, when it is typed from the QC report (a list: its readings, as before).
+  inProcess?: InProcessPicks;
   // A QC result (f.qc) while LIMS answers: the results of this batch's approved CoAs to pick from (typing is refused
   // then); undefined while LIMS is absent or down, when it is typed from the QC report.
   results?: QcPick[];
@@ -49,7 +59,24 @@ export function FieldInput({ f, unit, saved, picks = [], note, options = [], res
   const notes = (Array.isArray(note) ? note : [note]).filter((n): n is string => !!n);
 
   let input: ReactNode;
-  if (f.kind === 'number' && f.count) {
+  if (f.qc === 'in_process' && inProcess) {
+    input = <>
+      {saved !== undefined && <div className="recorded"><span>{valueText(saved)}</span></div>}
+      {inProcess.offered.length === 0
+        ? <p className="muted">Waiting for LIMS: request {inProcess.request} (sample not yet approved).</p>
+        : (
+          <div className="picks" role="group" aria-label={f.label}>
+            {inProcess.offered.map((r) => (
+              <button key={r.resultId} type="button" className={raw === r.resultId ? 'on' : ''} aria-pressed={raw === r.resultId} disabled={disabled} onClick={() => pick(r.resultId)} title={r.shown}>
+                <b>{r.individual ? `${r.individual.length} values${r.reported ? ` · ${FIGURE_WORD[r.figure ?? ''] ?? 'reported'} ${r.reported}` : ''}` : r.reported} {r.unit}</b>
+                <small>{r.testName ?? 'Result'} · report {r.coaNumber}</small>
+              </button>
+            ))}
+          </div>
+        )}
+      {inProcess.refused.map((n) => <p key={n} className="muted small">{n}</p>)}
+    </>;
+  } else if (f.kind === 'number' && f.count) {
     const list = raw as string[];
     const filled = list.filter((x) => x.trim()).length;
     const submit = (e: FormEvent) => { e.preventDefault(); void save(list.map((x) => x.trim())); };
@@ -71,7 +98,7 @@ export function FieldInput({ f, unit, saved, picks = [], note, options = [], res
         )}
       </form>
     );
-  } else if (f.qc && results) {
+  } else if (f.qc === true && results) {
     input = results.length === 0
       ? <p className="muted">LIMS has no approved CoA of this batch with a result in {unit || 'this unit'} yet: it is picked here once QC has approved it in LIMS.</p>
       : (
@@ -124,7 +151,7 @@ export function FieldInput({ f, unit, saved, picks = [], note, options = [], res
   }
   return (
     <div className="fl-field">
-      <label className="lbl" htmlFor={f.count || (f.qc && results) || ['yes-no', 'choice', 'machine', 'room', 'timer'].includes(f.kind) ? undefined : id}>
+      <label className="lbl" htmlFor={f.count || (f.qc === true && results) || (f.qc === 'in_process' && inProcess) || ['yes-no', 'choice', 'machine', 'room', 'timer'].includes(f.kind) ? undefined : id}>
         <span>{f.label}{f.optional && <small> (if it applies)</small>}</span>
         {status === 'saving' && <span className="saving">Saving…</span>}
         {status === 'saved' && <span className="saved">✓ Saved</span>}
