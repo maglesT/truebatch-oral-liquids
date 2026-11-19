@@ -11,6 +11,7 @@ import { FieldInput, type QcPick } from './Fields.js';
 import { DemoSkip } from './DemoSkip.js';
 import { ReasonDialog } from './ReasonDialog.js';
 import { CERTIFICATE, fieldLabel, handEntered, LINK_OF } from '../../../shared/engine/links.js';
+import { sameUnit } from '../../../shared/engine/lims.js';
 import { askedFields, cutShort, notYetText } from '../../../shared/engine/batch.js';
 import { lineQuantity } from '../../../shared/engine/values.js';
 import { plantText } from '../../../shared/plant-time.js';
@@ -99,13 +100,14 @@ export function StepScreen({ me, d, blocks, row, now, reload }: { me: Me; d: Bat
   const lotPulled = lotField && row.source[lotField.name] && row.source[lotField.name]!.from !== 'hand';
   // LIMS (readers round 2): a QC result of this batch is picked from its approved CoA; the QC report of a lot typed by
   // hand is picked from the lot's approved CoAs. Null while LIMS is absent or down: typed as before.
-  const qcField = block.fields.find((f) => f.qc);
-  const limsResults = useLims(qcField ? `/api/batches/${d.batch.id}/lims?unit=${encodeURIComponent(unitOf(qcField, st))}` : null, last);
+  // Round 41: every QC field of the step, each in its own unit, in one read (not only the first one).
+  const qcUnits = [...new Set(block.fields.filter((f) => f.qc).map((f) => unitOf(f, st)))];
+  const limsResults = useLims(qcUnits.length ? `/api/batches/${d.batch.id}/lims?units=${qcUnits.map((u) => encodeURIComponent(encodeURIComponent(u))).join(',')}` : null, last);
   const lotNo = lotField && !lotPulled && typeof row.values[lotField.name] === 'string' ? row.values[lotField.name] as string : null;
   const limsCoas = useLims(lotNo && row.handFields.some((f) => f.name === `${lotField!.name}.report`)
     ? `/api/batches/${d.batch.id}/lims?key=${encodeURIComponent(row.id)}&lot=${encodeURIComponent(lotNo)}` : null, last);
   const optionsFor = (f: BlockField) => (f.kind === 'lot' ? lots.map((l) => l.lotNumber) : lotField && f.name === `${lotField.name}.report` ? limsCoas?.coas.map((c) => c.coaNumber) ?? [] : []);
-  const resultsFor = (f: BlockField) => (f.qc ? limsResults?.results : undefined);
+  const resultsFor = (f: BlockField) => (f.qc ? limsResults?.results.filter((r) => sameUnit(r.unit, unitOf(f, st))) : undefined);
   // Only trained people sign (owner, 17 Nov 2026): the signer's training in the step's skill, read when the sign dialog opens.
   const signing = dialog?.kind === 'done' || dialog?.kind === 'repeat' || dialog?.kind === 'check';
   const [training, setTraining] = useState<TrainingRead | null>(null);

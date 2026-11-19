@@ -640,7 +640,7 @@ export function batchRoutes(app: FastifyInstance, sql: Sql) {
   // LIMS (readers round 2): the approved CoAs of this batch (QC approval), or of a lot typed by hand at a step (`key`,
   // `lot`: its QC report or certificate number), and the results of this batch's approved CoAs in a unit (a QC result
   // field), for the pick lists. Only what may be used is offered; the server checks a pick again when it is recorded.
-  app.get<{ Params: { id: string }; Querystring: { key?: string; lot?: string; unit?: string } }>('/api/batches/:id/lims', anyUser, async (req, reply) => {
+  app.get<{ Params: { id: string }; Querystring: { key?: string; lot?: string; unit?: string; units?: string } }>('/api/batches/:id/lims', anyUser, async (req, reply) => {
     const id = parseId(req.params.id);
     const l = id === null ? null : await loadBatch(sql, id);
     if (!l) return reply.code(404).send({ error: 'not_found' });
@@ -652,8 +652,10 @@ export function batchRoutes(app: FastifyInstance, sql: Sql) {
       return { link: r.link, coas: r.coas.map((c) => ({ coaNumber: c.coaNumber, shown: coaText(c) })), results: [] };
     }
     const want = { kind: 'PRODUCT' as const, batchNo: l.batch.batchNo, productCode: l.doc.header.productCode };
-    if (req.query.unit !== undefined) {
-      const r = await usableResults(app, want, req.query.unit);
+    // Round 41: `units` (comma-separated, each URI-encoded) gives the results for every QC field of a step in one read.
+    const units = req.query.units !== undefined ? req.query.units.split(',').map((u) => decodeURIComponent(u)) : req.query.unit !== undefined ? [req.query.unit] : null;
+    if (units) {
+      const r = await usableResults(app, want, units);
       return { link: r.link, coas: [], results: r.results.map((x) => ({ resultId: x.resultId, coaNumber: x.coaNumber, testName: x.testName, reported: x.reported, unit: x.unit, shown: resultText(x) })) };
     }
     const r = await usableCoas(app, want);

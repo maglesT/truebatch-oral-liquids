@@ -3,7 +3,7 @@ import { connect, type Sql } from '../server/db.js';
 import { links } from '../server/links.js';
 import { findBlock } from '../shared/blocks/index.js';
 import { blockProblems, type Block } from '../shared/blocks/format.js';
-import { coaRefusal, resultRefusal, type Coa, type QcResult } from '../shared/engine/lims.js';
+import { coaRefusal, resultRefusal, sameUnit, type Coa, type QcResult } from '../shared/engine/lims.js';
 import { qcReportText } from '../shared/engine/release.js';
 import { batchRecordDoc } from '../server/batch-record.js';
 import { loadBatch, recordInput } from '../server/routes/batches.js';
@@ -52,9 +52,14 @@ describe('the LIMS rules (shared/engine/lims.ts): only an approved CoA of this b
     expect(resultRefusal(r({ reported: null }), '%')).toBe('Assay of CoA COA26001 has no reported figure in LIMS.');
     expect(resultRefusal(r({ reported: 'complies' }), '%')).toBe('Assay of CoA COA26001 has no reported figure in LIMS.');
     expect(resultRefusal(r({ unit: 'mg' }), '%')).toBe('Assay of CoA COA26001 is in mg, not in %.');
-    // pH has no unit in LIMS: a pH field takes it; another field does not take a result without a unit.
+    // round 41: the same unit written two ways matches (pH has no unit in LIMS); a different unit still does not
     expect(resultRefusal(r({ testName: 'pH', reported: '5.1', unit: '' }), 'pH')).toBeNull();
-    expect(resultRefusal(r({ testName: 'pH', reported: '5.1', unit: null }), 'pH')).toBeNull();
+    expect(resultRefusal(r({ unit: null, testName: 'pH' }), 'pH')).toBeNull();
+    expect(resultRefusal(r({ unit: 'pH', testName: 'pH' }), 'pH')).toBeNull();
+    expect(resultRefusal(r({ unit: 'mPa.s', testName: 'Viscosity' }), 'mPa·s')).toBeNull();
+    expect(resultRefusal(r({ unit: 'g/ml', testName: 'Density' }), 'g/mL')).toBeNull();
+    expect(resultRefusal(r({ unit: '% v/v', testName: 'Alcohol' }), '%v/v')).toBeNull();
+    expect(resultRefusal(r({ unit: '%w/v' }), '%w/w')).toBe('Assay of CoA COA26001 is in %w/v, not in %w/w.');
     expect(resultRefusal(r({ unit: '' }), '%')).toBe('Assay of CoA COA26001 is in no unit, not in %.');
   });
 
@@ -145,7 +150,7 @@ async function decided(lotNo: string, o: { kind?: string; item?: string; code?: 
   }
   return number;
 }
-type Picks = { link: string; coas: { coaNumber: string; shown: string }[]; results: { resultId: string; coaNumber: string; testName: string; reported: string; shown: string }[] };
+type Picks = { link: string; coas: { coaNumber: string; shown: string }[]; results: { resultId: string; coaNumber: string; testName: string; reported: string; unit: string | null; shown: string }[] };
 const picks = async (id: number, q: string) => (await as('asha', 'GET', `/api/batches/${id}/lims${q}`)).json() as Picks;
 const bulkTest = { block: { id: 'bulk-test', version: 1 }, checker: true, settings: { assayLimit: { low: '95.0', high: '105.0', unit: '%' }, phLimit: { low: '4.5', high: '5.5', unit: 'pH' } } };
 
@@ -155,7 +160,7 @@ describe('a QC result of the batch, picked from LIMS', () => {
   beforeAll(async () => {
     b = await issue([bulkTest]);
     await as('asha', 'POST', `/api/batches/${b.id}/steps/0.1.0.1/start`, {});
-    good = await decided(b.batchNo, { results: [['Assay', '99.4', '%'], ['Viscosity', '95', 'mPa·s'], ['Water', null, '%'], ['pH', '5.1', '']] });
+    good = await decided(b.batchNo, { results: [['Assay', '99.4', '%'], ['Viscosity', '95', 'mPa.s'], ['Water', null, '%'], ['pH', '5.1', ''], ['Density', '1.25', 'g/ml'], ['Alcohol', '2.1', '% v/v'], ['Average weight', '250.1', 'mg']] });
     await decided(b.batchNo, { decision: 'REJECTED', results: [['Assay', '91.0', '%']] });
     await decided(b.batchNo, { purpose: 'stability', results: [['Assay', '98.0', '%']] });
     await decided(b.batchNo, { code: 'Q', results: [['Assay', '97.0', '%']] });
@@ -167,6 +172,21 @@ describe('a QC result of the batch, picked from LIMS', () => {
     expect(p.link).toBe('ok');
     expect(p.results.map((r) => [r.coaNumber, r.testName, r.reported])).toEqual([[good, 'Assay', '99.4']]);
     expect(p.results[0]!.shown).toBe(`LIMS CoA ${good}: Assay 99.4 % as reported (limit 95.0 - 105.0), analysis LA26001`);
+  });
+
+  it('TL-14 round 41: one read gives the results for all six QC fields of the bulk test, each in its own unit', async () => {
+    const b6 = findBlock({ id: 'bulk-test', version: 1 })!.fields.filter((f) => f.qc);
+    const units = b6.map((f) => f.unit!);
+    expect(units).toEqual(['pH', 'g/mL', 'mPa·s', '%', '%v/v', '%']);
+    const all = await picks(b.id, `?units=${[...new Set(units)].map((u) => encodeURIComponent(encodeURIComponent(u))).join(',')}`);
+    // Every result whose unit is one of the fields' (written either way); the mg result, and the one without a figure, are not.
+    expect(all.results.map((r) => [r.testName, r.reported]).sort()).toEqual([['Alcohol', '2.1'], ['Assay', '99.4'], ['Density', '1.25'], ['Viscosity', '95'], ['pH', '5.1']]);
+    // Each field gets those in its own unit (as the step screen splits them).
+    const per = Object.fromEntries(b6.map((f) => [f.name, all.results.filter((r) => sameUnit(r.unit, f.unit)).map((r) => r.testName)]));
+    expect(per).toEqual({ ph: ['pH'], density: ['Density'], viscosity: ['Viscosity'], assay: ['Assay'], ethanol: ['Alcohol'], preservative: ['Assay'] });
+    const unit = (u: string) => all.results.find((r) => r.testName === u)!.resultId;
+    expect((await record(b.id, { viscosity: { lims: unit('Viscosity') }, density: { lims: unit('Density') }, ethanol: { lims: unit('Alcohol') } })).statusCode).toBe(200);
+    expect((await stepOf(b.id, '0.1.0.1')).values).toMatchObject({ viscosity: { value: '95', unit: 'mPa·s' }, density: { value: '1.25', unit: 'g/mL' }, ethanol: { value: '2.1', unit: '%v/v' } });
   });
 
   it('TL-14 while LIMS answers the assay is picked (its reported figure, kept with the CoA number); typing it is refused', async () => {

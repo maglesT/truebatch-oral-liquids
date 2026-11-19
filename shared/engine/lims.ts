@@ -7,7 +7,7 @@
  * - it is of this batch (a product sample, the batch number) or of this lot (a material sample, the lot number and the
  *   line's material); a CoA of another batch, lot, product or material is refused;
  * - a batch's CoA is of a release sample (not stability or an investigation); a lot's of a release or retest sample;
- * - a result gives LIMS's `reported` figure (rounded as its limit is written), in the unit the step asks for (pH: none).
+ * - a result gives LIMS's `reported` figure (rounded as its limit is written), in the unit the step asks for (sameUnit).
  */
 
 /** A row of LIMS coa_v1, as read. `rejected`: LIMS has a rejection of the same sample too. */
@@ -45,12 +45,23 @@ export function coaRefusal(c: Coa, want: CoaFor): string | null {
 }
 
 const NUMBER = /^-?\d+(\.\d+)?$/;
+/**
+ * Round 41: the same unit written two ways is one unit. A LIMS result and a step field may write a unit differently
+ * (a pH result carries no unit in LIMS; "mL" and "ml"; "mPa·s", "mPa.s" and "mPa s"; spaces). Only spelling is
+ * forgiven: the letters of the unit must still be the same (a percentage of a different kind, mg against %, never match).
+ */
+export function sameUnit(a: string | null | undefined, b: string | null | undefined): boolean {
+  const norm = (u: string | null | undefined) => {
+    const x = (u ?? '').trim().replace(/[\s·.⋅]/g, '').toLowerCase();
+    return x === 'ph' ? '' : x;
+  };
+  return norm(a) === norm(b);
+}
 /** Why this result may not fill a field in `unit`; null when it may (its CoA is checked by coaRefusal). */
 export function resultRefusal(r: QcResult, unit: string): string | null {
   const what = `${r.testName ?? 'The result'} of CoA ${r.coaNumber ?? '—'}`;
   if (!r.reported || !NUMBER.test(r.reported.trim())) return `${what} has no reported figure in LIMS.`;
-  // pH has no unit in LIMS: a pH field takes a result kept without one.
-  if ((r.unit ?? '') !== unit && !(unit === 'pH' && !r.unit)) return `${what} is in ${r.unit || 'no unit'}, not in ${unit}.`;
+  if (!sameUnit(r.unit, unit)) return `${what} is in ${r.unit || 'no unit'}, not in ${unit}.`;
   return null;
 }
 

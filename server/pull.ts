@@ -168,13 +168,14 @@ export async function usableCoas(app: FastifyInstance, want: CoaFor): Promise<{ 
   return { link: 'ok', coas: all.filter((c) => !coaRefusal(c, want)), all };
 }
 
-/** The results of this batch's approved CoAs that may fill a field in `unit`. */
-export async function usableResults(app: FastifyInstance, want: Extract<CoaFor, { kind: 'PRODUCT' }>, unit: string): Promise<{ link: LinkState; results: QcResult[] }> {
+/** The results of this batch's approved CoAs that may fill a field in `unit` (round 41: or in any of several units). */
+export async function usableResults(app: FastifyInstance, want: Extract<CoaFor, { kind: 'PRODUCT' }>, unit: string | string[]): Promise<{ link: LinkState; results: QcResult[] }> {
+  const units = Array.isArray(unit) ? unit : [unit];
   const c = await usableCoas(app, want);
   if (c.link !== 'ok' || !c.coas.length) return { link: c.link, results: [] };
   const r = await app.links.lims.results(c.coas.map((x) => x.coaId));
   if (r.state !== 'ok') return { link: r.state, results: [] };
-  return { link: 'ok', results: r.value.filter((x) => !resultRefusal(x, unit)) };
+  return { link: 'ok', results: r.value.filter((x) => units.some((u) => !resultRefusal(x, u))) };
 }
 
 /**
