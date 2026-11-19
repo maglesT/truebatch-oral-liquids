@@ -22,7 +22,7 @@ export async function start(product: Product, webRoot?: string) {
   const linked = (url?: string) => (url ? connect(url, { link: true }) : null);
   const providers = { deviations: linked(config.DEVIATIONS_DATABASE_URL), qms: linked(config.QMS_DATABASE_URL),
     logbook: linked(config.LOGBOOK_DATABASE_URL), mms: linked(config.MMS_DATABASE_URL), truebatch_liquids: linked(config.LIQUIDS_LINK_URL),
-    recruitment: linked(config.RECRUITMENT_DATABASE_URL) };
+    recruitment: linked(config.RECRUITMENT_DATABASE_URL), lims: linked(config.LIMS_DATABASE_URL) };
   const app = await buildApp({ sql, signOn, proofKey, master: sqlMaster(md), links: links(providers), logger: true, cookieSecure: config.COOKIE_SECURE,
     batchPrefix: config.BATCH_PREFIX, product, webRoot, demo: isDemo() });
 

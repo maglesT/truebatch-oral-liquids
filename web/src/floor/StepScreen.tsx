@@ -2,12 +2,12 @@ import { useEffect, useState } from 'react';
 import { api, ApiError, type Me } from '../api.js';
 import { SignDialog } from '../components/SignDialog.js';
 import {
-  blockOf, changed, go, headline, plainClock, plainLine, withoutVerdict, plainError, rawOf, sourceWords, stateLabel, stepLink, stepOf, stepTitle, timeLeft, tone, unitOf, useLinked, useLogbookItems, valueText, words,
+  blockOf, changed, go, headline, plainClock, plainLine, withoutVerdict, plainError, rawOf, sourceWords, stateLabel, stepLink, stepOf, stepTitle, timeLeft, tone, unitOf, useLims, useLinked, useLogbookItems, valueText, words,
   type BatchDetail, type Block, type Deviation, type BlockField, type FloorEvent, type History, type PickItem, type Step, type StepRow, type Stored,
 } from '../api-floor.js';
 import { Alerts } from './BatchScreen.js';
 import { deviationText } from '../../../shared/engine/release.js';
-import { FieldInput } from './Fields.js';
+import { FieldInput, type QcPick } from './Fields.js';
 import { DemoSkip } from './DemoSkip.js';
 import { ReasonDialog } from './ReasonDialog.js';
 import { CERTIFICATE, fieldLabel, handEntered, LINK_OF } from '../../../shared/engine/links.js';
@@ -97,6 +97,15 @@ export function StepScreen({ me, d, blocks, row, now, reload }: { me: Me; d: Bat
   const deviationPicks = useLinked<{ number: string; title: string | null }>(`/api/batches/${d.batch.id}/deviations`, 'deviations');
   const lotField = block.fields.find((f) => f.kind === 'lot');
   const lotPulled = lotField && row.source[lotField.name] && row.source[lotField.name]!.from !== 'hand';
+  // LIMS (readers round 2): a QC result of this batch is picked from its approved CoA; the QC report of a lot typed by
+  // hand is picked from the lot's approved CoAs. Null while LIMS is absent or down: typed as before.
+  const qcField = block.fields.find((f) => f.qc);
+  const limsResults = useLims(qcField ? `/api/batches/${d.batch.id}/lims?unit=${encodeURIComponent(unitOf(qcField, st))}` : null, last);
+  const lotNo = lotField && !lotPulled && typeof row.values[lotField.name] === 'string' ? row.values[lotField.name] as string : null;
+  const limsCoas = useLims(lotNo && row.handFields.some((f) => f.name === `${lotField!.name}.report`)
+    ? `/api/batches/${d.batch.id}/lims?key=${encodeURIComponent(row.id)}&lot=${encodeURIComponent(lotNo)}` : null, last);
+  const optionsFor = (f: BlockField) => (f.kind === 'lot' ? lots.map((l) => l.lotNumber) : lotField && f.name === `${lotField.name}.report` ? limsCoas?.coas.map((c) => c.coaNumber) ?? [] : []);
+  const resultsFor = (f: BlockField) => (f.qc ? limsResults?.results : undefined);
   // Only trained people sign (owner, 17 Nov 2026): the signer's training in the step's skill, read when the sign dialog opens.
   const signing = dialog?.kind === 'done' || dialog?.kind === 'repeat' || dialog?.kind === 'check';
   const [training, setTraining] = useState<TrainingRead | null>(null);
@@ -206,13 +215,14 @@ export function StepScreen({ me, d, blocks, row, now, reload }: { me: Me; d: Bat
     }
     const unit = shownUnit(f);
     const src = row.source[f.name];
-    // Pulled through a link: shown, never typed over. Certificate values come only with an MMS lot.
-    const pulled = (src && src.from !== 'hand' && !LINK_OF[f.kind]) || (lotPulled && CERTIFICATE[f.name] !== undefined);
+    // Pulled through a link: shown, never typed over. Certificate values come only with an MMS lot. A pick from LIMS
+    // may be picked again (another result or CoA, as a correction).
+    const pulled = (src && src.from !== 'hand' && src.from !== 'lims' && !LINK_OF[f.kind]) || (lotPulled && CERTIFICATE[f.name] !== undefined);
     if (pulled && v === undefined) return null;
     if (!pulled && (can('record') || (v === undefined && row.state === 'open') || (f.count && v !== undefined))) {
       return (
         <div key={f.name}>
-          <FieldInput f={f} unit={unit} saved={v} picks={picksFor(f)} note={noteFor(f)} options={f.kind === 'lot' ? lots.map((l) => l.lotNumber) : []}
+          <FieldInput f={f} unit={unit} saved={v} picks={picksFor(f)} note={noteFor(f)} options={optionsFor(f)} results={resultsFor(f)}
             disabled={!can('record')} out={outOf(f)} onSave={can('record') ? (raw) => record(f.name, raw) : undefined} />
           {src && <p className="muted small">{sourceWords(src)}</p>}
           {!can('record') && can('correct') && <button className="big" onClick={() => setDialog({ kind: 'correct', field: f })}>Correct {f.label.toLowerCase()}</button>}
@@ -373,6 +383,7 @@ export function StepScreen({ me, d, blocks, row, now, reload }: { me: Me; d: Bat
       )}
       {dialog?.kind === 'correct' && (
         <Correct f={dialog.field} unit={shownUnit(dialog.field)} mdUnit={mdUnit} saved={row.values[dialog.field.name]} picks={picksFor(dialog.field)}
+          options={optionsFor(dialog.field)} results={resultsFor(dialog.field)}
           onCancel={() => setDialog(null)} onSave={async (raw, reason) => { await post('correct', { values: { [dialog.field.name]: raw }, reason }); setDialog(null); await reload(); }} />
       )}
     </>
@@ -491,14 +502,14 @@ function History_({ h, block, deviations }: { h: History | null; block: Block; d
   );
 }
 
-function Correct({ f, unit, mdUnit, saved, picks, onSave, onCancel }: { f: BlockField; unit: string; mdUnit: string | null; saved: StepRow['values'][string] | undefined; picks: PickItem[];
-  onSave: (raw: unknown, reason: string) => Promise<void>; onCancel: () => void }) {
+function Correct({ f, unit, mdUnit, saved, picks, options, results, onSave, onCancel }: { f: BlockField; unit: string; mdUnit: string | null; saved: StepRow['values'][string] | undefined; picks: PickItem[];
+  options: string[]; results?: QcPick[]; onSave: (raw: unknown, reason: string) => Promise<void>; onCancel: () => void }) {
   const [raw, setRaw] = useState<unknown>(rawOf(saved));
   return (
     <ReasonDialog title={`Correct: ${f.label}`} label="Reason for the correction" submit="Save the correction" onCancel={onCancel}
       hint={`Now: ${valueText(saved, mdUnit)}. The original value stays in the record, crossed out, with your reason; the step must be signed again.`}
       onSubmit={(reason) => onSave(raw, reason)}>
-      <FieldInput f={f} unit={unit} saved={saved} picks={picks} onChange={setRaw} />
+      <FieldInput f={f} unit={unit} saved={saved} picks={picks} options={options} results={results} onChange={setRaw} />
     </ReasonDialog>
   );
 }

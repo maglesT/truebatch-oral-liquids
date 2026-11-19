@@ -76,6 +76,15 @@ answering) or **ok**.
   tick "I am trained in <skill>", and the signature records `training` from `hand` ("training typed by hand
   (Recruitment not reachable)"), shown on the step, listed in QA's release review and in the PDF (TL-23). A step
   marked not applicable, a QA hold release and the batch-level signatures do not read training.
+- **LIMS** (`coa_v1`, `result_v1`, readers round 2, 19 Nov 2026, as Tablets): QC's certificate of analysis (CoA) and
+  its results, read through `LIMS_DATABASE_URL` (`shared/engine/lims.ts`, `server/pull.ts`). While the link answers
+  they are PICKED, never typed: (1) a QC result field (`qc` on a number field: the bulk test's pH, density, viscosity,
+  assay, alcohol and preservative content) takes the `reported` figure of a result of this batch's approved CoA in the
+  field's unit (pH: LIMS keeps it without a unit); (2) QC approval of the batch (or packing batch) takes this batch's
+  approved CoA number, kept in the approval's payload (`source`) and signed with it; (3) the QC report number of a lot
+  typed by hand (MMS off or down) is an approved CoA of that lot and the step's material. Only an APPROVED CoA (not one
+  LIMS also rejected), of this batch number and product or this lot and material, of a release sample (a lot: release
+  or retest). Absent or down: typed by hand as before, marked "typed by hand: LIMS …" (second-person check, listed for QA).
 - **Published** (`db/migrations/0006_report_views.sql`): `batch_fact_v1` and `equipment_use_v1` with Batchwright's
   names and columns, so the Logbook and Deviations read TrueBatch as they read Batchwright, and `deviation_note_v1`
   for Deviations to file notes later. `batch_fact_v1` has one more column at its end (`0007`): `manufactured_on`, the

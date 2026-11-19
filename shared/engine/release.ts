@@ -16,7 +16,8 @@ export const BATCH_EVENT_KINDS = ['production_approved', 'qc_approved', 'release
 export type BatchEventKind = (typeof BATCH_EVENT_KINDS)[number];
 // A batch QA terminated (stopped, not finished) is a rejection with `terminated` (owner, 16 Nov 2026): the record is kept.
 // `returns`: what went back to stores unused of each lot the batch used (stock.ts returnsOf).
-export interface BatchEvent { id: number; kind: BatchEventKind; payload: { reportNo?: string; note?: number; reason?: string; terminated?: boolean; returns?: Returned[]; bulk?: BulkChecked }; person: number; at: Date }
+// `source`: where QC approval's report number came from: an approved CoA of the batch in LIMS, or typed by hand (LIMS off or down).
+export interface BatchEvent { id: number; kind: BatchEventKind; payload: { reportNo?: string; note?: number; reason?: string; terminated?: boolean; returns?: Returned[]; bulk?: BulkChecked; source?: Source }; person: number; at: Date }
 
 export const BATCH_STATUSES = ['in production', 'manufacturing complete', 'production approved', 'QC approved', 'released', 'rejected'] as const;
 export type BatchStatus = (typeof BATCH_STATUSES)[number];
@@ -37,6 +38,13 @@ export function terminatedText<T extends string | Date>(t: { personName: string;
   const back = t.payload.returns ?? [];
   return `Terminated by ${t.personName} at ${clock(t.at)}: ${t.payload.reason ?? ''}${back.length
     ? ` · Back to stores unused: ${back.map((r) => `lot ${r.lot}${r.material ? ` (${r.material})` : ''} ${r.value} ${r.unit}`).join(', ')}; the rest counts as used` : ''}`;
+}
+
+/** QC approval's report as the screens and the PDF show it: "QC report COA26001 (LIMS CoA …)" or "… (typed by hand: LIMS not linked)". */
+export function qcReportText(p: { reportNo?: string; source?: Source }): string {
+  if (!p.reportNo) return '';
+  const s = p.source;
+  return `QC report ${p.reportNo}${!s ? '' : isHand(s) ? ` (typed by hand: ${PROVIDER_NAME[s.link]} ${s.state === 'down' ? 'link down' : 'not linked'})` : ` (${s.shown})`}`;
 }
 
 /**

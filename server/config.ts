@@ -17,6 +17,8 @@ const schema = z.object({
   MMS_DATABASE_URL: optionalUrl,
   // Recruitment's training_v1: only trained people sign a step that names a training (owner, 17 Nov 2026).
   RECRUITMENT_DATABASE_URL: optionalUrl,
+  // LIMS's coa_v1 and result_v1: QC's CoAs and results, picked where a step or QC approval asks for them.
+  LIMS_DATABASE_URL: optionalUrl,
   // Packing only: TrueBatch Liquids' published views (its bulk batches), TRUEBATCH_LIQUIDS_DATABASE_URL on the platform.
   LIQUIDS_LINK_URL: optionalUrl,
   // Sign-on through Medhanta core, written by the platform's apply.

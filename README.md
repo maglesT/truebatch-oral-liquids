@@ -47,7 +47,7 @@ export DATABASE_URL=postgres://truebatch_liquids_owner:dev@localhost:5432/trueba
 # Medhanta core: people, sign-in, TrueBatch permissions and master data are managed there
 export MASTER_DATA_DATABASE_URL=postgres://truebatch_liquids_app:...@<core db>:5432/master_data   # read through its report views
 # Optional links, each set by the platform only while the link is on:
-# DEVIATIONS_DATABASE_URL, QMS_DATABASE_URL, LOGBOOK_DATABASE_URL, MMS_DATABASE_URL
+# DEVIATIONS_DATABASE_URL, QMS_DATABASE_URL, LOGBOOK_DATABASE_URL, MMS_DATABASE_URL, RECRUITMENT_DATABASE_URL, LIMS_DATABASE_URL
 export OIDC_ISSUER=https://<core domain>/oidc OIDC_CLIENT_SECRET=... OIDC_REDIRECT_URI=http://localhost:3000/cb
 npm run migrate
 npm run dev        # API on :3000

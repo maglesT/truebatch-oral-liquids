@@ -60,6 +60,23 @@ export function useLinked<T>(url: string | null, list: string): T[] {
 }
 
 /**
+ * LIMS (readers round 2): what LIMS offers for this batch now (GET /api/batches/:id/lims): its approved CoAs, or the
+ * results of them in a unit; null while not read, absent or down (then typed by hand). `again` reads it once more.
+ */
+export interface LimsPicks { link: 'ok' | 'absent' | 'down'; coas: { coaNumber: string; shown: string }[];
+  results: { resultId: string; coaNumber: string | null; testName: string | null; reported: string | null; unit: string | null; shown: string }[] }
+export function useLims(url: string | null, again?: unknown): LimsPicks | null {
+  const [r, setR] = useState<{ url: string; picks: LimsPicks } | null>(null);
+  useEffect(() => {
+    if (!url) return;
+    let live = true;
+    void api<LimsPicks>('GET', url).then((p) => live && setR({ url, picks: p }), () => live && setR(null));
+    return () => { live = false; };
+  }, [url, again]);
+  return r && r.url === url && r.picks.link === 'ok' ? r.picks : null;
+}
+
+/**
  * The master-data ids of the machines and rooms the Logbook has, for their pick lists (shared/engine/picks.ts,
  * inLogbook); null while the Logbook link is absent or down, or not read yet (then every item is offered).
  */
