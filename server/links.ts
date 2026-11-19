@@ -203,6 +203,8 @@ export const recruitmentClient = (l: Link) => ({
 // Round 42: coa_v1's and result_v1's request_id (an in-process sample's lab request, lab_request_v1) and result_v1's
 // individual_values (numeric[], in LIMS's order, each read as LIMS wrote it) and figure (what `reported` is), appended at
 // the end by LIMS, are read through to_jsonb too: a LIMS without them gives none.
+// Round 44: result_v1's ipc_field (the TrueBatch field an in-process result answers: LIMS's in-process specification
+// names it per test), appended at the end by LIMS, read the same way: an older LIMS gives null (matched by unit only).
 type CoaRow = { coa_id: string; coa_number: string | null; sample_number: string; lot_number: string | null; item_kind: string | null; item_master_id: string | null;
   item_code: string | null; item_name: string | null; purpose: string | null; decision: string; decided_at: string | null; decided_by: string | null;
   spec_number: string | null; spec_version: number | null; rejected: boolean; request_id: string | null };
@@ -219,15 +221,16 @@ export const limsClient = (l: Link) => ({
   // The results of the given CoAs (approved ones, as the app picked them).
   results: (coaIds: string[]) => l.read(async (q, v) => (await q<{ result_id: string; coa_id: string; coa_number: string | null; test_name: string | null;
     reported: string | null; unit: string | null; limit_text: string | null; analysis_number: string | null; outside_lab: string | null;
-    request_id: string | null; individual: string[] | null; figure: string | null }[]>`
+    request_id: string | null; individual: string[] | null; figure: string | null; ipc_field: string | null }[]>`
     select r.result_id::text, r.coa_id::text, r.coa_number, r.test_name, nullif(to_jsonb(r) ->> 'reported', '') as reported, r.unit, r.limit_text,
       r.analysis_number, nullif(to_jsonb(r) ->> 'outside_lab', '') as outside_lab, nullif(to_jsonb(r) ->> 'request_id', '') as request_id,
       case when jsonb_typeof(to_jsonb(r) -> 'individual_values') = 'array' then
         array(select x #>> '{}' from jsonb_array_elements(to_jsonb(r) -> 'individual_values') with ordinality as v(x, i) order by i) end as individual,
-      nullif(to_jsonb(r) ->> 'figure', '') as figure
+      nullif(to_jsonb(r) ->> 'figure', '') as figure, nullif(to_jsonb(r) ->> 'ipc_field', '') as ipc_field
     from ${v('result_v1')} r where r.coa_id::text = any(${coaIds}) and r.decision = 'APPROVED' order by r.coa_number, r.test_name limit 500`)
     .map((r): QcResult => ({ resultId: r.result_id, coaId: r.coa_id, coaNumber: r.coa_number, testName: r.test_name, reported: r.reported, unit: r.unit,
-      limitText: r.limit_text, analysisNumber: r.analysis_number, outsideLab: r.outside_lab, requestId: r.request_id, individual: r.individual, figure: r.figure }))),
+      limitText: r.limit_text, analysisNumber: r.analysis_number, outsideLab: r.outside_lab, requestId: r.request_id, individual: r.individual, figure: r.figure,
+      ipcField: r.ipc_field }))),
 });
 
 export interface Links {

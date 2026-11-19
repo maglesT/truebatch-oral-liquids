@@ -94,6 +94,9 @@ answering) or **ok**.
   LIMS's order, and LIMS's mean is worked out again and must agree. A release CoA is never an in-process result. While
   LIMS answers typing is refused; absent or down, typed and marked as above. A step started before round 42 has no
   request: its fields are typed, marked "started before LIMS in-process requests", checked and listed for QA.
+  Round 44: LIMS names the field each in-process result answers (`result_v1.ipc_field`); such a result fills only that
+  field (`answersField`), so the bulk test's assay and preservative content (both in %) never take each other's
+  result ("<test> of report <IPR…> answers <field>, not <this field>."). A result naming no field is matched by unit.
 - **Published** (`db/migrations/0006_report_views.sql`): `batch_fact_v1` and `equipment_use_v1` with Batchwright's
   names and columns, so the Logbook and Deviations read TrueBatch as they read Batchwright, and `deviation_note_v1`
   for Deviations to file notes later. `batch_fact_v1` has one more column at its end (`0007`): `manufactured_on`, the

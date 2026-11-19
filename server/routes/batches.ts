@@ -287,7 +287,7 @@ async function readValues(app: FastifyInstance, tx: Tx, doc: MasterDoc, key: Ste
       source[name] = q.source;
     }
     if (f.qc === true) {
-      const q = await pullQcResult(app, f, x, typeof setting === 'string' ? setting : '', batchNo, doc.header.productCode);
+      const q = await pullQcResult(app, f, block.fields, x, typeof setting === 'string' ? setting : '', batchNo, doc.header.productCode);
       if (q.problems.length) { problems.push(...q.problems); continue; }
       source[name] = q.source;
       if (q.value) { out[name] = q.value; continue; }
@@ -719,7 +719,8 @@ export function batchRoutes(app: FastifyInstance, sql: Sql) {
     }
     const want = { kind: 'PRODUCT' as const, batchNo: l.batch.batchNo, productCode: l.doc.header.productCode };
     // Round 42: `request` (a step key) gives the results of that step's lab request (its in-process fields) in `units`,
-    // with their individual values; each field then checks its own fit (shared/engine/lims.ts inProcessFit).
+    // with their individual values; each field then checks its own fit (shared/engine/lims.ts inProcessFit) and (round
+    // 44) is offered only the results that answer it (ipcField, answersField).
     const reqKey = req.query.request ? parseKey(req.query.request) : null;
     if (req.query.request !== undefined) {
       if (!reqKey || !l.doc.stages[reqKey.stage]?.steps[reqKey.step]) return reply.code(404).send({ error: 'not_found' });
@@ -732,14 +733,14 @@ export function batchRoutes(app: FastifyInstance, sql: Sql) {
       const o = otherRounds(l.doc, l.events, reqKey, l.batch.batchNo);
       const r = await usableInProcess(app, { batchNo: want.batchNo, productCode: want.productCode, request }, units, o.taken);
       return { link: r.link, request, coas: [], results: r.results.map((x) => ({ resultId: x.resultId, coaNumber: x.coaNumber, testName: x.testName, reported: x.reported, unit: x.unit,
-        individual: x.individual ?? null, figure: x.figure ?? null, requestId: x.requestId ?? null, analysisNumber: x.analysisNumber, limitText: x.limitText, outsideLab: x.outsideLab,
+        individual: x.individual ?? null, figure: x.figure ?? null, requestId: x.requestId ?? null, ipcField: x.ipcField ?? null, analysisNumber: x.analysisNumber, limitText: x.limitText, outsideLab: x.outsideLab,
         shown: inProcessText(x, x.requestId ?? request, o.sampled(x.requestId ?? request)) })) };
     }
     // Round 41: `units` (comma-separated, each URI-encoded) gives the results for every QC field of a step in one read.
     const units = req.query.units !== undefined ? req.query.units.split(',').map((u) => decodeURIComponent(u)) : req.query.unit !== undefined ? [req.query.unit] : null;
     if (units) {
       const r = await usableResults(app, want, units);
-      return { link: r.link, coas: [], results: r.results.map((x) => ({ resultId: x.resultId, coaNumber: x.coaNumber, testName: x.testName, reported: x.reported, unit: x.unit, shown: resultText(x) })) };
+      return { link: r.link, coas: [], results: r.results.map((x) => ({ resultId: x.resultId, coaNumber: x.coaNumber, testName: x.testName, reported: x.reported, unit: x.unit, ipcField: x.ipcField ?? null, shown: resultText(x) })) };
     }
     const r = await usableCoas(app, want);
     return { link: r.link, coas: r.coas.map((c) => ({ coaNumber: c.coaNumber, shown: coaText(c) })), results: [] };

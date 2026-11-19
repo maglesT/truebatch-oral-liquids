@@ -17,6 +17,9 @@
  * (no count) takes LIMS's reported figure, as a release CoA's result.
  * Round 43 (found by the API edition's periodic reactions): a step with rounds also takes the report of an EARLIER
  * round of the same step (requestFits), each result filling one round; the record says which round it was sampled in.
+ * Round 44: a result that names the field it answers (result_v1.ipc_field) fills only that field (answersField), so in
+ * a step with several fields in one unit a result of one test never goes into another; one that names none (an older
+ * LIMS) is matched by its unit, as before.
  */
 import type { BlockField } from '../blocks/format.js';
 import { Dec, roundHalfUp, t14ContentUniformity, writtenDecimals } from '../templates/index.js';
@@ -36,6 +39,9 @@ export interface QcResult {
   /** Round 42: the lab request (in-process), the individual values in LIMS's order (null when not individual), and what
    * `reported` is: 'mean' | 'AV' | 'result' (null from a LIMS without the column). */
   requestId?: string | null; individual?: string[] | null; figure?: string | null;
+  /** Round 44: the TrueBatch field the result answers (its in-process specification test names it); null from a LIMS
+   * without the column, or a result that names none: then it is matched by its unit only. */
+  ipcField?: string | null;
 }
 /** What the CoA must be of: this batch (its product), or this lot of the step's material. */
 export type CoaFor =
@@ -85,6 +91,25 @@ export function resultRefusal(r: QcResult, unit: string): string | null {
   if (!r.reported || !NUMBER.test(r.reported.trim())) return `${what} has no reported figure in LIMS.`;
   if (!sameUnit(r.unit, unit)) return `${what} is in ${r.unit || 'no unit'}, not in ${unit}.`;
   return null;
+}
+
+/**
+ * Round 44: whether a result may fill field `f` of a block with `fields`: a result that names no field (an older LIMS,
+ * or a release CoA's result) may fill any field in its unit; one that names a field fills only that field. A staged list
+ * (content uniformity) is one test in LIMS: a result holding the values of both stages (L1's first) may fill either
+ * stage, whichever of the two it names.
+ */
+export function answersField(r: Pick<QcResult, 'ipcField' | 'individual'>, f: BlockField, fields: readonly BlockField[]): boolean {
+  if (!r.ipcField || r.ipcField === f.name) return true;
+  const other = fields.find((x) => x.name === r.ipcField);
+  const staged = !!other && (f.nextStage === other.name || other.nextStage === f.name);
+  return staged && f.count !== undefined && other!.count !== undefined && r.individual?.length === f.count + other!.count;
+}
+/** Why this result may not fill field `f` (it answers another field), in plain words; null when it may. */
+export function fieldRefusal(r: Pick<QcResult, 'ipcField' | 'individual' | 'testName' | 'coaNumber'>, f: BlockField, fields: readonly BlockField[]): string | null {
+  if (answersField(r, f, fields)) return null;
+  const label = fields.find((x) => x.name === r.ipcField)?.label ?? r.ipcField;
+  return `${r.testName ?? 'The result'} of report ${r.coaNumber ?? '—'} answers ${label}, not ${f.label}.`;
 }
 
 /** The CoA as the step, the review and the PDF show it (kept with the record as the source's `shown`). */
@@ -148,10 +173,13 @@ function ownFigure(figure: 'mean' | 'AV', values: readonly string[], coating: st
  * (in plain words). `fields`: the block's fields; `recorded`: the step's values now (a second stage's pick checks the
  * first stage's); `coating`: the step's coating (the acceptance value). Its CoA and request are checked by coaRefusal.
  */
-export function inProcessFit(r: Pick<QcResult, 'testName' | 'coaNumber' | 'unit' | 'reported' | 'individual' | 'figure'>, f: BlockField, unit: string, fields: readonly BlockField[], recorded: Record<string, unknown> = {}, coating?: string):
+export function inProcessFit(r: Pick<QcResult, 'testName' | 'coaNumber' | 'unit' | 'reported' | 'individual' | 'figure' | 'ipcField'>, f: BlockField, unit: string, fields: readonly BlockField[], recorded: Record<string, unknown> = {}, coating?: string):
   { error: string } | { take: Record<string, string | string[]> } {
   const what = `${r.testName ?? 'The result'} of in-process report ${r.coaNumber ?? '—'}`;
   const no = (error: string) => ({ error });
+  // Round 44: a result that names the field it answers fills only that field.
+  const other = fieldRefusal(r, f, fields);
+  if (other) return no(other);
   if (!sameUnit(r.unit, unit)) return no(`${what} is in ${r.unit || 'no unit'}, not in ${unit}.`);
   if (f.count === undefined) {
     if (r.individual?.length) return no(`${what} is a list of ${r.individual.length} values: ${f.label} takes one result.`);

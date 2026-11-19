@@ -11,7 +11,7 @@ import { FieldInput, type InProcessPicks, type QcPick } from './Fields.js';
 import { DemoSkip } from './DemoSkip.js';
 import { ReasonDialog } from './ReasonDialog.js';
 import { CERTIFICATE, fieldLabel, handEntered, LINK_OF } from '../../../shared/engine/links.js';
-import { inProcessFit, labRequestId, sameUnit } from '../../../shared/engine/lims.js';
+import { answersField, inProcessFit, labRequestId, sameUnit } from '../../../shared/engine/lims.js';
 import { askedFields, cutShort, notYetText } from '../../../shared/engine/batch.js';
 import { lineQuantity } from '../../../shared/engine/values.js';
 import { plantText } from '../../../shared/plant-time.js';
@@ -107,7 +107,8 @@ export function StepScreen({ me, d, blocks, row, now, reload }: { me: Me; d: Bat
   const limsCoas = useLims(lotNo && row.handFields.some((f) => f.name === `${lotField!.name}.report`)
     ? `/api/batches/${d.batch.id}/lims?key=${encodeURIComponent(row.id)}&lot=${encodeURIComponent(lotNo)}` : null, last);
   const optionsFor = (f: BlockField) => (f.kind === 'lot' ? lots.map((l) => l.lotNumber) : lotField && f.name === `${lotField.name}.report` ? limsCoas?.coas.map((c) => c.coaNumber) ?? [] : []);
-  const resultsFor = (f: BlockField) => (f.qc === true ? limsResults?.results.filter((r) => sameUnit(r.unit, unitOf(f, st))) : undefined);
+  // Round 44: a result that names the field it answers (ipcField) is offered to that field only; one that names none by its unit.
+  const resultsFor = (f: BlockField) => (f.qc === true ? limsResults?.results.filter((r) => sameUnit(r.unit, unitOf(f, st)) && answersField(r, f, block.fields)) : undefined);
   // Round 42: in-process QC fields pick from this step's own lab request (opened when the step started); each field is
   // offered the results that fit it (its unit, its number of values, LIMS's figure agreeing) and told why others do not.
   const ipUnits = [...new Set(block.fields.filter((f) => f.qc === 'in_process').map((f) => unitOf(f, st)))];
@@ -118,7 +119,8 @@ export function StepScreen({ me, d, blocks, row, now, reload }: { me: Me; d: Bat
     if (f.qc !== 'in_process' || !ipResults || ipResults.noRequest) return undefined;
     const offered: QcPick[] = [];
     const refused: string[] = [];
-    for (const r of ipResults.results.filter((x) => sameUnit(x.unit, unitOf(f, st)))) {
+    // Round 44: a result of another field's test (ipcField) is not this field's: neither offered nor listed as refused.
+    for (const r of ipResults.results.filter((x) => sameUnit(x.unit, unitOf(f, st)) && answersField(x, f, block.fields))) {
       const fit = inProcessFit(r, f, unitOf(f, st), block.fields, row.values, coating);
       if ('error' in fit) refused.push(fit.error); else offered.push(r);
     }

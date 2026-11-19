@@ -4,7 +4,7 @@ import type { Block, BlockField } from '../shared/blocks/index.js';
 import { materialLines, type FormulaLine, type MasterDoc, type PackMaterial, type Step } from '../shared/master/schema.js';
 import { CERTIFICATE, PROVIDER_NAME, bulkIssueProblem, bulkLeft, clauses, readValue, type BulkIssue, type Provider, type Source, type Value } from '../shared/engine/index.js';
 import { LOT_USABLE } from './links.js';
-import { coaRefusal, coaText, inProcessFit, inProcessText, isPick, requestFits, resultRefusal, resultText, sameUnit, type Coa, type CoaFor, type QcResult } from '../shared/engine/lims.js';
+import { coaRefusal, coaText, fieldRefusal, inProcessFit, inProcessText, isPick, requestFits, resultRefusal, resultText, sameUnit, type Coa, type CoaFor, type QcResult } from '../shared/engine/lims.js';
 import type { LinkState } from '../shared/engine/links.js';
 import { plantDate } from '../shared/plant-time.js';
 
@@ -181,14 +181,17 @@ export async function usableResults(app: FastifyInstance, want: Extract<CoaFor, 
 /**
  * A QC result field (`qc`): while LIMS answers, the answer is a pick ({ lims: result id }) of a result of this batch's
  * approved CoA, filled with its reported figure; a typed number is refused. Absent or down: typed by hand (a second
- * person checks it, QA's review lists it); a pick is then refused.
+ * person checks it, QA's review lists it); a pick is then refused. Round 44: a result that names the field it answers
+ * (LIMS does not on a release CoA today) fills only that field of the block's `fields`.
  */
-export async function pullQcResult(app: FastifyInstance, f: BlockField, raw: unknown, unit: string, batchNo: string, productCode: string): Promise<Pulled & { value?: Value }> {
+export async function pullQcResult(app: FastifyInstance, f: BlockField, fields: readonly BlockField[], raw: unknown, unit: string, batchNo: string, productCode: string): Promise<Pulled & { value?: Value }> {
   const r = await usableResults(app, { kind: 'PRODUCT', batchNo, productCode }, unit);
   if (r.link !== 'ok') return isPick(raw) ? refused(`LIMS does not answer now: type ${f.label} from the QC report.`) : hand('lims', r.link);
   if (!isPick(raw)) return refused(`${f.label} comes from LIMS: pick the result of the approved CoA of batch ${batchNo}.`);
   const x = r.results.find((y) => y.resultId === raw.lims);
   if (!x) return refused(`${f.label}: that result is not a result in ${unit} of an approved CoA of batch ${batchNo} in LIMS.`);
+  const other = fieldRefusal(x, f, fields);
+  if (other) return refused(other);
   const source: Source = { from: 'lims', asOf: null, shown: resultText(x) };
   return { source, values: {}, sources: {}, problems: [], value: { value: x.reported!.trim(), unit } };
 }

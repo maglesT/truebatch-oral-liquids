@@ -2,8 +2,8 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { connect, type Sql } from '../server/db.js';
 import { links } from '../server/links.js';
 import { findBlock } from '../shared/blocks/index.js';
-import { blockProblems, type Block } from '../shared/blocks/format.js';
-import { coaRefusal, inProcessFit, inProcessText, labRequestId, labTests, requestFits, resultRefusal, sameUnit, type Coa, type QcResult } from '../shared/engine/lims.js';
+import { blockProblems, type Block, type BlockField } from '../shared/blocks/format.js';
+import { answersField, coaRefusal, fieldRefusal, inProcessFit, inProcessText, labRequestId, labTests, requestFits, resultRefusal, sameUnit, type Coa, type QcResult } from '../shared/engine/lims.js';
 import { Dec, roundHalfUp, t14ContentUniformity } from '../shared/templates/index.js';
 import { qcReportText } from '../shared/engine/release.js';
 import { batchRecordDoc } from '../server/batch-record.js';
@@ -677,5 +677,77 @@ describe('round 43: a step started before LIMS in-process requests', () => {
     await as('asha', 'POST', `/api/batches/${c.id}/steps/${key}/start`, {});
     expect(await problems(recordAt(c.id, key, { results: L1_PASS })))
       .toEqual([`Content at 10 locations (% of label claim) comes from LIMS: pick the result of in-process request ${c.batchNo}/${key} once QC has approved it there.`]);
+  });
+});
+
+// Round 44 (found by the Injectables bulk test: assay, oxygen and solvent, all in %): LIMS's result_v1 names the
+// TrueBatch field each in-process result answers (ipc_field, from its in-process specification). Such a result fills
+// only that field; one that names none (an older LIMS) is still matched by its unit. The Liquids bulk test has two
+// fields in %: the assay and the preservative content.
+describe('round 44: a result fills only the field it answers (result_v1.ipc_field)', () => {
+  const bt = findBlock({ id: 'bulk-test', version: 1 })!;
+  const bulk: BlockField[] = bt.fields;
+  const [assay, preservative] = [bulk.find((f) => f.name === 'assay')!, bulk.find((f) => f.name === 'preservative')!];
+  const one = (test: string, reported: string, ipcField: string | null): QcResult => ({ resultId: test, coaId: 'c', coaNumber: 'IPR2600001', testName: test, reported, unit: '%',
+    limitText: null, analysisNumber: null, outsideLab: null, requestId: 'TL260001/0.1.0.1', individual: null, figure: 'result', ipcField });
+
+  it('TL-14 two fields in the same unit: each is offered and filled with its own result only', () => {
+    const rs = [one('Assay', '99.6', 'assay'), one('Preservative', '98.5', 'preservative')];
+    expect(rs.filter((r) => answersField(r, assay, bulk)).map((r) => r.testName)).toEqual(['Assay']);
+    expect(rs.filter((r) => answersField(r, preservative, bulk)).map((r) => r.testName)).toEqual(['Preservative']);
+    expect(inProcessFit(rs[0]!, assay, '%', bulk)).toEqual({ take: { assay: '99.6' } });
+    expect(inProcessFit(rs[1]!, preservative, '%', bulk)).toEqual({ take: { preservative: '98.5' } });
+  });
+
+  it('TL-14 a result picked into another field is refused, naming the field it answers', () => {
+    expect(inProcessFit(one('Preservative', '98.5', 'preservative'), assay, '%', bulk)).toEqual({ error: 'Preservative of report IPR2600001 answers Preservative content (% of target), not Assay (% of target).' });
+    expect(fieldRefusal(one('Water', '0.5', 'water'), assay, bulk)).toBe('Water of report IPR2600001 answers water, not Assay (% of target).');
+  });
+
+  it('TL-14 a result that names no field (an older LIMS) is matched by its unit, as before', () => {
+    expect(answersField(one('Assay', '99.6', null), preservative, bulk)).toBe(true);
+    expect(answersField({ individual: null }, assay, bulk)).toBe(true);
+    expect(inProcessFit(one('Assay', '99.6', null), preservative, '%', bulk)).toEqual({ take: { preservative: '99.6' } });
+  });
+
+  it('TL-14 a staged list is one test in LIMS: a result with both stages\' values fills either stage; one stage\'s values only their own', () => {
+    const [l1, l2] = [CU.fields.find((f) => f.name === 'results')!, CU.fields.find((f) => f.name === 'moreResults')!];
+    const all = [...L1_FAIL, ...MORE];
+    expect(answersField({ ipcField: 'results', individual: all }, l2, CU.fields)).toBe(true);
+    expect(answersField({ ipcField: 'moreResults', individual: all }, l1, CU.fields)).toBe(true);
+    expect(answersField({ ipcField: 'moreResults', individual: L1_PASS }, l1, CU.fields)).toBe(false);
+    expect(answersField({ ipcField: 'results', individual: MORE }, l2, CU.fields)).toBe(false);
+  });
+
+  describe('on the server: the bulk test', () => {
+    const key = '0.1.0.1';
+    const name = (resultId: string, field: string | null) => t.owner.unsafe(`update ${L}.result_v1 set ipc_field = $1 where result_id = $2`, [field, resultId]);
+    // LIMS appends ipc_field at the end of result_v1 (the tests above read a LIMS without it).
+    beforeAll(async () => { await t.owner.unsafe(`alter table ${L}.result_v1 add column ipc_field text`); });
+
+    it('TL-14 the assay and the preservative (both in %) are each offered and picked only into their own field', async () => {
+      const b = await issue([bulkTest]);
+      const req = `${b.batchNo}/${key}`;
+      await as('asha', 'POST', `/api/batches/${b.id}/steps/${key}/start`, {});
+      const a = await inProcess(b.batchNo, req, { reported: '100.1', figure: 'result', test: 'Assay of paracetamol' });
+      const pr = await inProcess(b.batchNo, req, { reported: '98.5', figure: 'result', test: 'Preservative (sodium benzoate)' });
+      await name(a.resultId, 'assay');
+      await name(pr.resultId, 'preservative');
+      const p = (await (await as('asha', 'GET', `/api/batches/${b.id}/lims?request=${key}&units=${encodeURIComponent(encodeURIComponent('%'))}`)).json()) as { results: { resultId: string; ipcField: string | null }[] };
+      expect(p.results.map((r) => [r.resultId, r.ipcField]).sort()).toEqual([[a.resultId, 'assay'], [pr.resultId, 'preservative']].sort());
+      expect(await problems(recordAt(b.id, key, { assay: { lims: pr.resultId } })))
+        .toEqual([`Preservative (sodium benzoate) of report ${pr.number} answers Preservative content (% of target), not Assay (% of target).`]);
+      expect((await stepOf(b.id, key)).values.assay).toBeUndefined();
+      expect((await recordAt(b.id, key, { assay: { lims: a.resultId }, preservative: { lims: pr.resultId } })).statusCode).toBe(200);
+      expect((await stepOf(b.id, key)).values).toMatchObject({ assay: { value: '100.1', unit: '%' }, preservative: { value: '98.5', unit: '%' } });
+    });
+
+    it('TL-14 a result that names no field is still picked by its unit (an older LIMS)', async () => {
+      const b = await issue([bulkTest]);
+      await as('asha', 'POST', `/api/batches/${b.id}/steps/${key}/start`, {});
+      const a = await inProcess(b.batchNo, `${b.batchNo}/${key}`, { reported: '99.9', figure: 'result', test: 'Assay' });
+      expect((await recordAt(b.id, key, { preservative: { lims: a.resultId } })).statusCode).toBe(200);
+      expect((await stepOf(b.id, key)).values.preservative).toEqual({ value: '99.9', unit: '%' });
+    });
   });
 });

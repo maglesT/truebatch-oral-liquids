@@ -66,7 +66,9 @@ export function useLinked<T>(url: string | null, list: string): T[] {
 export interface LimsPicks { link: 'ok' | 'absent' | 'down'; coas: { coaNumber: string; shown: string }[];
   results: { resultId: string; coaNumber: string | null; testName: string | null; reported: string | null; unit: string | null; shown: string;
     // Round 42 (?request=): an in-process result's individual values (in LIMS's order), what `reported` is, its request.
-    individual?: string[] | null; figure?: string | null; requestId?: string | null; analysisNumber?: string | null; limitText?: string | null; outsideLab?: string | null }[];
+    individual?: string[] | null; figure?: string | null; requestId?: string | null; analysisNumber?: string | null; limitText?: string | null; outsideLab?: string | null;
+    // Round 44: the TrueBatch field the result answers (LIMS's in-process specification); null: matched by unit only.
+    ipcField?: string | null }[];
   request?: string;
   // Round 43: the step was started before LIMS in-process requests (it has none): its in-process fields are typed.
   noRequest?: boolean }
