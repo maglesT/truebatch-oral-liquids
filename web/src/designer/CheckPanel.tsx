@@ -31,7 +31,7 @@ export function CheckPanel({ doc, state, problems, invalid, onGo, onAnswer }: { 
               {problems.map((p, i) => (
                 <li key={i} className={past && blocking(p) ? 'info' : p.level}>
                   <button type="button" onClick={() => onGo(p.path)}>
-                    <span className="cp-icon" aria-label={past && blocking(p) ? 'For a new version' : p.level === 'error' ? 'Error' : 'Warning'}>{past && blocking(p) ? 'ℹ️' : p.level === 'error' ? '⛔' : '⚠️'}</span>
+                    <span className="cp-icon" aria-label={past && blocking(p) ? 'For a new version' : p.level === 'error' ? 'Error' : p.level === 'info' ? 'Information' : 'Warning'}>{past && blocking(p) || p.level === 'info' ? 'ℹ️' : p.level === 'error' ? '⛔' : '⚠️'}</span>
                     <span><span className="cp-where">{placeLabel(doc, p.path)}</span>{p.message}</span>
                   </button>
                   {p.question && <AnswerBox key={p.question.key} p={p} onAnswer={onAnswer} />}

@@ -97,6 +97,11 @@ answering) or **ok**.
   Round 44: LIMS names the field each in-process result answers (`result_v1.ipc_field`); such a result fills only that
   field (`answersField`), so the bulk test's assay and preservative content (both in %) never take each other's
   result ("<test> of report <IPR…> answers <field>, not <this field>."). A result naming no field is matched by unit.
+  Round 45 (agreed with LIMS, whose in-process specification is per product): each test of a lab request has a code
+  unique within the master, '<block id>.<field name>' ('bulk-test.assay'), with '@<n>' when the block is in the master
+  more than once ('blend-uniformity.results@2'; the master check says so as info). LIMS names it back on its result
+  (`result_v1.ipc_code`): the result then fills only the field of that code; without a code the round 44 rule holds.
+  Requests opened before round 45 publish code null (0022).
 - **Published** (`db/migrations/0006_report_views.sql`): `batch_fact_v1` and `equipment_use_v1` with Batchwright's
   names and columns, so the Logbook and Deviations read TrueBatch as they read Batchwright, and `deviation_note_v1`
   for Deviations to file notes later. `batch_fact_v1` has one more column at its end (`0007`): `manufactured_on`, the

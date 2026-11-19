@@ -68,7 +68,9 @@ export interface LimsPicks { link: 'ok' | 'absent' | 'down'; coas: { coaNumber: 
     // Round 42 (?request=): an in-process result's individual values (in LIMS's order), what `reported` is, its request.
     individual?: string[] | null; figure?: string | null; requestId?: string | null; analysisNumber?: string | null; limitText?: string | null; outsideLab?: string | null;
     // Round 44: the TrueBatch field the result answers (LIMS's in-process specification); null: matched by unit only.
-    ipcField?: string | null }[];
+    ipcField?: string | null;
+    // Round 45: the code of the lab request's test the result answers (unique within the master); null: the round 44 rule.
+    ipcCode?: string | null }[];
   request?: string;
   // Round 43: the step was started before LIMS in-process requests (it has none): its in-process fields are typed.
   noRequest?: boolean }

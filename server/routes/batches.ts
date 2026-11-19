@@ -16,7 +16,7 @@ import type { MasterDoc } from '../../shared/master/schema.js';
 import { Dec } from '../../shared/templates/index.js';
 import {
   ACTIONS, BATCH_ACTIONS, CERTIFICATE, DEVIATION_DONE, LINK_OF, bulkRefusal, MATERIAL_USE, batchRefusal, filedKey, inLotUnit, issuedLots, bulkLeft, returnProblems, returnsOf, usedQuantity, usesOfLot, stepLabel, stepPlace, stepTitle, handFields, isHand, batchView, doneProblems, evaluate, lateItems, openSteps, parseKey, readValue, refusal, review, timers,
-  trainingCheck, trainingTyped, coaText, resultText, inProcessText, isPick, keyId, labRequestId, labTests, currentValues, endsTheRounds, requestRound, type Training,
+  trainingCheck, trainingTyped, coaText, resultText, inProcessText, isPick, keyId, labRequestId, labTests, ipcCodes, currentValues, endsTheRounds, requestRound, type Training,
   type Action, type BatchAction, type BatchEvent, type BulkChecked, type BulkDeviation, type BulkIssue, type BulkDeviations, type DeviationStatus, type LinkState, type Source, type StageView, type Stored, type StepEvent, type StepKey, type StepView, type Timer, type Value,
 } from '../../shared/engine/index.js';
 
@@ -158,14 +158,16 @@ export async function bulkIssues(tx: Tx | Sql, bulk: string, except = '', lock =
 /**
  * Round 42: the lab request a step instance opens when it starts, kept with its "started" event (insert-only, as every
  * step event): the stage and step in words and the in-process tests of the step, in the units of this step. Published
- * by report.lab_request_v1 (db/migrations/0020, 0021) with its id '<batch>/<step key>'; null for a step without such a test.
+ * by report.lab_request_v1 (db/migrations/0020, 0021, 0022) with its id '<batch>/<step key>'; null for a step without such
+ * a test. Round 45: each test has its code, unique within the master (ipcCodes).
  */
 export function labRequestOf(doc: MasterDoc, key: StepKey): { stage: string; step: string; tests: ReturnType<typeof labTests> } | null {
   const stage = doc.stages[key.stage];
   const st = stage?.steps[key.step];
   const block = st && findBlock(st.block);
   if (!stage || !st || !block) return null;
-  const tests = labTests(block.fields, (f) => { const u = f.unit?.startsWith('$') ? st.settings[f.unit.slice(1)] : f.unit; return typeof u === 'string' ? u : ''; });
+  const tests = labTests(block.fields, (f) => { const u = f.unit?.startsWith('$') ? st.settings[f.unit.slice(1)] : f.unit; return typeof u === 'string' ? u : ''; },
+    ipcCodes(doc, key.stage, key.step, block.fields));
   if (!tests.length) return null;
   const extra = [stage.kind === 'sub-batch' ? `sub-batch ${key.sub}` : '', st.flow.kind === 'repeat-until' ? `round ${key.round}` : ''].filter(Boolean).join(', ');
   return { stage: stage.name, step: `${stepTitle(doc, st)}${extra ? ` (${extra})` : ''}`, tests };
@@ -281,13 +283,13 @@ async function readValues(app: FastifyInstance, tx: Tx, doc: MasterDoc, key: Ste
       const coating = typeof step.settings.coating === 'string' ? step.settings.coating : undefined;
       const o = otherRounds(doc, events, key, batchNo);
       const q = await pullInProcess(app, block, f, x, unitOf, { batchNo, productCode: doc.header.productCode, request: labRequestId(batchNo, keyId(key)) }, { ...current.values, ...out }, coating,
-        o.taken, o.sampled);
+        o.taken, o.sampled, ipcCodes(doc, key.stage, key.step, block.fields));
       if (q.problems.length) { problems.push(...q.problems); continue; }
       if (!isHand(q.source)) { Object.assign(out, q.values); Object.assign(source, q.sources); continue; }
       source[name] = q.source;
     }
     if (f.qc === true) {
-      const q = await pullQcResult(app, f, block.fields, x, typeof setting === 'string' ? setting : '', batchNo, doc.header.productCode);
+      const q = await pullQcResult(app, f, block.fields, x, typeof setting === 'string' ? setting : '', batchNo, doc.header.productCode, ipcCodes(doc, key.stage, key.step, block.fields));
       if (q.problems.length) { problems.push(...q.problems); continue; }
       source[name] = q.source;
       if (q.value) { out[name] = q.value; continue; }
@@ -720,7 +722,7 @@ export function batchRoutes(app: FastifyInstance, sql: Sql) {
     const want = { kind: 'PRODUCT' as const, batchNo: l.batch.batchNo, productCode: l.doc.header.productCode };
     // Round 42: `request` (a step key) gives the results of that step's lab request (its in-process fields) in `units`,
     // with their individual values; each field then checks its own fit (shared/engine/lims.ts inProcessFit) and (round
-    // 44) is offered only the results that answer it (ipcField, answersField).
+    // 44) is offered only the results that answer it (ipcField, answersField; round 45: ipcCode).
     const reqKey = req.query.request ? parseKey(req.query.request) : null;
     if (req.query.request !== undefined) {
       if (!reqKey || !l.doc.stages[reqKey.stage]?.steps[reqKey.step]) return reply.code(404).send({ error: 'not_found' });
@@ -733,14 +735,14 @@ export function batchRoutes(app: FastifyInstance, sql: Sql) {
       const o = otherRounds(l.doc, l.events, reqKey, l.batch.batchNo);
       const r = await usableInProcess(app, { batchNo: want.batchNo, productCode: want.productCode, request }, units, o.taken);
       return { link: r.link, request, coas: [], results: r.results.map((x) => ({ resultId: x.resultId, coaNumber: x.coaNumber, testName: x.testName, reported: x.reported, unit: x.unit,
-        individual: x.individual ?? null, figure: x.figure ?? null, requestId: x.requestId ?? null, ipcField: x.ipcField ?? null, analysisNumber: x.analysisNumber, limitText: x.limitText, outsideLab: x.outsideLab,
+        individual: x.individual ?? null, figure: x.figure ?? null, requestId: x.requestId ?? null, ipcField: x.ipcField ?? null, ipcCode: x.ipcCode ?? null, analysisNumber: x.analysisNumber, limitText: x.limitText, outsideLab: x.outsideLab,
         shown: inProcessText(x, x.requestId ?? request, o.sampled(x.requestId ?? request)) })) };
     }
     // Round 41: `units` (comma-separated, each URI-encoded) gives the results for every QC field of a step in one read.
     const units = req.query.units !== undefined ? req.query.units.split(',').map((u) => decodeURIComponent(u)) : req.query.unit !== undefined ? [req.query.unit] : null;
     if (units) {
       const r = await usableResults(app, want, units);
-      return { link: r.link, coas: [], results: r.results.map((x) => ({ resultId: x.resultId, coaNumber: x.coaNumber, testName: x.testName, reported: x.reported, unit: x.unit, ipcField: x.ipcField ?? null, shown: resultText(x) })) };
+      return { link: r.link, coas: [], results: r.results.map((x) => ({ resultId: x.resultId, coaNumber: x.coaNumber, testName: x.testName, reported: x.reported, unit: x.unit, ipcField: x.ipcField ?? null, ipcCode: x.ipcCode ?? null, shown: resultText(x) })) };
     }
     const r = await usableCoas(app, want);
     return { link: r.link, coas: r.coas.map((c) => ({ coaNumber: c.coaNumber, shown: coaText(c) })), results: [] };

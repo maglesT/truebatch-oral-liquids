@@ -20,6 +20,11 @@
  * Round 44: a result that names the field it answers (result_v1.ipc_field) fills only that field (answersField), so in
  * a step with several fields in one unit a result of one test never goes into another; one that names none (an older
  * LIMS) is matched by its unit, as before.
+ * Round 45 (agreed with LIMS: its in-process specification is per PRODUCT): each test of a lab request has a code unique
+ * within the master, '<block id>.<field name>' (content uniformity, one test in two stages: 'content-uniformity'),
+ * with '@<n>' when the block is in the master more than once (n: its occurrence in order). A result that names the code
+ * it answers (result_v1.ipc_code) fills only the field of that code (ipcCodes, answersField); one that names none falls
+ * back to the round 44 rule (ipc_field, else the unit).
  */
 import type { BlockField } from '../blocks/format.js';
 import { Dec, roundHalfUp, t14ContentUniformity, writtenDecimals } from '../templates/index.js';
@@ -42,6 +47,9 @@ export interface QcResult {
   /** Round 44: the TrueBatch field the result answers (its in-process specification test names it); null from a LIMS
    * without the column, or a result that names none: then it is matched by its unit only. */
   ipcField?: string | null;
+  /** Round 45: the code of the lab request's test the result answers (lab_request_v1 tests[].code); null from a LIMS
+   * without the column: then the round 44 rule (ipcField, else the unit). */
+  ipcCode?: string | null;
 }
 /** What the CoA must be of: this batch (its product), or this lot of the step's material. */
 export type CoaFor =
@@ -97,18 +105,20 @@ export function resultRefusal(r: QcResult, unit: string): string | null {
  * Round 44: whether a result may fill field `f` of a block with `fields`: a result that names no field (an older LIMS,
  * or a release CoA's result) may fill any field in its unit; one that names a field fills only that field. A staged list
  * (content uniformity) is one test in LIMS: a result holding the values of both stages (L1's first) may fill either
- * stage, whichever of the two it names.
+ * stage, whichever of the two it names. Round 45: a result that names the code of the test it answers (ipcCode) fills
+ * only the field of that code in this step (`codes`: ipcCodes; both stages of a staged list have its one code).
  */
-export function answersField(r: Pick<QcResult, 'ipcField' | 'individual'>, f: BlockField, fields: readonly BlockField[]): boolean {
+export function answersField(r: Pick<QcResult, 'ipcField' | 'individual' | 'ipcCode'>, f: BlockField, fields: readonly BlockField[], codes: Readonly<Record<string, string>> = {}): boolean {
+  if (r.ipcCode) return codes[f.name] === r.ipcCode;
   if (!r.ipcField || r.ipcField === f.name) return true;
   const other = fields.find((x) => x.name === r.ipcField);
   const staged = !!other && (f.nextStage === other.name || other.nextStage === f.name);
   return staged && f.count !== undefined && other!.count !== undefined && r.individual?.length === f.count + other!.count;
 }
 /** Why this result may not fill field `f` (it answers another field), in plain words; null when it may. */
-export function fieldRefusal(r: Pick<QcResult, 'ipcField' | 'individual' | 'testName' | 'coaNumber'>, f: BlockField, fields: readonly BlockField[]): string | null {
-  if (answersField(r, f, fields)) return null;
-  const label = fields.find((x) => x.name === r.ipcField)?.label ?? r.ipcField;
+export function fieldRefusal(r: Pick<QcResult, 'ipcField' | 'individual' | 'testName' | 'coaNumber' | 'ipcCode'>, f: BlockField, fields: readonly BlockField[], codes: Readonly<Record<string, string>> = {}): string | null {
+  if (answersField(r, f, fields, codes)) return null;
+  const label = r.ipcCode ? fields.find((x) => codes[x.name] === r.ipcCode)?.label ?? `in-process test ${r.ipcCode}` : fields.find((x) => x.name === r.ipcField)?.label ?? r.ipcField;
   return `${r.testName ?? 'The result'} of report ${r.coaNumber ?? '—'} answers ${label}, not ${f.label}.`;
 }
 
@@ -139,15 +149,63 @@ export function requestFits(candidate: string | null | undefined, want: string):
   const w = requestRound(want);
   return !!c && !!w && c.step === w.step && c.round <= w.round;
 }
-/** A test of a lab request, as lab_request_v1.tests lists it. individual: the number of values (a list), else null. */
-export interface LabTest { name: string; label: string; unit: string; individual: number | null }
 /**
- * The in-process QC fields of a step, as the tests of its lab request (`unitOf`: the field's unit in this step). Round
- * 43: a field whose unit is not set is not asked for (Tablets' in-process fields have a fixed unit, %, so none is left
- * out today; the rule is the same in every edition).
+ * A test of a lab request, as lab_request_v1.tests lists it. individual: the number of values (a list), else null.
+ * Round 45: `code`, unique within the master (ipcCodes), what LIMS's in-process specification maps and its result names
+ * (ipc_code); a staged list (content uniformity) is ONE test: individual is all its values (30), `stages` the values of
+ * each stage ([10, 20]), `name` its first stage's field.
  */
-export const labTests = (fields: readonly BlockField[], unitOf: (f: BlockField) => string): LabTest[] =>
-  fields.filter((f) => f.qc === 'in_process' && unitOf(f)).map((f) => ({ name: f.name, label: f.label, unit: unitOf(f), individual: f.count ?? null }));
+export interface LabTest { code: string; name: string; label: string; unit: string; individual: number | null; stages?: number[] }
+/** A staged list's fields from its first stage on (content uniformity: L1, then L2); a field alone otherwise. */
+function stagesOf(f: BlockField, fields: readonly BlockField[]): BlockField[] {
+  const out = [f];
+  for (let x = f; x.nextStage;) {
+    const next = fields.find((y) => y.name === x.nextStage);
+    if (!next || out.includes(next)) break;
+    out.push(next);
+    x = next;
+  }
+  return out;
+}
+/** The steps of a master in order, as ipcCodes reads them (a master document). */
+type MasterSteps = { stages: readonly { steps: readonly { block: { id: string } }[] }[] };
+/**
+ * Round 45: the code of each in-process field of a master's step (by field name), unique within the master so LIMS's
+ * in-process specification (per product) maps each: '<block id>.<field name>'; a staged list, the block's only
+ * in-process test, has the block id ('content-uniformity') for all its stages; '@<n>' is added when the block is in the
+ * master more than once (n: its occurrence, stages in order and their steps in order: 'blend-uniformity.results@2').
+ * A sub-batch or a round of the step has the same code (its request id tells them apart).
+ */
+export function ipcCodes(doc: MasterSteps, stage: number, step: number, fields: readonly BlockField[]): Record<string, string> {
+  const id = doc.stages[stage]?.steps[step]?.block.id;
+  if (!id) return {};
+  const same = doc.stages.flatMap((s, si) => s.steps.map((t, ti) => ({ id: t.block.id, si, ti }))).filter((x) => x.id === id);
+  const at = same.length > 1 ? `@${same.findIndex((x) => x.si === stage && x.ti === step) + 1}` : '';
+  const ip = fields.filter((f) => f.qc === 'in_process');
+  const out: Record<string, string> = {};
+  for (const f of ip.filter((x) => !ip.some((y) => y.nextStage === x.name))) {
+    const chain = stagesOf(f, ip);
+    const code = `${chain.length > 1 && chain.length === ip.length ? id : `${id}.${f.name}`}${at}`;
+    for (const x of chain) out[x.name] = code;
+  }
+  return out;
+}
+/**
+ * The in-process QC fields of a step, as the tests of its lab request (`unitOf`: the field's unit in this step; `codes`:
+ * ipcCodes of the step). Round 43: a field whose unit is not set is not asked for (Tablets' in-process fields have a
+ * fixed unit, %, so none is left out today; the rule is the same in every edition). Round 45: a staged list is one test.
+ */
+export function labTests(fields: readonly BlockField[], unitOf: (f: BlockField) => string, codes: Readonly<Record<string, string>>): LabTest[] {
+  const ip = fields.filter((f) => f.qc === 'in_process');
+  return ip.filter((f) => unitOf(f) && !ip.some((x) => x.nextStage === f.name)).map((f) => {
+    const chain = stagesOf(f, ip);
+    const test = { code: codes[f.name] ?? f.name, name: f.name, unit: unitOf(f) };
+    if (chain.length === 1) return { ...test, label: f.label, individual: f.count ?? null };
+    const stages = chain.map((x) => x.count ?? 0);
+    return { ...test, label: chain.map((x, i) => (i ? x.label.charAt(0).toLowerCase() + x.label.slice(1) : x.label)).join(', then '),
+      individual: stages.reduce((a, n) => a + n, 0), stages };
+  });
+}
 
 const FIGURE: Record<string, string> = { mean: 'mean', AV: 'acceptance value', result: 'result' };
 /**
@@ -171,14 +229,16 @@ function ownFigure(figure: 'mean' | 'AV', values: readonly string[], coating: st
  * What an in-process result gives a field (and, for a staged list, the field of the other stage): the field values to
  * record, by field name (a list: its values in LIMS's order; a single number: the reported figure), or why it may not
  * (in plain words). `fields`: the block's fields; `recorded`: the step's values now (a second stage's pick checks the
- * first stage's); `coating`: the step's coating (the acceptance value). Its CoA and request are checked by coaRefusal.
+ * first stage's); `coating`: the step's coating (the acceptance value); `codes`: the step's ipcCodes (round 45). Its CoA
+ * and request are checked by coaRefusal.
  */
-export function inProcessFit(r: Pick<QcResult, 'testName' | 'coaNumber' | 'unit' | 'reported' | 'individual' | 'figure' | 'ipcField'>, f: BlockField, unit: string, fields: readonly BlockField[], recorded: Record<string, unknown> = {}, coating?: string):
+export function inProcessFit(r: Pick<QcResult, 'testName' | 'coaNumber' | 'unit' | 'reported' | 'individual' | 'figure' | 'ipcField' | 'ipcCode'>, f: BlockField, unit: string, fields: readonly BlockField[], recorded: Record<string, unknown> = {}, coating?: string,
+  codes: Readonly<Record<string, string>> = {}):
   { error: string } | { take: Record<string, string | string[]> } {
   const what = `${r.testName ?? 'The result'} of in-process report ${r.coaNumber ?? '—'}`;
   const no = (error: string) => ({ error });
-  // Round 44: a result that names the field it answers fills only that field.
-  const other = fieldRefusal(r, f, fields);
+  // Round 44: a result that names the field it answers fills only that field (round 45: the code of its test).
+  const other = fieldRefusal(r, f, fields, codes);
   if (other) return no(other);
   if (!sameUnit(r.unit, unit)) return no(`${what} is in ${r.unit || 'no unit'}, not in ${unit}.`);
   if (f.count === undefined) {
