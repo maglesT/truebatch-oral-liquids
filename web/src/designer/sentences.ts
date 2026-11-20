@@ -88,6 +88,12 @@ export function sentence(block: Block, c: Calc): Part[] {
       return ['Each of ', p(a.readings), ' must be within ± ', p(band.plusMinusPercent), ` % of the mean, with at most ${String(a.allowedOutside ?? 0)} outside`,
         ...(outer ? [', and none outside ± ', p(outer.plusMinusPercent), ' %'] : []), '.'];
     }
+    case 'C2': return [p(a.readings), a.mode === 'at least' ? ' must be at least ' : ' must be exactly ', p(a.required), '.'];
+    case 'C7': {
+      // An AQL sampling plan (ISO 2859-1): the lot it samples, the level and the AQL of each defect class.
+      const classes = Object.entries(a.classes as Record<string, unknown>).flatMap(([name, aql], i) => [i ? ', ' : '', 'AQL ', p(aql), ` for a ${name} defect`]);
+      return [`The ${label} ${is} a sample of `, p(a.lotSize), ' at inspection level ', p(a.level), ', with ', ...classes, '; the defects found must not reach the reject number.'];
+    }
     case 'C4': return [`${String(a.question)}: the answer must be "${(a.expected as string[]).join('" or "')}".`];
     case 'C8': return [p(a.printed), ' must match ', a.kind === 'expiry' ? 'the expiry worked out from the date of manufacture of the bulk and the approved shelf life' : p(a.expected), '.'];
     case 'C9': return ['Each of ', p(a.codes), ' must carry the pack GTIN, the bulk batch number and the expiry, with a serial not read before in this batch.'];

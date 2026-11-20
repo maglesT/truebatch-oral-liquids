@@ -25,7 +25,9 @@ name and master version, 0008), `equipment_use_v1`, `deviation_note_v1` (`db/mig
 unit; a machine or room is in use by its batch until the last stage of the batch that names it (or may run in its room) closes, a balance is never in use by a batch, and both views name the step in words
 (`step_name`, 0010 and 0011). `lab_request_v1` (0020, its status 0021, test codes 0022) lists the in-process lab requests a step opens when it starts
 (the bulk test, blend uniformity), for Medhanta LIMS; the step then picks LIMS's approved in-process results of its own
-request (`docs/design.md` "LIMS in-process tests").
+request (`docs/design.md` "LIMS in-process tests"). `reading_v1` (0026, round 46) gives every recorded number of a step signed
+done (process parameters and in-process checks, one row per reading) with the master's limits, for Operations'
+continued process verification (`docs/design.md` "Readings for CPV").
 
 ## TrueBatch Liquids Packing
 The packing batch record is a separate product on the platform, built from this repository on the same engine and

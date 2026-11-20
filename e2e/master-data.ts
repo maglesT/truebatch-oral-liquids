@@ -26,6 +26,8 @@ export function seedMasterData(m: FakeMaster) {
     { ...item('eq-sft', 'SFT-01', 'Vibro sifter'), kind: 'equipment', type: 'sifter', room: 'BLN-01' },
     { ...item('eq-frb', 'FRB-01', 'Friability tester'), kind: 'instrument', type: 'friability tester', room: 'CMP-01' },
     { ...item('eq-dit', 'DIT-01', 'Disintegration tester'), kind: 'instrument', type: 'disintegration tester', room: 'CMP-01' },
+    // Round 46: device assembly (e2e/new-blocks.spec.ts).
+    { ...item('eq-al', 'AL-01', 'Autoinjector assembly line'), kind: 'equipment', type: 'device assembly line', room: 'BLN-01' },
   );
   // These rooms only, not the fixtures' rooms of the server tests.
   m.rooms_.splice(0);

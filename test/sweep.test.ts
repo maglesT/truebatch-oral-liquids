@@ -26,6 +26,8 @@ const SETTINGS: Record<string, Step['settings']> = {
   'dry-mix': { speedLimit: { low: '10', high: '20', unit: 'rpm' }, mixTimeLimit: minutes },
   mix: { speedLimit: { low: '10', high: '20', unit: 'rpm' } },
   granulate: { endPointLimit: { low: '8.0', high: '12.0', unit: 'kW' } },
+  'device-assembly': { component: { formula: 'x' }, theoretical: '1000 units', functionSample: '5', forceLimit: { low: '10', high: '25', unit: 'N' }, level: 'II',
+    criticalAql: '0', majorAql: '0.65', minorAql: '2.5', yieldLimit: pct('97.0', '100.5'), accountabilityLimit: pct('99.0', '100.5'), componentLimit: pct('99.0', '100.5') },
   dry: { lodLimit: { high: '2.0', unit: '%' } },
   'dry-constant': { maxChange: '0.5 g' },
   'sub-batch-combine': { accountabilityLimit: pct('99.0', '100.5') },

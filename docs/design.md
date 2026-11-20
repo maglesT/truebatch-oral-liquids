@@ -141,6 +141,26 @@ answering) or **ok**.
   recorded on a step, not at that step's start, so a room refused until its changeover cleaning was done does not
   overlap that cleaning in the Logbook. `material_use_v1` gives the quantity in the
   material's unit in master data, read when the step is signed done (g and mg exactly in kg for a kg material).
+- **Readings for CPV** (round 46, `db/migrations/0026`): `reading_v1`, one row per recorded number of a step signed
+  done, as the record holds it now (a correction replaces it, `corrected` says so): `reading_id` ('<batch number>/<stage.
+  sub-batch.step.round>/<field>/<reading_no>'), `batch_number`, `product_code`, `stage` (name), `step` (keys, as
+  `material_use_v1`), `step_name`, `sub_batch`, `round`, `block`, `parameter` (the field's label; a "check a value"
+  step: what it checks), `field`, `reading_no` (a list of readings: one row each, in order), `value` (numeric), `unit`,
+  `low_limit`, `high_limit` (numeric), `limit_unit` (may differ from `unit`: the reader converts), `limit_of` ('each':
+  a C1 on the value; 'mean': a T7 on the list, the limit is the mean's), `recorded_at`, `corrected`, `read_at`,
+  `data_as_of`. The limits are the master step's written limit setting the block checks the field against, or a fixed
+  limit the block writes (no damaged punch, no device failing its function test); none for an earlier step's result.
+  Every number field of the blocks a liquid master may use feeds it (`shared/engine/readings.ts`; the list is kept in
+  the database as `reading_parameters`, not published; a test compares the two, so a new number field needs a
+  migration). Liquids only (packing does not migrate it). Read by Operations (CPV).
+- **Device assembly** (round 46; Tablets' roller compaction is not in Liquids). Device assembly
+  (`device-assembly`, any edition: a dosing device or dropper, an autoinjector, an inhaler) is a yield step: one
+  component from a lot (MMS, or the label by hand), the assembly line, the units fed and the devices out; a function
+  test (at least the master's number tested, none failing, each works and is complete, the activation force when
+  limits are set); an AQL inspection of the good devices (ISO 2859-1, critical, major, minor); yield, accountability of
+  the units fed and of the component (one per device). The component used (issued − returned, its `net`) is published
+  in `material_use_v1` as a weighing's net (`0025`), so MMS takes it off the lot; the step is checked against MMS's
+  stock as any issue.
 - **QA terminates a batch** (owner, 16 Nov 2026): a batch still in production (before production approval) that
   cannot be finished is terminated by QA (`qa.release`) from the batch screen or the "To review" list, with a reason
   and an e-signature meaning "rejected". It is a rejection (batch event `rejected` with `terminated`), so the status is

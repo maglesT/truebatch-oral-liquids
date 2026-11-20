@@ -16,7 +16,7 @@
     {"code": "truebatch_liquids.exception.decide", "label": "Decide a deviation note without a number: close it here (reason and e-signature) or send it to Deviations"}
   ],
   "signon": { "backchannel_logout": "/backchannel-logout" },
-  "publishes": ["batch_fact_v1", "equipment_use_v1", "deviation_note_v1", "material_use_v1", "lab_request_v1"],
+  "publishes": ["batch_fact_v1", "equipment_use_v1", "deviation_note_v1", "material_use_v1", "lab_request_v1", "reading_v1"],
   "reads": {
     "master_data": ["equipment_v1", "instrument_v1", "room_v1", "material_v1", "product_v1"],
     "deviations": ["deviation_v1"],

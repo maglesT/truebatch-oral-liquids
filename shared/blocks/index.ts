@@ -12,6 +12,7 @@ import { dry } from './dry.js';
 import { granulate } from './granulate.js';
 import { lineClearance } from './line-clearance.js';
 import { mix } from './mix.js';
+import { deviceAssembly } from './device-assembly.js';
 import { qaSample } from './qa-sample.js';
 import { sieve } from './sieve.js';
 import { sift } from './sift.js';
@@ -46,6 +47,8 @@ export const BLOCKS: readonly Block[] = [
   // A dry syrup: sifting, (wet) granulation, blending and coating of granules.
   sift, binderSolution, coatingSuspension, dryMix, mix, granulate, dry, dryConstant, sieve,
   subBatchCombine, blendUniformity, densityFlow, sprayCoat, check, qaSample, stageYield, lineClearance,
+  // Any edition: assembling devices (a dosing device or dropper, autoinjectors, inhalers) from a component lot.
+  deviceAssembly,
   // TrueBatch Liquids Packing, in the order of a packing record.
   P.liquidBulkIssue, P.powderBulkIssue, packMaterialIssue, packClearance, lineSetup, L.bottleWash, L.liquidFill, L.liquidFillStirred, L.liquidFillUnit, L.powderFill,
   L.powderFillSachet, L.capCheck, visionChallenge, serialReceived, codingCheck, formingCheck, leakTest, onlineInspection,
