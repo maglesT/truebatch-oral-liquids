@@ -155,6 +155,10 @@ describe('a deviation note without a number: closed here or sent to Deviations (
     const v = batchView(doc, [...complete, bare], [...approved, sent], at(1000), filed);
     expect(v.exceptions).toEqual([]);
     expect(batchRefusal('release', v, both)?.problems[0]).toContain('DEV-26-0100');
+    // Cancelled by QA in Deviations as not a deviation (owner 20 Nov 2026): ended like closed or rejected, never open.
+    const cancelled = batchView(doc, [...complete, bare], [...approved, sent], at(1000), new Map([[`note:${bare.id}`, { status: 'cancelled', closedAt: null, number: 'DEV-26-0100' }]]));
+    expect(cancelled.deviations).toMatchObject([{ reference: 'DEV-26-0100', open: false, status: 'cancelled' }]);
+    expect(batchRefusal('release', cancelled, both)).toBeNull();
     // Production approval is not held by a note waiting for a decision (QA decides at release).
     expect(batchRefusal('production-approve', view([...complete, bare]), people.supervisor)).toBeNull();
   });

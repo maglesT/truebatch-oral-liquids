@@ -343,6 +343,7 @@ describe('a packing batch from a released bulk batch', () => {
         ('DEV-2026-0047', 'investigation', 'TL260001', 'tl260001', 'Room refused', 'truebatch_liquids:note:12', null),
         ('DEV-2026-0044', 'closed', 'TL260001', 'tl260001', 'Filter changed', null, now()),
         ('DEV-2026-0048', 'capa', 'TL260001', 'tl260001', 'Label mix-up found at packing', null, null),
+        ('DEV-2026-0049', 'cancelled', 'TL260001', 'tl260001', 'Not a deviation after all', null, null),
         ('DEV-2026-0046', 'investigation', 'TL260003', 'tl260003', 'Another bulk batch', null, null)`);
     const review = async () => ((await as('qa1', 'GET', `/api/batches/${id}/review`)).json() as { bulk: unknown }).bulk;
     expect(await review()).toEqual({ bulk: 'TL260001', state: 'ok', open: [

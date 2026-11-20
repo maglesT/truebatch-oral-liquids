@@ -68,8 +68,9 @@ export interface Deviation { note: number; step: string; reference: string; text
 export interface DeviationStatus { status: string; closedAt: string | null; number?: string }
 /** The key, in the deviations read, of the deviation filed from a note (its number is not in the note). */
 export const filedKey = (note: number) => `note:${note}`;
-export const DEVIATION_DONE = ['closed', 'rejected'];
-const DEVIATION_WORDS: Record<string, string> = { classification: 'waiting for classification', investigation: 'under investigation', capa: 'waiting for its CAPA', closure: 'waiting for closure' };
+/** Ended in the Deviations system: closed, rejected, or cancelled by QA as not a deviation (closed_at stays null). */
+export const DEVIATION_DONE = ['closed', 'rejected', 'cancelled'];
+const DEVIATION_WORDS: Record<string, string> = { classification: 'waiting for classification', investigation: 'under investigation', capa: 'waiting for its CAPA', closure: 'waiting for closure', cancelled: 'cancelled: not a deviation' };
 /** A status of the Deviations system in plain words (its workflow step names are not shown as keys). */
 export const deviationStatusWords = (s: string) => DEVIATION_WORDS[s] ?? s.replaceAll('_', ' ');
 export function deviations(events: readonly StepEvent[], batchEvents: readonly BatchEvent[], read?: ReadonlyMap<string, DeviationStatus> | null): Deviation[] {
