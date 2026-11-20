@@ -175,6 +175,9 @@ td.num { display: table-cell; max-width: none; }
 .was { display: block; color: var(--muted); font-size: 0.86rem; text-decoration: line-through; text-decoration-color: rgba(0, 0, 0, 0.25); }
 .comment { border-left: 3px solid var(--line-strong); padding: 2px 10px; } .comment p { margin: 2px 0 0; }
 .comment-form { display: grid; gap: 6px; } .comment-form .row { margin: 0; }
+/* Display round 21 Nov: a long place name in "Comment about" must not widen the page at 390 px. */
+.comment-form > *, .comment-form label > * { min-width: 0; }
+.comment-form select { flex: 1 1 14rem; min-width: 0; max-width: 100%; text-overflow: ellipsis; }
 @media (max-width: 760px) { .review-bar { grid-template-columns: 1fr; } .review-actions { justify-items: start; } }
 .designer-page input[type='radio'], .overlay input[type='radio'] { accent-color: var(--brand); width: 18px; height: 18px; }
 

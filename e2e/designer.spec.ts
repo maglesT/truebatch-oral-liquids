@@ -141,4 +141,12 @@ test('TL-02 build a master from a skeleton, fix a master-check problem, then che
   await qa2.getByRole('dialog').getByRole('button', { name: 'Make effective' }).click();
   await expect(qa2.locator('.d-title')).toContainText('Effective');
   await expect(qa2.locator('.timeline')).toContainText('change control CC-2026-031');
+
+  // Display round 21 Nov: on a phone (390 px) the effective master's page, with its "Comment about" list of places,
+  // stays within the screen: no sideways page scroll.
+  const phone = await as(browser, 'author1', { width: 390, height: 800 });
+  await phone.getByRole('row', { name: /PRD-001/ }).last().getByRole('button', { name: 'Open' }).click();
+  await expect(phone.locator('.d-title')).toContainText('Effective');
+  await expect(phone.getByLabel('Comment about')).toBeVisible();
+  expect(await phone.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
 });
