@@ -67,7 +67,7 @@ export function perPackText(m: { perPack: string; unit: string; kind: string }, 
   const n = Number(m.perPack);
   const packs = n > 0 && n < 1 ? Math.round(1 / n) : 0;
   if (m.unit === 'units' && packs > 1 && Math.abs(packs * n - 1) < 1e-9) return `1${m.kind === 'other' ? '' : ` ${m.kind}`} per ${packs} packs`;
-  if (m.unit === 'units' && n === 1 && !stockUnit) return `1${m.kind === 'other' ? ' unit' : ` ${m.kind}`} per pack`;
+  if (m.unit === 'units' && n === 1) return `1${m.kind === 'other' ? ' unit' : ` ${m.kind}`} per pack`;
   return `${m.perPack} ${unitName(m.unit, stockUnit)} per pack`;
 }
 const stockUnitOf = (v: StepView) => v.events.filter((e) => typeof e.payload.stockUnit === 'string').at(-1)?.payload.stockUnit as string | undefined;

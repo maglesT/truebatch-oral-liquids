@@ -439,7 +439,9 @@ function ResultCard({ label, r, mdUnit, big, stop, terminated }: { label: string
   const cls = stop && t === 'bad' ? '' : t ?? '';
   // The chip is the one verdict: the worked lines lose theirs (owner, 17 Nov 2026).
   // A count in master data's name for the material's unit (nos), as its fields.
-  const shown = (x: string) => plantText(withoutVerdict(stop ? notYetText(x, terminated) : x)).replace(/\bunits\b/g, unitName('units', mdUnit));
+  // The card's title is the question: the line does not say it twice ("Filling finished: finished" reads "finished").
+  const shown = (x: string) => plantText(withoutVerdict(stop ? notYetText(x, terminated) : x)).replace(/\bunits\b/g, unitName('units', mdUnit))
+    .replace(new RegExp(`^${label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}: `), '');
   const word = t === 'ok' ? 'Within limits' : t === 'bad' ? (stop ? (terminated ? 'Not reached' : 'Not yet: repeat') : 'Out of limits') : t === 'warn' ? 'Alert' : null;
   const worked = <>{shown(r.shown)}{r.check && r.check.shown !== r.shown ? <><br />{shown(r.check.shown)}</> : null}</>;
   const line = plainLine(r);

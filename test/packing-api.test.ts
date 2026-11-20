@@ -290,7 +290,7 @@ describe('a packing batch from a released bulk batch', () => {
       and batch_number = (select batch_no from batches where id = $1)`, [id]))[0];
     expect(await t.owner`select 1 from batch_events where batch_id = ${id} and kind = 'stage_closed' and payload->>'stage' = '1'`).toHaveLength(1);
     expect(await lineUse()).toEqual({ ended: false });
-    // The optional shippers field left empty, as on the floor: the view gives the finished shipper cartons (Phase F).
+    // The finished shipper cartons are the shippers (a liquid pack is one container in its own carton; the view takes them, Phase F).
     const fg = await step('2.1.0.1', { packs: '9800', cartons: '205', samples: '40', rejects: '60', left: '5.0' });
     expect(fg.results.packed).toMatchObject({ ok: true, value: '602.7', unit: 'L' });
     expect(fg.results.yield).toMatchObject({ check: { pass: true } });
@@ -382,7 +382,7 @@ describe('a packing batch from a released bulk batch', () => {
       'bottle, child-resistant cap, measuring cup; fill 60 mL + 1.5 mL excess, 48 packs per shipper', 'Lot LABEL-1: 10200 nos', '9900 nos used',
       'Bulk deviations not checked (TrueBatch Liquids link down): bulk batch TL260001; QA confirmed by hand (typed): Checked in the Deviations system: none open for TL260001']) expect(pdf).toContain(text);
     // A count in master data's name for it (nos), as on screen and in MMS: per pack, the lots issued, the values.
-    for (const text of ['"1 nos per pack"', 'Lot CARTON-1: 10200 nos', 'Quantity issued: 10200 nos', 'Used in good packs: 9840 nos']) expect(pdf).toContain(text);
+    for (const text of ['"1 carton per pack"', 'Lot CARTON-1: 10200 nos', 'Quantity issued: 10200 nos', 'Used in good packs: 9840 nos']) expect(pdf).toContain(text);
     for (const text of ['"1 units per pack"', 'Lot CARTON-1: 10200 units', 'Quantity issued: 10200 units']) expect(pdf).not.toContain(text);
     // The reconciliation's worked line counts as its fields do, in the steps and in the packing materials table.
     expect(pdf).toMatch(/\(9840 nos used \+ \d+ nos destroyed \+ \d+ nos returned\) ÷ 10200 nos/);
@@ -393,7 +393,7 @@ describe('a packing batch from a released bulk batch', () => {
       'Fill of 10 bottles: 76.9, 76.9, 76.9, 76.9, 76.9, 76.9, 76.9, 76.9, 76.9, 76.9 g', 'Mean fill: 76.9 g (limit 76.0 to 77.8 g)', 'Time since the bulk was ready: 24 h (limit not more than 720 h)',
       'Defective closures: 0 units; limit not more than 0 units', 'Room temperature: 25 °C (limit not more than 30 °C)', 'Cartons checked: 10 nos',
       'Good packs in finished cartons: 9800 packs', 'Filled containers rejected: 60 units', 'Bulk left (returned or destroyed): 5.0 L', '9800 packs ÷ 10000 packs × 100 = 98.0 %',
-      '61.5 mL × 9800 packs = 602.70 L', 'Accountability of the bulk issued: 99.8 % (limit 99.5 to 100.5 %)']) expect(pdf).toContain(text);
+      '61.5 mL × 9800 packs = 602.700 L', 'Accountability of the bulk issued: 99.8 % (limit 99.5 to 100.5 %)']) expect(pdf).toContain(text);
     expect(pdf).not.toMatch(/Theoretical packs[^"]*: \d+ units|\d\.0+ packs|tablets ÷|blister/);
     // A check's line that states its own question says it once.
     expect(pdf).toContain('Packing finished: ');

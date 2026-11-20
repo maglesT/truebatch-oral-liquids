@@ -85,8 +85,8 @@ describe('machine pickers on the demo master-data types', () => {
     const lines = [{ code: 'FL-01', type: 'Bottle filling line', room: 'RM-108' }, { code: 'FL-X', type: 'Bottle filling line', room: 'RM-107' },
       { code: 'FL-02', type: 'Bottle filling line', room: null }, { code: 'FL-03', type: null, room: 'RM-108' }, { code: 'BLS-01', type: 'Blister packer', room: 'RM-108' }];
     expect(lines.map((m) => machineRefusal(stage, line, m, ROOMS))).toEqual([null, 'FL-X stands in RM-107, not in a room this stage allows (Packing)',
-      'FL-02 stands in no room in master data, so it is not in a room this stage allows (Packing)', 'FL-03 has no type in master data, so it is not offered as a packing line',
-      'BLS-01 is not a packing line (master data: Blister packer)']);
+      'FL-02 stands in no room in master data, so it is not in a room this stage allows (Packing)', 'FL-03 has no type in master data, so it is not offered as a filling and packing line',
+      'BLS-01 is not a filling and packing line (master data: Blister packer)']);
     expect(untypedNote(line, lines)).toBe('1 machine has no type in master data, so it is not offered.');
   });
 

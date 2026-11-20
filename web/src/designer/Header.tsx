@@ -65,7 +65,7 @@ export function HeaderFields({ header, onChange, md }: { header: Header; onChang
         {choose('doses', 'Doses per container', ['single-dose', 'multi-dose'])}
         {choose('rxOtc', 'Prescription', ['Rx', 'OTC'])}
         <div className="calc-note">{shown === undefined ? <span className="muted">The batch {powder ? 'containers' : 'volume and mass'} show once the batch size and density are set.</span>
-          : typeof shown === 'string' ? <>{powder ? 'Containers expected' : header.batchUnit === 'kg' ? 'Batch volume' : 'Batch mass'}: <b>{grouped(shown)}</b></> : <span className="muted">{String((shown as { message?: unknown }).message ?? "")}</span>}</div>
+          : typeof shown === 'string' ? <>{powder ? 'Containers expected' : header.batchUnit === 'kg' ? 'Batch volume' : 'Batch mass'}: <b>{powder ? shown.replace(/^(\d+) units$/, (_, n: string) => `${Number(n).toLocaleString('en-IN')} containers`) : grouped(shown)}</b></> : <span className="muted">{String((shown as { message?: unknown }).message ?? "")}</span>}</div>
       </div>
       {/* TL-11: a balance is offered in these rooms or in a room the stage allows. */}
       <ChipSet label="Dispensing rooms (where the materials are weighed)" values={header.dispensingRooms ?? []} options={rooms.options} groups={rooms.groups} text={rooms.text}

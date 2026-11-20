@@ -39,7 +39,7 @@ test('TL-02 build a master from a skeleton, fix a master-check problem, then che
   await author.getByLabel('Label claim is of', { exact: true }).fill('Examplol');
   await author.getByLabel('Fill weight', { exact: true }).fill('25.0');
   await author.getByLabel('Volume after reconstitution', { exact: true }).fill('60');
-  await expect(author.locator('.calc-note')).toContainText('Containers expected: 4000 units');
+  await expect(author.locator('.calc-note')).toContainText('Containers expected: 4,000 containers');
   // A new master names no dispensing rooms; the rooms with a weighing balance are listed first, by name.
   await expect(author.getByText('None chosen yet: choose the rooms of master data where the materials are weighed')).toBeVisible();
   await author.getByLabel('Add to dispensing rooms (where the materials are weighed)').selectOption({ label: 'DSP-01 · Dispensing booth 1 (Dispensing)' });

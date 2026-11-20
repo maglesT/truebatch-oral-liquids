@@ -148,8 +148,8 @@ describe('master designer', () => {
     const sections = describeMaster(packing(), units);
     const all = sections.flatMap((s) => s.lines.map((l) => l.text)).join(' ');
     expect(all).not.toMatch(/the batch quantity of/);
-    expect(sections[1]!.lines.find((l) => l.key === 'carton')!.text).toBe('Carton (PM-205), carton: 1 nos per pack; printed, issued with a second person and reconciled; coded with the batch details.');
-    // Without master data, as the master has it; a material master data counts in another unit keeps the master's.
+    expect(sections[1]!.lines.find((l) => l.key === 'carton')!.text).toBe('Carton (PM-205), carton: 1 carton per pack; printed, issued with a second person and reconciled; coded with the batch details.');
+    // Without master data, as the master has it; a count of 1 per pack reads in its kind either way.
     expect(describeMaster(packing()).flatMap((s) => s.lines).find((l) => l.key === 'carton')!.text).toMatch(/: 1 carton per pack/);
     expect(all).toMatch(/Measuring cup 10 mL \(PM-203\), measuring device: 1 measuring device per pack/);
     expect(perPackText({ perPack: '0.002', unit: 'units', kind: 'shipper' })).toBe('1 shipper per 500 packs');

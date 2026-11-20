@@ -15,7 +15,7 @@ const within = (name: string, label: string, value: string, lim: string) => ({ n
 const observe = (name: string, label: string, answers: string[]) => ({ name, label, template: 'C4', args: { question: label, answers: answers.map((a) => `$${a}`), expected: ['yes'] } });
 const duration = (name: string, label: string, start: string, end: string, lim: string) => ({ name, label, template: 'T13', args: { mode: 'duration', start: `$${start}`, end: `$${end}`, ...(lim ? { limit: `$${lim}` } : {}) } });
 const going = (name: string, label: string) => ({ name, label, kind: 'choice' as const, options: ['going on', 'finished'] });
-const finished = (field: string, what: string) => ({ name: 'done', label: `${what} finished`, template: 'C4', args: { question: what, answers: [`$${field}`], expected: ['finished'], options: ['going on', 'finished'] } });
+const finished = (field: string, what: string) => ({ name: 'done', label: `${what} finished`, template: 'C4', args: { question: `${what} finished`, answers: [`$${field}`], expected: ['finished'], options: ['going on', 'finished'] } });
 // A vessel, tank, mixer or stirrer; never a granulator ("Rapid mixer granulator") or a dry mill.
 const vessel = { name: 'machine', label: 'Vessel', kind: 'machine' as const, types: ['vessel', 'tank', 'mixer', 'stirrer'], notTypes: ['granulat'] };
 const FILLS = 10;

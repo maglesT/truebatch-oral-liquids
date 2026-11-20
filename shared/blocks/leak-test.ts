@@ -1,11 +1,11 @@
 import type { Block } from './format.js';
 
-// Packing, TL-P3: vacuum leak test of strips or blisters alongside the line. The sample comes from the AQL plan for
+// Packing, TL-P3: vacuum leak test of packs alongside the line. The sample comes from the AQL plan for
 // the batch's theoretical packs (C7); a pack that leaks is a defect.
 export const leakTest: Block = {
   id: 'leak-test', version: 1, name: 'Leak test', checker: false, packing: true, stop: 'finished',
   periodic: { maxMinutes: 120, alongside: true },
-  instruction: 'Put the sample in the leak tester at the set vacuum for the set time. Count the packs that leak (coloured water in a pocket).',
+  instruction: 'Put the sample in the leak tester at the set vacuum for the set time. Count the packs that leak (coloured water inside a pack).',
   fields: [
     { name: 'vacuum', label: 'Vacuum', kind: 'number', unit: '$vacuumUnit' },
     { name: 'tested', label: 'Packs tested', kind: 'number', unit: 'packs' },

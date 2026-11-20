@@ -8,7 +8,7 @@ export const onlineInspection: Block = {
   instruction: 'Take packs from the end of the line and inspect them.',
   fields: [
     { name: 'appearance', label: 'Packs look right: print, seal, no damage or stains', kind: 'yes-no' },
-    { name: 'complete', label: 'Packs complete: every pocket filled, the right count, nothing missing', kind: 'yes-no' },
+    { name: 'complete', label: 'Packs complete: each container filled and closed, the right count, nothing missing', kind: 'yes-no' },
     { name: 'samplesKept', label: 'Line samples taken out are kept aside, never returned to the line', kind: 'yes-no' },
     { name: 'packingDone', label: 'Packing of the batch is finished (end check)', kind: 'yes-no' },
   ],

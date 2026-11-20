@@ -37,20 +37,19 @@ export const powderBulkIssue: Block = {
 };
 
 // Finished goods and reconciliation of the bulk (TL-P6): the good packs and samples, the rejected filled containers, the
-// bulk left; the bulk accounted as containers × the fill target (or fill weight) + what is left (T8, T4), the yield in
+// bulk left; the bulk accounted as (three decimals, as the accountability line shows them) containers × the fill target (or fill weight) + what is left (T8, T4), the yield in
 // packs (T3). Always checked.
 const goodsFields = (unit: 'L' | 'kg') => [
   { name: 'packs', label: 'Good packs in finished cartons', kind: 'number' as const, unit: 'packs' },
   { name: 'cartons', label: 'Finished shipper cartons', kind: 'number' as const, unit: 'nos' },
-  { name: 'shippers', label: 'Shippers', kind: 'number' as const, unit: 'nos', optional: true },
   { name: 'samples', label: 'Packs taken as reserve and QC samples', kind: 'number' as const, unit: 'packs' },
   { name: 'rejects', label: 'Filled containers rejected', kind: 'number' as const, unit: 'units' },
   { name: 'left', label: 'Bulk left (returned or destroyed)', kind: 'number' as const, unit },
 ];
 const goodsCalcs = (per: string, unit: 'L' | 'kg') => [
-  { name: 'packed', label: 'Bulk in good packs', template: 'T8', args: { mode: 'per unit', perUnit: per, count: '$packs', unit } },
-  { name: 'sampled', label: 'Bulk in samples', template: 'T8', args: { mode: 'per unit', perUnit: per, count: '$samples', unit } },
-  { name: 'rejected', label: 'Bulk in rejected containers', template: 'T8', args: { mode: 'per unit', perUnit: per, count: '$rejects', unit } },
+  { name: 'packed', label: 'Bulk in good packs', template: 'T8', args: { mode: 'per unit', perUnit: per, count: '$packs', unit, decimals: 3 } },
+  { name: 'sampled', label: 'Bulk in samples', template: 'T8', args: { mode: 'per unit', perUnit: per, count: '$samples', unit, decimals: 3 } },
+  { name: 'rejected', label: 'Bulk in rejected containers', template: 'T8', args: { mode: 'per unit', perUnit: per, count: '$rejects', unit, decimals: 3 } },
   { name: 'yield', label: 'Yield', template: 'T3', args: { actual: '$packs', theoretical: '$batch.packs', limit: '$yieldLimit' } },
   { name: 'accountability', label: 'Accountability of the bulk issued', template: 'T4', args: { input: '$batch.quantity',
     parts: [{ name: 'in packs', value: '$packed' }, { name: 'samples', value: '$sampled' }, { name: 'rejected', value: '$rejected' }, { name: 'left', value: '$left' }],
