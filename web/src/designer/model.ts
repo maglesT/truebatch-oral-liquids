@@ -190,4 +190,10 @@ export function dispensingRoomChoices(md: Pick<MasterData, 'rooms' | 'equipment'
 /** The products of master data this product makes: those whose dosage form names it (tablets), and none without one;
  *  of those, the bulk products (TrueBatch Liquids) or the packs (Packing), plus those master data gives no kind yet. */
 export const ownProducts = <P extends { dosageForm: string | null; kind?: 'bulk' | 'pack' | null }>(products: readonly P[], kind: 'bulk' | 'pack'): P[] =>
-  products.filter((p) => product.dosageForms.some((w) => p.dosageForm?.toLowerCase().includes(w)) && (p.kind ?? kind) === kind);
+  products.filter((p) => product.dosageForms.some((w) => p.dosageForm?.toLowerCase().includes(w)) && (p.kind ?? kind) === kind)
+    // Display backlog item 9: those master data has not given a kind yet come last, marked (productNote).
+    .sort((a, b) => Number(!a.kind) - Number(!b.kind));
+
+/** A product's line in a product picker: strength and dosage form, and "kind not set in master data" when it has none. */
+export const productNote = (p: { strength: string | null; dosageForm: string | null; kind?: 'bulk' | 'pack' | null }) =>
+  [p.strength, p.dosageForm, !p.kind && 'kind not set in master data'].filter(Boolean).join(' · ');

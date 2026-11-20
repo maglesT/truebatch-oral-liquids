@@ -42,7 +42,9 @@ export interface WorkItem {
   id: number; batchNo: string; productCode: string; productName: string; status: string; issuedAt: string; stagesClosed: number; stageCount: number;
   current: { step: string; stage: string; title: string; state: State } | null; badges: WorkBadge[];
 }
-export interface PickItem { itemId: string; code: string; name: string; active: boolean; type?: string | null; area?: string | null; room?: string | null }
+export interface PickItem { itemId: string; code: string; name: string; active: boolean; type?: string | null; area?: string | null; room?: string | null;
+  // While the Logbook answers: why it is not fit for use now ("Dirty"), marked in the picker; the server refuses it.
+  notFit?: string }
 
 /** Where a value came from, in plain words. */
 export const sourceWords = (s: Source | undefined) => (!s ? '' : s.from === 'hand'
@@ -89,14 +91,16 @@ export function useLims(url: string | null, again?: unknown): LimsPicks | null {
 
 /**
  * The master-data ids of the machines and rooms the Logbook has, for their pick lists (shared/engine/picks.ts,
- * inLogbook); null while the Logbook link is absent or down, or not read yet (then every item is offered).
+ * inLogbook), and for each one not fit for use the headline of why ("Dirty"), marked in the picker; null while the
+ * Logbook link is absent or down, or not read yet (then every item is offered).
  */
-export function useLogbookItems(on: boolean): string[] | null {
-  const [items, setItems] = useState<string[] | null>(null);
+export interface LogbookItems { items: string[]; notFit: Record<string, string> }
+export function useLogbookItems(on: boolean): LogbookItems | null {
+  const [items, setItems] = useState<LogbookItems | null>(null);
   useEffect(() => {
     if (!on) return;
     let live = true;
-    void api<{ link: string; items: string[] }>('GET', '/api/logbook/items').then((r) => live && setItems(r.link === 'ok' ? r.items : null), () => {});
+    void api<{ link: string } & LogbookItems>('GET', '/api/logbook/items').then((r) => live && setItems(r.link === 'ok' ? { items: r.items, notFit: r.notFit ?? {} } : null), () => {});
     return () => { live = false; };
   }, [on]);
   return items;

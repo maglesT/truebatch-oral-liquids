@@ -755,7 +755,8 @@ export function batchRoutes(app: FastifyInstance, sql: Sql) {
   // these are offered (any other is refused, server/pull.ts); absent or down, every one is offered and typed by hand.
   app.get('/api/logbook/items', anyUser, async () => {
     const r = await app.links.logbook.known();
-    return { link: r.state, items: r.state === 'ok' ? r.value : [] };
+    const known = r.state === 'ok' ? r.value : [];
+    return { link: r.state, items: known.map((k) => k.id), notFit: Object.fromEntries(known.filter((k) => k.notFit).map((k) => [k.id, k.notFit])) };
   });
 
   // Packing: the bulk batches TrueBatch Liquids has released of a product, for the issue's pick list (pull, don't type).

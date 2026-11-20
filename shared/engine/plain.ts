@@ -8,8 +8,17 @@ import type { Stored } from './values.js';
 // The verdict at the end of a worked line ("…: PASS", "…: pass", "…: within limits", "…: OUT OF LIMITS (…)"), said once
 // elsewhere; a demo note after it stays.
 const VERDICT = /:\s*(?:PASS|pass|within limits|FAIL|OUT OF LIMITS(?: \([^)]*\))?)(?=\s*(?: · DEMO: wait skipped)?\s*$)/;
-/** A worked line without its closing verdict. */
-export const withoutVerdict = (t: string) => t.replace(VERDICT, '');
+/** A worked line without its closing verdict, its rounding written the one way of today (tidyRounding). */
+export const withoutVerdict = (t: string) => tidyRounding(t).replace(VERDICT, '');
+
+// A rounding to the limit's decimals as older records wrote it (display backlog item 6): one written out although it
+// changed nothing ("0.00 nos rounded to 0 decimals (as the limit is written) = 0 nos" reads "0 nos"), and one without
+// the reason ("2.150 % rounded to 1 decimal = 2.2 %" gets "(as the limit is written)"). Display only.
+const ROUNDING = /(-?\d[\d,]*(?:\.\d+)?)(…?)((?: [^\s=;]+)?) rounded to (\d+) (decimals?)(?: \(as the limit is written\))? = (-?\d[\d,]*(?:\.\d+)?)/g;
+export const tidyRounding = (t: string) => t.replace(ROUNDING, (_m, from: string, cut: string, unit: string, n: string, word: string, to: string) =>
+  (!cut && Number(from.replace(/,/g, '')) === Number(to.replace(/,/g, ''))
+    ? to
+    : `${from}${cut}${unit} rounded to ${n} ${word} (as the limit is written) = ${to}`));
 
 /** A result's headline: the figure that decided (rounded as the limit is written), or the end of its worked line. */
 export function headline(r: Stored): string | null {

@@ -201,7 +201,7 @@ export const bulkTransfer: Block = {
     yes('connected', 'Line or hose connected to this holding tank'), time('start', 'Start'), time('end', 'End'),
     num('quantity', 'Quantity in the holding tank', '$unit'), yes('stirring', 'Stirrer on', true),
   ],
-  settings: [{ name: 'unit', label: 'Read in', kind: 'text', options: ['L', 'kg'] }, limit('quantityLimit', 'Quantity limits')],
+  settings: [{ name: 'unit', label: 'Unit read in', kind: 'text', options: ['L', 'kg'] }, limit('quantityLimit', 'Quantity limits')],
   calcs: [observe('connectedCheck', 'Connected to the right tank, stirrer on where asked', ['connected', 'stirring?']), within('quantityCheck', 'Quantity in the tank', 'quantity', 'quantityLimit?'),
     duration('time', 'Transfer time', 'start', 'end', '')],
 };
@@ -212,7 +212,7 @@ export const bulkYield: Block = {
   id: 'bulk-yield', version: 1, name: 'Bulk yield', gmp: 'yield', checker: true,
   instruction: 'Read the bulk in the holding tank (level or dip), and record the samples taken and the residue left in the vessels.',
   fields: [num('output', 'Bulk in the tank', '$unit'), num('samples', 'Samples', '$unit'), num('rejects', 'Residue and losses', '$unit')],
-  settings: [{ name: 'unit', label: 'Read in', kind: 'text', options: ['L', 'kg'] }, { name: 'theoretical', label: 'Theoretical quantity', kind: 'quantity' },
+  settings: [{ name: 'unit', label: 'Unit read in', kind: 'text', options: ['L', 'kg'] }, { name: 'theoretical', label: 'Theoretical quantity', kind: 'quantity' },
     limit('yieldLimit', 'Yield limits', false), limit('accountabilityLimit', 'Accountability limits')],
   calcs: [
     { name: 'yield', label: 'Yield', template: 'T3', args: { actual: '$output', theoretical: '$theoretical', limit: '$yieldLimit' } },

@@ -5,7 +5,7 @@ import { placeChecks } from '../shared/master/places.js';
 import { masterSchema } from '../shared/master/schema.js';
 import { describeMaster } from '../web/src/designer/describe.js';
 import { verdictless } from '../web/src/designer/example.js';
-import { dispensingRoomChoices, grouped, ownProducts, qtyText, stageRoomChoices, unitsOf } from '../web/src/designer/model.js';
+import { dispensingRoomChoices, grouped, ownProducts, productNote, qtyText, stageRoomChoices, unitsOf } from '../web/src/designer/model.js';
 import { sentence, sentenceText } from '../web/src/designer/sentences.js';
 import { SKELETON_LIST, skeletonStages } from '../web/src/designer/skeletons.js';
 import { tablet } from './engine-fixture.js';
@@ -126,6 +126,10 @@ describe('designer findings of the 17 Nov 2026 run', () => {
     const all = [p('FG-PCM-SYR', 'Syrup', 'bulk'), p('PK-PCM-SYR-60', 'Syrup', 'pack'), p('FG-D3', 'Oral drops', null), p('FG-INJ', 'Solution for injection', 'bulk')];
     expect(ownProducts(all, 'bulk').map((x) => x.code)).toEqual(['FG-PCM-SYR', 'FG-D3']);
     expect(ownProducts(all, 'pack').map((x) => x.code)).toEqual(['PK-PCM-SYR-60', 'FG-D3']);
+    // Display backlog item 9: one with no kind comes after those with the kind, marked.
+    expect(ownProducts([all[2]!, ...all], 'bulk').map((x) => x.code)).toEqual(['FG-PCM-SYR', 'FG-D3', 'FG-D3']);
+    expect(productNote({ strength: '5 mg/mL', dosageForm: 'Syrup', kind: null })).toBe('5 mg/mL · Syrup · kind not set in master data');
+    expect(productNote({ strength: '5 mg/mL', dosageForm: 'Syrup', kind: 'bulk' })).toBe('5 mg/mL · Syrup');
     // Dispensing: the rooms with a weighing balance first (never a QC lab's), each by code, name and area.
     const disp = dispensingRoomChoices(MD);
     expect(disp.groups).toEqual([{ label: 'Rooms with a weighing balance', options: ['RM-101'] }, { label: 'Other rooms', options: ['RM-105', 'RM-110', 'RM-501', 'RM-932'] }]);

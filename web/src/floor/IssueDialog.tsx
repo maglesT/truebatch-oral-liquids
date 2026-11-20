@@ -34,7 +34,8 @@ export function IssueDialog({ row, onCancel }: { row: MasterRow; onCancel: () =>
 
   // While the Logbook is linked, only the lines it has (shared/engine/picks.ts).
   const logbook = useLogbookItems(atIssue.some((f) => f.kind === 'machine'));
-  const offer = inLogbook(lines, logbook);
+  const offer = inLogbook(lines, logbook?.items ?? null);
+  const linePicks = offer.offered.map((p) => ({ ...p, notFit: logbook?.notFit[p.itemId] }));
   if (!doc) return null;
   // The label questions of a value the server found typed by hand ("… is not recorded").
   const asked = handFields(block?.fields ?? [], Object.fromEntries((block?.fields ?? []).map((f) => [f.name, { from: 'hand', link: 'mms', state: 'absent' } as Source])))
@@ -64,7 +65,7 @@ export function IssueDialog({ row, onCancel }: { row: MasterRow; onCancel: () =>
         <h2>Issue a batch</h2>
         <p>{doc.header.productCode} · {doc.header.productName}, version {row.versionNo}: {Number(doc.header.batchSize).toLocaleString('en-IN')} {doc.header.batchUnit}{doc.pack ? `, filled from ${doc.pack.bulkCode}` : ''}. The batch number is given by the server.</p>
         {fields.map((f) => (
-          <FieldInput key={f.name === 'quantity' ? `quantity-${picked?.batchNo ?? ''}` : f.name} f={f} unit={f.unit ?? ''} saved={f.name === 'quantity' && offered ? { value: offered, unit: f.unit ?? 'L' } : undefined} picks={f.kind === 'machine' ? offer.offered : []} note={[f.kind === 'machine' && machines.length && !lines.length ? emptyNote(doc.stages[0]!, f, machines, rooms) : null, f.kind === 'machine' ? offer.note : null]} onChange={set(f.name)}
+          <FieldInput key={f.name === 'quantity' ? `quantity-${picked?.batchNo ?? ''}` : f.name} f={f} unit={f.unit ?? ''} saved={f.name === 'quantity' && offered ? { value: offered, unit: f.unit ?? 'L' } : undefined} picks={f.kind === 'machine' ? linePicks : []} note={[f.kind === 'machine' && machines.length && !lines.length ? emptyNote(doc.stages[0]!, f, machines, rooms) : null, f.kind === 'machine' ? offer.note : null]} onChange={set(f.name)}
             options={f.kind === 'bulk' ? (bulk?.batches ?? []).map((x) => x.batchNo) : []} />
         ))}
         {picked?.goodQuantity && <p className="notice">Left to issue of {picked.batchNo}: {Number(offered).toLocaleString('en-IN')} {picked.goodUnit ?? ''} ({Number(picked.goodQuantity).toLocaleString('en-IN')} {picked.goodUnit ?? ''} good in TrueBatch Liquids{Number(picked.issued ?? 0) > 0 ? `, ${Number(picked.issued).toLocaleString('en-IN')} already issued to other packing batches` : ''}). Issue all of it, or type less for a part issue.</p>}

@@ -5,7 +5,7 @@ import { ApiError } from '../api.js';
 import { createMaster, getVersion, STATE_LABEL, type MasterData, type MasterRow } from '../api-designer.js';
 import { CLAIM_PER, masterSchema, PRODUCT_TYPES, type MasterDoc } from '../../../shared/master/schema.js';
 import { headerValue } from '../../../shared/engine/values.js';
-import { dispensingRoomChoices, grouped, ownProducts, scaleDoc } from './model.js';
+import { dispensingRoomChoices, grouped, ownProducts, productNote, scaleDoc } from './model.js';
 import { packingStages, SKELETON_LIST, skeletonStages } from './skeletons.js';
 import { NEW_PACK, PackFields } from './Pack.js';
 import { product } from '../product.js';
@@ -42,7 +42,7 @@ export function HeaderFields({ header, onChange, md }: { header: Header; onChang
             <div><dt /><dd><button type="button" className="link dark" onClick={() => setPicking(true)}>Change product</button></dd></div>
           </dl>
         ) : (
-          <Picker label="Product" items={ownProducts(md.products, 'bulk').map((p) => ({ id: p.itemId, code: p.code, name: p.name, note: [p.strength, p.dosageForm].filter(Boolean).join(' · '), off: p.active ? undefined : 'inactive' }))}
+          <Picker label="Product" items={ownProducts(md.products, 'bulk').map((p) => ({ id: p.itemId, code: p.code, name: p.name, note: productNote(p), off: p.active ? undefined : 'inactive' }))}
             onPick={(i) => { onChange({ ...header, productItemId: i.id, productCode: i.code, productName: i.name }); setPicking(false); }} />
         )}
       </div>

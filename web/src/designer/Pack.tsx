@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import type { MasterData, Product } from '../api-designer.js';
 import { CLOSURES, DESTINATIONS, DEVICES, PACK_MATERIAL_KINDS, PACK_TYPES, PRODUCT_TYPES, type MasterDoc, type Pack, type PackMaterial } from '../../../shared/master/schema.js';
-import { newKey, ownProducts } from './model.js';
+import { newKey, ownProducts, productNote } from './model.js';
 import { withMaterialSteps, withMaterialUnit } from './skeletons.js';
 import { unitName } from '../../../shared/engine/stock.js';
 import { Decimal, Order, Picker } from './ui.js';
@@ -15,7 +15,7 @@ export const NEW_PACK: Pack = { bulkItemId: '', bulkCode: '', bulkName: '', type
 function ProductPick({ label, itemId, code, name, products, onPick }: { label: string; itemId: string; code: string; name: string; products: Product[]; onPick: (p: Product) => void }) {
   const [picking, setPicking] = useState(!itemId);
   if (itemId && !picking) return <dl className="fields pulled"><div><dt>{label}</dt><dd>{code} · {name} <button type="button" className="link dark" onClick={() => setPicking(true)}>Change</button></dd></div></dl>;
-  return <Picker label={label} items={products.map((p) => ({ id: p.itemId, code: p.code, name: p.name, note: [p.strength, p.dosageForm].filter(Boolean).join(' · '), off: p.active ? undefined : 'inactive' }))}
+  return <Picker label={label} items={products.map((p) => ({ id: p.itemId, code: p.code, name: p.name, note: productNote(p), off: p.active ? undefined : 'inactive' }))}
     onPick={(i) => { onPick(products.find((p) => p.itemId === i.id)!); setPicking(false); }} />;
 }
 const whole = (v: string) => (/^\d{1,5}$/.test(v) ? Number(v) : 0);

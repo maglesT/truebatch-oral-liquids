@@ -162,8 +162,9 @@ export function StepScreen({ me, d, blocks, row, now, reload }: { me: Me; d: Bat
   const logbook = useLogbookItems(block.fields.some((f) => f.kind === 'machine' || f.kind === 'room'));
   const fits = (f: BlockField) => (f.kind === 'room' ? md.room.filter((r) => r.active && !roomRefusal(stage, r))
     : f.kind === 'machine' ? md.machine.filter((m) => m.active && !machineRefusal(stage, f, m, md.room, dispensingRooms(doc, md.room))) : []);
-  const pickOf = (f: BlockField) => inLogbook(fits(f), logbook);
-  const picksFor = (f: BlockField) => pickOf(f).offered;
+  const pickOf = (f: BlockField) => inLogbook(fits(f), logbook?.items ?? null);
+  // A machine or room not fit for use in the Logbook is marked with why ("Dirty in the Logbook") before it is picked.
+  const picksFor = (f: BlockField) => pickOf(f).offered.map((p) => ({ ...p, notFit: logbook?.notFit[p.itemId] }));
   // An empty picker says why (once master data is read) and what the Logbook leaves out; one with choices says nothing.
   const mdRead = md.room.length > 0 && (md.machine.length > 0 || !block.fields.some((x) => x.kind === 'machine'));
   const noteFor = (f: BlockField) => [mdRead && !fits(f).length ? emptyNote(stage, f, md.machine, md.room, dispensingRooms(doc, md.room)) : null, pickOf(f).note];

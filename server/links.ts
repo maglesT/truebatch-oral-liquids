@@ -109,7 +109,11 @@ export const logbookClient = (l: Link) => ({
       cleanedAt: r.cleaned_at, cleanedBy: r.cleaned_by, checkedAt: r.checked_at.toISOString(), onlyProduct: r.only_product } satisfies EquipmentStatus;
   }),
   // The master-data ids of every machine, instrument and room the Logbook has, for the pick lists (only these can be used).
-  known: () => l.read(async (q, v) => (await q<{ id: string }[]>`select distinct master_id::text as id from ${v('equipment_status_v1')} where master_id is not null`).map((r) => r.id)),
+  // With each one not fit for use, its first blocker's headline ("Dirty", "Out of service"), to mark it in the picker.
+  known: () => l.read(async (q, v) => (await q<{ id: string; fit: boolean; blocker: string | null }[]>`
+    select master_id::text as id, bool_and(fit_for_use) as fit, min(blockers[1]) as blocker
+    from ${v('equipment_status_v1')} where master_id is not null group by master_id`)
+    .map((r) => ({ id: r.id, notFit: r.fit ? null : (r.blocker?.split(':')[0] || 'Not fit for use') }))),
 });
 
 // ---- MMS: report.lot_v1 and report.lot_test_v1 (planned, with numbers for assay, water and LOD and their basis).

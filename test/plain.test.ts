@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { headline } from '../shared/engine/plain.js';
+import { headline, withoutVerdict } from '../shared/engine/plain.js';
 import { store, type Stored } from '../shared/engine/values.js';
 import { t17LiquidMakeUp } from '../shared/templates/liquid.js';
 import { c1WithinLimits, c3AllIndividual } from '../shared/templates/series.js';
@@ -47,5 +47,18 @@ describe('count words and the mean', () => {
   it('C6 disintegration: the tablets named', () => {
     const r = c6StagedTest({ test: 'disintegration', maxTime: '15', noun: 'tablets', stages: [['5', '6', '7', '8', '9', '10']] });
     expect(r.ok && r.shown).toBe('All 6 tablets disintegrated within 15 min: PASS');
+  });
+});
+
+// Display backlog item 6: the rounding of older records reads the way of today's (display only, the record unchanged).
+describe('rounding on older worked lines', () => {
+  it('a rounding that changed nothing is not written out; one without its reason gets it; a real rounding stays', () => {
+    expect(withoutVerdict('0.00 nos rounded to 0 decimals (as the limit is written) = 0 nos; limit not more than 0 nos: within limits'))
+      .toBe('0 nos; limit not more than 0 nos');
+    expect(withoutVerdict('2.150 % rounded to 1 decimal = 2.2 %; limit 2.5 to 3.5 %: OUT OF LIMITS (below the lower limit)'))
+      .toBe('2.150 % rounded to 1 decimal (as the limit is written) = 2.2 %; limit 2.5 to 3.5 %');
+    expect(withoutVerdict('99.009… % rounded to 1 decimal (as the limit is written) = 99.0 %; limit 97.0 to 100.5 %: within limits'))
+      .toBe('99.009… % rounded to 1 decimal (as the limit is written) = 99.0 %; limit 97.0 to 100.5 %');
+    expect(withoutVerdict('4,920 packs rounded to 0 decimals = 4,920 packs')).toBe('4,920 packs');
   });
 });

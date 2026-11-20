@@ -183,9 +183,11 @@ describe('TL-11 Logbook: equipment and rooms fit for use', () => {
   });
 
   it('TL-11 while the Logbook answers, the machine and room pickers offer only what it has (an empty one names the rest); absent or down, every one', async () => {
-    const read = async () => (await as('asha', 'GET', '/api/logbook/items')).json() as { link: string; items: string[] };
+    const read = async () => (await as('asha', 'GET', '/api/logbook/items')).json() as { link: string; items: string[]; notFit: Record<string, string> };
     const r = await read();
     expect(r.link).toBe('ok');
+    // One not fit for use is marked in the picker with its first blocker's headline (display round 20 Nov).
+    expect(r.notFit).toEqual({ 'eq-str2': 'Dirty' });
     expect([...r.items].sort()).toEqual(['eq-bal', 'eq-rmg', 'eq-str', 'eq-str2', 'eq-str3', 'eq-str4', 'rm-1']);
     const stirrers = t.master.equipment_.filter((m) => m.type === 'stirrer');
     const picks = inLogbook(stirrers, r.items);
@@ -197,7 +199,7 @@ describe('TL-11 Logbook: equipment and rooms fit for use', () => {
     expect(inLogbook(t.master.rooms_, r.items).offered.map((x) => x.code)).toEqual(['GRN-01']);
     await cut(S.lb);
     try {
-      expect(await read()).toEqual({ link: 'down', items: [] });
+      expect(await read()).toEqual({ link: 'down', items: [], notFit: {} });
     } finally { await restore(S.lb); }
     expect(inLogbook(stirrers, null)).toEqual({ offered: stirrers, note: null });
     expect((await call(t.app, '', 'GET', '/api/logbook/items')).statusCode).toBe(401);

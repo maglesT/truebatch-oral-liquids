@@ -121,6 +121,7 @@
 .picks { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; }
 .picks button { min-height: 64px; display: grid; justify-items: start; align-content: center; gap: 2px; text-align: left; border-radius: 10px; padding: 10px 14px; }
 .picks button b { font-size: 1rem; } .picks button small { color: var(--muted); font-size: .82rem; }
+.picks button small.not-fit { color: var(--bad); font-weight: 600; }
 .picks button.on { border-color: var(--brand); background: var(--brand-soft); box-shadow: inset 0 0 0 1px var(--brand); }
 .readings { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
 .readings label { display: grid; gap: 2px; font-size: .74rem; color: var(--muted); font-weight: 600; }
