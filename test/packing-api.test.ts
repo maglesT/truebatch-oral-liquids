@@ -447,7 +447,7 @@ describe('a packing batch from a released bulk batch', () => {
     expect(await cols('equipment_use_v1')).toBe('batch_number text, equipment_code text, equipment_type text, room_code text, step text, '
       + 'started_at timestamp with time zone, ended_at timestamp with time zone, read_at timestamp with time zone, data_as_of timestamp with time zone, step_name text');
     expect(await cols('deviation_note_v1')).toBe('note_id bigint, source_ref text, batch_number text, product_code text, step text, note text, reference text, status text, '
-      + 'noted_at timestamp with time zone, read_at timestamp with time zone, data_as_of timestamp with time zone');
+      + 'noted_at timestamp with time zone, read_at timestamp with time zone, data_as_of timestamp with time zone, decision text, sent_at timestamp with time zone');
 
     // TL-P7: the line takes the next order once this one is finished.
     expect((await issue({ line: 'ln-1', bulk: 'TL260004', quantity: '300' })).statusCode).toBe(200);

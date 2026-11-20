@@ -3,10 +3,10 @@ import { api, ApiError, type Me } from '../api.js';
 import { SignDialog } from '../components/SignDialog.js';
 import {
   blockOf, changed, go, headline, plainClock, plainLine, withoutVerdict, plainError, rawOf, sourceWords, stateLabel, stepLink, stepOf, stepTitle, timeLeft, tone, unitOf, useLims, useLinked, useLogbookItems, valueText, words,
-  type BatchDetail, type Block, type Deviation, type BlockField, type FloorEvent, type History, type PickItem, type Step, type StepRow, type Stored,
+  type BatchDetail, type Block, type Deviation, type ExceptionRow, type BlockField, type FloorEvent, type History, type PickItem, type Step, type StepRow, type Stored,
 } from '../api-floor.js';
 import { Alerts } from './BatchScreen.js';
-import { deviationText } from '../../../shared/engine/release.js';
+import { deviationText, exceptionText } from '../../../shared/engine/release.js';
 import { FieldInput, type InProcessPicks, type QcPick } from './Fields.js';
 import { DemoSkip } from './DemoSkip.js';
 import { ReasonDialog } from './ReasonDialog.js';
@@ -348,7 +348,7 @@ export function StepScreen({ me, d, blocks, row, now, reload }: { me: Me; d: Bat
               })}</div>
             </section>
           )}
-          <History_ h={history} block={block} deviations={d.batch.deviations} />
+          <History_ h={history} block={block} deviations={d.batch.deviations} exceptions={d.batch.exceptions} />
         </div>
       </div>
       )}
@@ -507,7 +507,7 @@ function StageSummary({ d, blocks, row }: { d: BatchDetail; blocks: Block[]; row
   );
 }
 
-function History_({ h, block, deviations }: { h: History | null; block: Block; deviations: Deviation[] }) {
+function History_({ h, block, deviations, exceptions }: { h: History | null; block: Block; deviations: Deviation[]; exceptions: ExceptionRow[] }) {
   if (!h) return <section className="dash-panel"><div className="skel skel-line w30" /><div className="skel skel-line w60" /></section>;
   const trained = (e: FloorEvent) => { const t = trainingOf(e); return t ? ` · ${trainingText(t)}` : ''; };
   const fields = (e: FloorEvent) => Object.keys(e.payload.values ?? {}).map((k) => fieldLabel(block.fields, k)).join(', ');
@@ -515,7 +515,7 @@ function History_({ h, block, deviations }: { h: History | null; block: Block; d
     started: 'Started', value: `Recorded ${fields(e)}`, done: `Signed: performed${trained(e)}`, checked: `Signed: verified (second person)${trained(e)}`, sent_back: `Sent back: “${e.payload.reason}”`,
     corrected: `Corrected ${fields(e)}: “${e.payload.reason}”`, not_applicable: `Not applicable: “${e.payload.reason}”`, late: 'Ran over its time (recorded by the server)',
     // The deviation's number and status, read live: the one written with the note, or the one Deviations filed from it.
-    note: `Deviation note${((x) => (x ? ` ${deviationText(x)}` : e.payload.reference ? ` ${e.payload.reference}` : ''))(deviations.find((x) => x.note === e.id))}: “${e.payload.text}”`, qa_released_hold: 'QA released the hold',
+    note: `Deviation note${((x) => (x ? ` ${deviationText(x)}` : e.payload.reference ? ` ${e.payload.reference}` : ''))(deviations.find((x) => x.note === e.id))}: “${e.payload.text}”${((x) => (x ? ` · ${exceptionText(x, plainClock)}` : ''))(exceptions.find((x) => x.note === e.id))}`, qa_released_hold: 'QA released the hold',
     demo_wait_skipped: `DEMO: wait skipped by ${e.personName ?? '—'} at ${plainClock(e.at)}: ${String(e.payload.label ?? '')}`,
   })[e.kind];
   return (

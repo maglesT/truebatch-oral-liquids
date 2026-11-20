@@ -177,3 +177,31 @@ test('TL-21 QA terminates a batch still in production from the To review list: a
   await expect(qa.page.getByText('Not open yet')).toHaveCount(0);
   await qa.ctx.close();
 });
+
+test('TL-21 a deviation note without a number is closed here with a reason and a signature; Send to Deviations only where Deviations is linked', async ({ browser }) => {
+  const batch = await issuedBatch(browser);
+  const op = await person(browser, 'op1');
+  const r = await op.page.request.post(`/api/batches/${batch.id}/steps/0.1.0.1/note`, { data: { text: 'Lid of the blender found open' } });
+  expect(r.ok(), await r.text()).toBe(true);
+  // Without the permission: the note shows, waiting for a decision, with no buttons.
+  await op.page.goto(`/#/batch/${batch.id}`);
+  const notes = op.page.getByRole('region', { name: 'Deviation notes without a number' });
+  await expect(notes).toContainText('Lid of the blender found open');
+  await expect(notes).toContainText('waits for a decision');
+  await expect(notes.getByRole('button')).toHaveCount(0);
+  await op.ctx.close();
+
+  const exc = await person(browser, 'exc1');
+  await exc.page.goto(`/#/batch/${batch.id}`);
+  const mine = exc.page.getByRole('region', { name: 'Deviation notes without a number' });
+  // The e2e server has no Deviations link: the note can only be closed here.
+  await expect(mine.getByRole('button', { name: 'Send to Deviations' })).toHaveCount(0);
+  await mine.getByRole('button', { name: 'Close here…' }).click();
+  await exc.page.getByLabel('Reason for closing it here').fill('Lid closed at once; blend covered, no foreign matter found');
+  await exc.page.getByRole('button', { name: 'Next: sign' }).click();
+  await expect(exc.page.getByRole('dialog')).toContainText('Exception closed here');
+  await sign(exc.page);
+  await expect(mine).toContainText(/Exception closed here by EXC1, .*: Lid closed at once; blend covered, no foreign matter found/);
+  await expect(mine.getByRole('button')).toHaveCount(0);
+  await exc.ctx.close();
+});

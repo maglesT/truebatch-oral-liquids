@@ -12,7 +12,7 @@ import { isHand, PROVIDER_NAME, type LinkState, type Source } from './links.js';
 import type { Returned } from './stock.js';
 import { trainingTyped } from './training.js';
 
-export const BATCH_EVENT_KINDS = ['production_approved', 'qc_approved', 'released', 'rejected', 'deviation_closed'] as const;
+export const BATCH_EVENT_KINDS = ['production_approved', 'qc_approved', 'released', 'rejected', 'deviation_closed', 'exception_closed', 'exception_sent'] as const;
 export type BatchEventKind = (typeof BATCH_EVENT_KINDS)[number];
 // A batch QA terminated (stopped, not finished) is a rejection with `terminated` (owner, 16 Nov 2026): the record is kept.
 // `returns`: what went back to stores unused of each lot the batch used (stock.ts returnsOf).
@@ -22,8 +22,8 @@ export interface BatchEvent { id: number; kind: BatchEventKind; payload: { repor
 export const BATCH_STATUSES = ['in production', 'manufacturing complete', 'production approved', 'QC approved', 'released', 'rejected'] as const;
 export type BatchStatus = (typeof BATCH_STATUSES)[number];
 
-export type BatchAction = 'production-approve' | 'qc-approve' | 'release' | 'reject' | 'terminate' | 'close-deviation';
-export const BATCH_ACTIONS: Record<BatchAction, { event: BatchEventKind; permission: Permission; from?: BatchStatus; meaning?: 'production_approved' | 'qc_approved' | 'released' | 'rejected' }> = {
+export type BatchAction = 'production-approve' | 'qc-approve' | 'release' | 'reject' | 'terminate' | 'close-deviation' | 'close-exception' | 'send-exception';
+export const BATCH_ACTIONS: Record<BatchAction, { event: BatchEventKind; permission: Permission; from?: BatchStatus; meaning?: 'production_approved' | 'qc_approved' | 'released' | 'rejected' | 'exception_closed' }> = {
   'production-approve': { event: 'production_approved', permission: 'truebatch_liquids.batch.supervise', from: 'manufacturing complete', meaning: 'production_approved' },
   'qc-approve': { event: 'qc_approved', permission: 'truebatch_liquids.qc.approve', from: 'production approved', meaning: 'qc_approved' },
   release: { event: 'released', permission: 'truebatch_liquids.qa.release', from: 'QC approved', meaning: 'released' },
@@ -31,7 +31,15 @@ export const BATCH_ACTIONS: Record<BatchAction, { event: BatchEventKind; permiss
   // QA stops a batch still in production that cannot be finished, with a reason (TL-21 rows in test/release.test.ts).
   terminate: { event: 'rejected', permission: 'truebatch_liquids.qa.release', meaning: 'rejected' },
   'close-deviation': { event: 'deviation_closed', permission: 'truebatch_liquids.qa.release' },
+  // Owner decision 20 Nov 2026: a note without a deviation number is closed here (reason, e-signature) or sent to
+  // Deviations, once, by a person holding the permission (granted per employee in the platform's register).
+  'close-exception': { event: 'exception_closed', permission: 'truebatch_liquids.exception.decide', meaning: 'exception_closed' },
+  'send-exception': { event: 'exception_sent', permission: 'truebatch_liquids.exception.decide' },
 };
+/** The batch actions on one deviation note (payload.note): not offered in the batch's own action list. */
+export const NOTE_ACTIONS: readonly BatchAction[] = ['close-deviation', 'close-exception', 'send-exception'];
+/** The batch events about one deviation note (not a decision on the batch). */
+export const NOTE_EVENTS: readonly BatchEventKind[] = ['deviation_closed', 'exception_closed', 'exception_sent'];
 
 /** "Terminated by … at …: reason", with what went back to stores unused of each lot the batch used (screens and PDF). */
 export function terminatedText<T extends string | Date>(t: { personName: string; at: T; payload: { reason?: string; returns?: Returned[] } }, clock: (at: T) => string): string {
@@ -76,6 +84,27 @@ export function deviations(events: readonly StepEvent[], batchEvents: readonly B
     return [r ? { ...base, open: !DEVIATION_DONE.includes(r.status), status: r.status, closedAt: r.closedAt } : { ...base, open: !closed }];
   });
 }
+/**
+ * Owner decision 20 Nov 2026: a deviation note written without a number, that Deviations has not filed a deviation from
+ * (read live), is an exception of the batch record. It waits for a decision ('open'), is closed here ('closed': reason
+ * and e-signature, `decided` holds who, when and why) or is sent to Deviations ('sent': Deviations files it and it then
+ * becomes that deviation, found by its source_ref as before).
+ */
+export interface Exception { note: number; step: string; text: string; by: number | null; at: Date | string; decision: 'open' | 'closed' | 'sent'; decided?: BatchEvent; where?: string }
+export function exceptions(events: readonly StepEvent[], batchEvents: readonly BatchEvent[], read?: ReadonlyMap<string, DeviationStatus> | null): Exception[] {
+  return events.filter((e) => e.kind === 'note' && !e.payload.reference && !read?.get(filedKey(e.id))).map((e) => {
+    const decided = batchEvents.find((b) => (b.kind === 'exception_closed' || b.kind === 'exception_sent') && b.payload.note === e.id);
+    return { note: e.id, step: keyId(e), text: e.payload.text ?? '', by: e.person, at: e.at,
+      decision: !decided ? 'open' as const : decided.kind === 'exception_closed' ? 'closed' as const : 'sent' as const, ...(decided ? { decided } : {}) };
+  });
+}
+/** An exception's decision in words, as the step, the batch screen, QA's review and the PDF show it. */
+export function exceptionText<T extends string | Date>(x: { decision: Exception['decision']; decided?: { personName?: string; at: T; payload: { reason?: string } } }, clock: (at: T) => string): string {
+  if (x.decision === 'open') return 'Exception: waits for a decision (close it here or send it to Deviations)';
+  const by = x.decided ? `${x.decided.personName ?? ''}, ${clock(x.decided.at)}` : '';
+  return x.decision === 'closed' ? `Exception closed here by ${by}: ${x.decided?.payload.reason ?? ''}` : `Exception sent to Deviations by ${by}: waiting to be filed there`;
+}
+
 /**
  * A deviation's number and status in words, as the step, the release review and the PDF show it:
  * "DEV-26-0001 · under investigation (Deviations)", "DEV-7 (typed by hand) · open", "… · closed by QA".
@@ -127,7 +156,7 @@ const isYield = (doc: MasterDoc, v: StepView) => findBlock(doc.stages[v.key.stag
 
 // QC approves before QA releases, for a packing record too (owner, 15 Nov 2026: "QC signs first").
 // packing: a packing batch (its status reads in words as one: "packing complete", statusWords).
-export interface BatchView { status: BatchStatus; open: string[]; late: string[]; deviations: Deviation[]; yieldOut: string[]; packing: boolean }
+export interface BatchView { status: BatchStatus; open: string[]; late: string[]; deviations: Deviation[]; exceptions: Exception[]; yieldOut: string[]; packing: boolean }
 
 /** The batch status, and what stands in the way of the next signature; `read`: the deviations as Deviations has them now. */
 export function batchView(doc: MasterDoc, events: readonly StepEvent[], batchEvents: readonly BatchEvent[], now: Date, read?: ReadonlyMap<string, DeviationStatus> | null): BatchView {
@@ -143,7 +172,8 @@ export function batchView(doc: MasterDoc, events: readonly StepEvent[], batchEve
   const has = (k: BatchEventKind) => batchEvents.some((e) => e.kind === k);
   const status: BatchStatus = has('released') ? 'released' : has('rejected') ? 'rejected' : has('qc_approved') ? 'QC approved'
     : has('production_approved') ? 'production approved' : open.length ? 'in production' : 'manufacturing complete';
-  return { status, open, late, deviations: devs, yieldOut, packing: !!doc.pack };
+  const exc = exceptions(events, batchEvents, read).map((x) => ({ ...x, where: stepLabel(doc, parseKey(x.step)!) }));
+  return { status, open, late, deviations: devs, exceptions: exc, yieldOut, packing: !!doc.pack };
 }
 
 /**
@@ -161,6 +191,13 @@ export function batchRefusal(action: BatchAction, v: BatchView, user: { id?: num
   if (!user.permissions.includes(rule.permission)) return { status: 403, error: 'forbidden', problems: ['You do not have the permission for this action.'] };
   const no = (...problems: string[]) => (problems.length ? { status: 409 as const, error: 'not_ready', problems } : null);
   const words = statusWords(v.status, v.packing);
+  if (action === 'close-exception' || action === 'send-exception') {
+    if (v.status === 'released' || v.status === 'rejected') return no(`The batch is ${words}.`);
+    const x = v.exceptions.find((e) => e.note === note);
+    if (!x) return no('There is no deviation note without a number with this number.');
+    if (x.decision !== 'open') return no(`This note is already ${x.decision === 'closed' ? 'closed here' : 'sent to Deviations'}.`);
+    return null;
+  }
   if (action === 'close-deviation' || action === 'terminate') {
     if (v.status === 'released' || v.status === 'rejected') return no(`The batch is ${words}.`);
     // Still in production: production has not signed the record. After that, QC and QA decide at release.
@@ -179,7 +216,12 @@ export function batchRefusal(action: BatchAction, v: BatchView, user: { id?: num
   if (action === 'qc-approve') return null;
   // TL-21: release or rejection only with every linked deviation closed; TL-18: a yield out of limits blocks release.
   const open = v.deviations.filter((d) => d.open).map((d) => `Deviation ${d.reference} (${d.where ?? `step ${d.step}`}) is ${d.status ? `still open in the Deviations system (${deviationStatusWords(d.status)}): it is closed there first` : 'open'}`);
-  return no(...open, ...(action === 'release' ? v.yieldOut : []));
+  // Owner decision 20 Nov 2026: every note without a number is decided first; a note sent to Deviations waits until
+  // Deviations has filed it (it is then a deviation above, closed there first).
+  const undecided = v.exceptions.filter((x) => x.decision !== 'closed').map((x) => x.decision === 'open'
+    ? `Deviation note “${x.text}” (${x.where ?? `step ${x.step}`}) waits for a decision: close it here or send it to Deviations`
+    : `Deviation note “${x.text}” (${x.where ?? `step ${x.step}`}) was sent to Deviations and is not filed there yet`);
+  return no(...open, ...undecided, ...(action === 'release' ? v.yieldOut : []));
 }
 
 /** What QA reviews before release (TL-21): every change, departure and finding of the batch. Signatures are the server's. */
@@ -193,6 +235,8 @@ export function review(doc: MasterDoc, events: readonly StepEvent[], batchEvents
     outOfLimits: steps.flatMap((s) => outOfLimits(s).map(([calc, r]) => ({ step: s.id, calc, shown: r.ok ? r.shown : '', notes: notes(s) }))),
     inputChanged: steps.filter((s) => s.inputChanged.length).map((s) => ({ step: s.id, changes: s.inputChanged })),
     deviations: deviations(events, batchEvents, read),
+    // Owner decision 20 Nov 2026: notes without a number, closed here or sent to Deviations, or waiting for a decision.
+    exceptions: exceptions(events, batchEvents, read),
     // Every value typed by hand because a link was absent or down (owner 15 Nov 2026), and who typed it.
     hand: events.flatMap((e) => Object.entries(e.payload.source ?? {}).filter(([, x]) => isHand(x))
       .map(([field, x]) => ({ step: keyId(e), event: e.id, kind: e.kind, field, ...(x as Extract<Source, { from: 'hand' }>), person: e.person, at: e.at }))),

@@ -4,7 +4,7 @@
 import type { Content, TDocumentDefinitions } from 'pdfmake/interfaces.js';
 import { findBlock, type Block } from '../shared/blocks/index.js';
 import { materialLines, type Step } from '../shared/master/schema.js';
-import { batchText, packText, batchView, deviations, deviationNumber, deviationText, fieldLabel, handFields, lateItems, lineQuantity, notYetText, cutShort, terminatedText, TERMINATED_STATE, openSteps, PROVIDER_NAME, deviationStatusWords, stepTitle, unitName, headline, limitOf, withoutVerdict, statusWords, CERTIFICATE, handWhy, perPackText, trainingOf, trainingText, trainingTyped, skillText, bulkCheckedText, bulkNotCheckedText, bulkOpenText, qcReportText, type BulkDeviations, type DeviationStatus, type EventKind, type Source, type Stored, type StepView, type Value } from '../shared/engine/index.js';
+import { batchText, packText, batchView, deviations, exceptions, exceptionText, NOTE_EVENTS, deviationNumber, deviationText, fieldLabel, handFields, lateItems, lineQuantity, notYetText, cutShort, terminatedText, TERMINATED_STATE, openSteps, PROVIDER_NAME, deviationStatusWords, stepTitle, unitName, headline, limitOf, withoutVerdict, statusWords, CERTIFICATE, handWhy, perPackText, trainingOf, trainingText, trainingTyped, skillText, bulkCheckedText, bulkNotCheckedText, bulkOpenText, qcReportText, type BulkDeviations, type DeviationStatus, type EventKind, type Source, type Stored, type StepView, type Value } from '../shared/engine/index.js';
 import type { LoadedBatch } from './routes/batches.js';
 import { pageFrame, plant, runs } from './pdf.js';
 import { plantText } from '../shared/plant-time.js';
@@ -19,7 +19,7 @@ export interface RecordInput extends LoadedBatch { versionNo: number; issuedByNa
 
 const MEANING: Record<string, string> = {
   issued: 'Issued', performed: 'Performed', verified: 'Verified (second person)', released: 'Released', rejected: 'Rejected',
-  production_approved: 'Production approved', qc_approved: 'QC approved',
+  production_approved: 'Production approved', qc_approved: 'QC approved', exception_closed: 'Exception closed here',
 };
 const EVENT: Record<EventKind, string> = {
   started: 'Started', value: 'Recorded', done: 'Signed as done', checked: 'Checked', sent_back: 'Sent back', corrected: 'Corrected',
@@ -128,6 +128,12 @@ export function batchRecordDoc(r: RecordInput, by: string, printedAt = new Date(
   // The deviations of the notes: the number written with the note, or the one Deviations filed from it (read live).
   const devs = deviations(events, batchEvents, r.deviationsRead);
   const devOf = (e: { id: number }) => devs.find((x) => x.note === e.id);
+  // Owner decision 20 Nov 2026: a note without a number is closed here or sent to Deviations (with who, when and why).
+  const excs = exceptions(events, batchEvents, r.deviationsRead);
+  const excText = (e: { id: number }) => {
+    const x = excs.find((y) => y.note === e.id);
+    return x ? exceptionText({ decision: x.decision, decided: x.decided && batchEvents.find((b) => b.id === x.decided!.id) }, plant) : '';
+  };
 
   // Every stage and step: values, worked calculation lines with limits and pass/fail, who did and checked what and when.
   doc.stages.forEach((s, si) => {
@@ -176,7 +182,7 @@ export function batchRecordDoc(r: RecordInput, by: string, printedAt = new Date(
     const d = devOf(e);
     const closed = d?.closed && batchEvents.find((b) => b.id === d.closed!.id);
     return [small(d ? deviationNumber(d) : '—'), small(stepLabel(`${e.stage}.${e.sub}.${e.step}.${e.round}`)), small(e.payload.text ?? ''), small(`${who(e.person)}, ${plant(e.at)}`),
-      small(!d ? 'note (no deviation number)' : d.status ? `${d.open ? 'OPEN: ' : ''}${deviationStatusWords(d.status)} in the Deviations system${d.closedAt ? `, ${plant(d.closedAt)}` : ''}` : d.open ? 'OPEN' : `closed by ${closed?.personName ?? ''}, ${plant(closed?.at)}: ${closed?.payload.reason ?? ''}`, d?.open ? { color: RED } : {})];
+      small(!d ? excText(e) || 'note (no deviation number)' : d.status ? `${d.open ? 'OPEN: ' : ''}${deviationStatusWords(d.status)} in the Deviations system${d.closedAt ? `, ${plant(d.closedAt)}` : ''}` : d.open ? 'OPEN' : `closed by ${closed?.personName ?? ''}, ${plant(closed?.at)}: ${closed?.payload.reason ?? ''}`, d?.open || excs.some((x) => x.note === e.id && x.decision !== 'closed') ? { color: RED } : {})];
   })));
 
   // Packing (whole-suite run, S24): the bulk batch's deviations still open, as read now; release waits for them. A link
@@ -207,7 +213,7 @@ export function batchRecordDoc(r: RecordInput, by: string, printedAt = new Date(
 
   // The decisions: production approval, QC approval (with the QC report), QA release or rejection.
   content.push(heading('Release decision'));
-  const decisions = batchEvents.filter((b) => b.kind !== 'deviation_closed');
+  const decisions = batchEvents.filter((b) => !NOTE_EVENTS.includes(b.kind));
   content.push(decisions.length ? { stack: decisions.map((b) => small(b === ended ? endedText! :
     `${MEANING[b.kind] ?? b.kind}: ${b.personName}, ${plant(b.at)}${b.payload.reportNo ? ` · ${plantText(qcReportText(b.payload), true)}` : ''}${b.payload.reason ? ` · reason: ${b.payload.reason}` : ''}${b.payload.bulk ? ` · ${bulkCheckedText(b.payload.bulk)}` : ''}`,
     { fontSize: 9, bold: b.kind === 'released' || b.kind === 'rejected', color: b.kind === 'rejected' ? RED : undefined, margin: [0, 0, 0, 2] })) }

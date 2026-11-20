@@ -103,13 +103,64 @@ describe('batch signatures', () => {
     const values = { output: { value: '9.000', unit: 'kg' }, samples: { value: '0.100', unit: 'kg' }, rejects: { value: '0.100', unit: 'kg' } };
     const results = evaluate(d, [], { stage: 0, sub: 1, step: 0, round: 1 }, values);
     expect(results.yield).toMatchObject({ value: '90', check: { pass: false } });
-    const events = [ev('started', '0.1.0.1'), ev('value', '0.1.0.1', { payload: { values, results } }), ev('note', '0.1.0.1', { payload: { text: 'Spillage' } }), ev('done', '0.1.0.1')];
-    expect(batchRefusal('release', view(events, approved, d), people.qa)?.problems).toEqual(['The yield of Stage 0 › Stage yield is out of limits: a deviation note with its reference is needed']);
-    expect(batchRefusal('reject', view(events, approved, d), people.qa)).toBeNull();
+    const spill = ev('note', '0.1.0.1', { payload: { text: 'Spillage' } });
+    const events = [ev('started', '0.1.0.1'), ev('value', '0.1.0.1', { payload: { values, results } }), spill, ev('done', '0.1.0.1')];
+    // The note without a number is an exception, closed here (owner decision 20 Nov 2026): it does not stand for the yield.
+    const decided = [...approved, be('exception_closed', { note: spill.id, reason: 'Spillage swept, counted in rejects' })];
+    expect(batchRefusal('release', view(events, decided, d), people.qa)?.problems).toEqual(['The yield of Stage 0 › Stage yield is out of limits: a deviation note with its reference is needed']);
+    expect(batchRefusal('reject', view(events, decided, d), people.qa)).toBeNull();
     const dev = ev('note', '0.1.0.1', { payload: { text: 'Spillage at discharge', reference: 'DEV-26-007' } });
-    expect(batchRefusal('release', view([...events, dev], approved, d), people.qa)?.problems).toEqual(['Deviation DEV-26-007 (Stage 0 › Stage yield) is open']);
-    const closed = [...approved, be('deviation_closed', { note: dev.id, reason: 'Root cause found; yield accepted' })];
+    expect(batchRefusal('release', view([...events, dev], decided, d), people.qa)?.problems).toEqual(['Deviation DEV-26-007 (Stage 0 › Stage yield) is open']);
+    const closed = [...decided, be('deviation_closed', { note: dev.id, reason: 'Root cause found; yield accepted' })];
     expect(batchRefusal('release', view([...events, dev], closed, d), people.qa)).toBeNull();
+  });
+});
+
+describe('a deviation note without a number: closed here or sent to Deviations (owner decision 20 Nov 2026)', () => {
+  const bare = ev('note', '0.1.0.1', { min: 5, payload: { text: 'Granules spilled at discharge' } });
+  const decider = { id: 9, permissions: ['truebatch_liquids.exception.decide'] };
+  const both = { permissions: ['truebatch_liquids.qa.release', 'truebatch_liquids.exception.decide'] };
+  const closedHere = be('exception_closed', { note: bare.id, reason: 'Swept up, weighed into rejects' });
+  const sent = be('exception_sent', { note: bare.id });
+
+  it('TL-21 the note is an exception waiting for a decision; a note with a number is not', () => {
+    const v = view([...complete, bare, deviation], approved);
+    expect(v.exceptions).toMatchObject([{ note: bare.id, decision: 'open', text: 'Granules spilled at discharge', where: 'Stage 0 › Check a value against limits: pH' }]);
+    expect(view([...complete, bare], [...approved, closedHere]).exceptions).toMatchObject([{ decision: 'closed', decided: { payload: { reason: 'Swept up, weighed into rejects' } } }]);
+    expect(view([...complete, bare], [...approved, sent]).exceptions).toMatchObject([{ decision: 'sent' }]);
+  });
+
+  it.each<[string, BatchAction, { permissions: string[] }, BatchEvent[], number, string | null]>([
+    ['close it here', 'close-exception', decider, [], bare.id, null],
+    ['send it to Deviations', 'send-exception', decider, [], bare.id, null],
+    ['close it without the permission (QA release is not enough)', 'close-exception', people.qa, [], bare.id, 'You do not have the permission for this action.'],
+    ['send it without the permission', 'send-exception', people.operator, [], bare.id, 'You do not have the permission for this action.'],
+    ['close it twice', 'close-exception', decider, [closedHere], bare.id, 'This note is already closed here.'],
+    ['send it after it was closed here', 'send-exception', decider, [closedHere], bare.id, 'This note is already closed here.'],
+    ['close it after it was sent', 'close-exception', decider, [sent], bare.id, 'This note is already sent to Deviations.'],
+    ['decide a note with a deviation number', 'close-exception', decider, [], deviation.id, 'There is no deviation note without a number with this number.'],
+    ['decide after release', 'send-exception', decider, [be('released')], bare.id, 'The batch is released.'],
+  ])('TL-21 %s', (_what, action, who, batch, note, want) => {
+    expect(batchRefusal(action, view([...complete, bare, deviation], [...approved, ...batch]), who, note)?.problems[0] ?? null).toBe(want);
+  });
+
+  it('TL-21 release and rejection wait for the decision, and for Deviations to file a note sent there', () => {
+    const where = 'Stage 0 › Check a value against limits: pH';
+    expect(batchRefusal('release', view([...complete, bare], approved), both)?.problems).toEqual([`Deviation note “Granules spilled at discharge” (${where}) waits for a decision: close it here or send it to Deviations`]);
+    expect(batchRefusal('reject', view([...complete, bare], approved), both)?.problems).toHaveLength(1);
+    expect(batchRefusal('release', view([...complete, bare], [...approved, sent]), both)?.problems).toEqual([`Deviation note “Granules spilled at discharge” (${where}) was sent to Deviations and is not filed there yet`]);
+    expect(batchRefusal('release', view([...complete, bare], [...approved, closedHere]), both)).toBeNull();
+    // Filed by Deviations from the sent note: it is that deviation now, closed there first.
+    const filed = new Map([[`note:${bare.id}`, { status: 'investigation', closedAt: null, number: 'DEV-26-0100' }]]);
+    const v = batchView(doc, [...complete, bare], [...approved, sent], at(1000), filed);
+    expect(v.exceptions).toEqual([]);
+    expect(batchRefusal('release', v, both)?.problems[0]).toContain('DEV-26-0100');
+    // Production approval is not held by a note waiting for a decision (QA decides at release).
+    expect(batchRefusal('production-approve', view([...complete, bare]), people.supervisor)).toBeNull();
+  });
+
+  it('TL-21 QA\'s review lists the exceptions with the decision', () => {
+    expect(review(doc, [...complete, bare], [closedHere], at(1000)).exceptions).toMatchObject([{ note: bare.id, decision: 'closed', decided: { payload: { reason: 'Swept up, weighed into rejects' } } }]);
   });
 });
 

@@ -16,3 +16,4 @@
 .dash-panel .panel-head a.button { margin-left: auto; text-decoration: none; }
 @media (max-width: 640px) { .rv-list li.sig { grid-template-columns: 1fr; } }
 .pending-what a { color: inherit; }
+.rv-list .ex-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }

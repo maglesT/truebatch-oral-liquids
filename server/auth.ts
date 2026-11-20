@@ -17,6 +17,7 @@ export const PERMISSIONS = {
   'truebatch_liquids.qa.release': 'QA review and release of bulk tablets',
   'truebatch_liquids.view': 'View batch records and master versions',
   'truebatch_liquids.demo.skip': 'Skip a running wait (demo installations only)',
+  'truebatch_liquids.exception.decide': 'Decide a deviation note without a number: close it here (reason and e-signature) or send it to Deviations',
 } as const;
 export type Permission = keyof typeof PERMISSIONS;
 export const CODES = Object.keys(PERMISSIONS) as Permission[];

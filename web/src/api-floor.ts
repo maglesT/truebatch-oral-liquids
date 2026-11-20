@@ -25,9 +25,11 @@ export interface StepRow {
 export interface TimerRow { id: string; kind: 'hold' | 'periodic' | 'minimum' | 'duration'; key: StepKey; label: string; from: string; at: string; state: 'running' | 'due soon' | 'due' | 'late'; skipped?: { person: number | null; at: string } }
 export interface StageRow { index: number; key: string; name: string; open: boolean; blocked?: string; closed: boolean }
 export interface Deviation { note: number; step: string; reference: string; text: string; open: boolean; status?: string; closedAt?: string | null; filed?: boolean; typed?: boolean }
+/** Owner decision 20 Nov 2026: a deviation note without a number, closed here or sent to Deviations (shared/engine/release.ts). */
+export interface ExceptionRow { note: number; step: string; text: string; decision: 'open' | 'closed' | 'sent'; where?: string; decided?: { personName?: string; at: string; payload: { reason?: string } } }
 export interface BatchDetail {
   now: string;
-  batch: { id: number; batchNo: string; issuedAt: string; status: string; open: string[]; late: string[]; deviations: Deviation[]; yieldOut: string[]; contentHash: string; actions: string[]; deviationsLink: string;
+  batch: { id: number; batchNo: string; issuedAt: string; status: string; open: string[]; late: string[]; deviations: Deviation[]; exceptions: ExceptionRow[]; yieldOut: string[]; contentHash: string; actions: string[]; deviationsLink: string;
     terminated: { personName: string; at: string; payload: { reason?: string; returns?: Returned[] } } | null;
     // What the batch has used of each lot (signed steps), as published to MMS: terminating asks what went back to stores.
     issued: Returned[] };

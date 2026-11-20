@@ -31,6 +31,8 @@ beforeAll(async () => {
     author: ['truebatch_liquids.master.author', 'truebatch_liquids.view'], issuer: ['truebatch_liquids.batch.issue'], viewer: ['truebatch_liquids.view'],
     asha: ['truebatch_liquids.batch.operate', 'truebatch_liquids.batch.check'], ravi: ['truebatch_liquids.batch.check'], meera: ['truebatch_liquids.qa.release'],
     sam: ['truebatch_liquids.batch.supervise'], quinn: ['truebatch_liquids.qc.approve'],
+    // Owner decision 20 Nov 2026: decides notes without a number (per employee).
+    dina: ['truebatch_liquids.exception.decide'],
   } as const;
   for (const [name, perms] of Object.entries(people)) {
     await seedUser(t.owner, name, [...perms]);
@@ -338,7 +340,8 @@ describe('walking a stage', () => {
 describe('production approval, QC approval and QA release', () => {
   let id: number;
   let note: number;
-  const full = async () => (await as('viewer', 'GET', `/api/batches/${id}`)).json() as { batch: { status: string; contentHash: string; actions: string[]; open: string[] } };
+  let bare: number;
+  const full = async () => (await as('viewer', 'GET', `/api/batches/${id}`)).json() as { batch: { status: string; contentHash: string; actions: string[]; open: string[]; exceptions: unknown[] } };
   const batchAct = (who: string, action: string, body: object) => as(who, 'POST', `/api/batches/${id}/${action}`, body);
   const batchSign = async (who: string, action: string, extra: object = {}) => batchAct(who, action, { proof: proofFor(who), contentHash: (await full()).batch.contentHash, ...extra });
   beforeAll(async () => {
@@ -373,6 +376,8 @@ describe('production approval, QC approval and QA release', () => {
     const n = await act('asha', id, '0.1.0.1', 'note', { text: 'pH meter found out of calibration', reference: 'DEV-26-010' });
     expect(n.statusCode).toBe(200);
     note = (n.json() as { eventId: number }).eventId;
+    // A note without a number: an exception of the record, decided before release (owner decision 20 Nov 2026).
+    bare = ((await act('asha', id, '0.1.0.1', 'note', { text: 'Granules spilled at discharge' })).json() as { eventId: number }).eventId;
   });
 
   const toReview = async (who: string) => ((await as(who, 'GET', '/api/batches/to-review')).json() as { id: number; waiting: string; openDeviations: number }[]).filter((b) => b.id === id);
@@ -388,10 +393,17 @@ describe('production approval, QC approval and QA release', () => {
     expect((await batchSign('quinn', 'qc-approve', { reportNo: 'QC-26-0042' })).statusCode).toBe(200);
     expect([await toReview('quinn'), await toReview('meera')]).toMatchObject([[], [{ waiting: 'QA', openDeviations: 1 }]]);
     expect((await batchSign('meera', 'reject', {})).statusCode).toBe(400);
-    expect((await batchSign('meera', 'release')).json()).toMatchObject({ error: 'not_ready', problems: ['Deviation DEV-26-010 (Stage 0 › Check a value against limits: pH) is open'] });
+    expect((await batchSign('meera', 'release')).json()).toMatchObject({ error: 'not_ready', problems: ['Deviation DEV-26-010 (Stage 0 › Check a value against limits: pH) is open',
+      'Deviation note “Granules spilled at discharge” (Stage 0 › Check a value against limits: pH) waits for a decision: close it here or send it to Deviations'] });
     expect((await batchAct('quinn', 'close-deviation', { note, reason: 'x' })).statusCode).toBe(403);
     expect((await batchAct('meera', 'close-deviation', { note, reason: 'Meter recalibrated; results confirmed by a second meter' })).statusCode).toBe(200);
     expect((await batchAct('meera', 'close-deviation', { note, reason: 'again' })).statusCode).toBe(409);
+    // The exception: QA release is not the permission (her signing proof does not carry it); without Deviations linked it can only be closed here.
+    expect((await batchSign('meera', 'close-exception', { note: bare, reason: 'x' })).statusCode).toBe(401);
+    expect((await batchAct('dina', 'send-exception', { note: bare })).json()).toMatchObject({ error: 'not_linked', problems: ['Deviations is not linked: close it here.'] });
+    expect((await batchAct('dina', 'close-exception', { note: bare, reason: 'x' })).statusCode).toBe(400);
+    expect((await batchSign('dina', 'close-exception', { note: bare, reason: 'Swept up and weighed into the rejects' })).statusCode).toBe(200);
+    expect((await full()).batch.exceptions).toMatchObject([{ note: bare, decision: 'closed', decided: { personName: 'DINA' } }]);
     expect((await batchSign('meera', 'release')).statusCode).toBe(200);
     expect((await full()).batch).toMatchObject({ status: 'released', actions: [] });
     // batch_fact_v1 says who released the batch (the name as signed) and when (the release event's time).
@@ -404,7 +416,7 @@ describe('production approval, QC approval and QA release', () => {
     const r = (await as('viewer', 'GET', `/api/batches/${id}/review`)).json() as { status: string; deviations: unknown[]; signatures: { meaning: string; printedName: string }[] };
     expect(r.status).toBe('released');
     expect(r.deviations).toMatchObject([{ reference: 'DEV-26-010', open: false, closed: { personName: 'MEERA' } }]);
-    expect(r.signatures.map((x) => `${x.meaning} ${x.printedName}`)).toEqual(['issued ISSUER', 'performed ASHA', 'performed ASHA', 'verified RAVI', 'production_approved SAM', 'qc_approved QUINN', 'released MEERA']);
+    expect(r.signatures.map((x) => `${x.meaning} ${x.printedName}`)).toEqual(['issued ISSUER', 'performed ASHA', 'performed ASHA', 'verified RAVI', 'production_approved SAM', 'qc_approved QUINN', 'exception_closed DINA', 'released MEERA']);
   });
 
   it('TL-22 the batch record PDF is produced, with the QC report, the release decision and every signature with its meaning', async () => {
@@ -420,13 +432,14 @@ describe('production approval, QC approval and QA release', () => {
     expect(text).toMatch(/Released: MEERA, .* IST/);
     expect(text).toMatch(/DEV-26-010 \(typed by hand\) \| .* \| pH meter found out of calibration \| ASHA, .* \| closed by MEERA, .*: Meter recalibrated; results confirmed by a second meter/);
     expect(text).toContain('Stage · yield 99.0 %');
+    expect(text).toMatch(/Granules spilled at discharge \| ASHA, .* \| Exception closed here by DINA, .*: Swept up and weighed into the rejects/);
     for (const m of ['Issued | ISSUER', 'Performed | ASHA', 'Verified (second person) | RAVI', 'Production approved | SAM', 'QC approved | QUINN', 'Released | MEERA']) expect(text).toContain(m);
     expect(text).not.toContain('not a released record');
   });
 
   it('TL-05 every step and batch action is in TrueBatch\'s own audit trail', async () => {
     const rows = await t.owner<{ action: string }[]>`select distinct action from audit_log where object_type = 'batch' and object_id = ${String(id)} order by action`;
-    expect(rows.map((r) => r.action)).toEqual(['batch.deviation_closed', 'batch.issued', 'batch.production_approved', 'batch.qc_approved', 'batch.released', 'batch.stage_closed', 'signed.issued',
+    expect(rows.map((r) => r.action)).toEqual(['batch.deviation_closed', 'batch.exception_closed', 'batch.issued', 'batch.production_approved', 'batch.qc_approved', 'batch.released', 'batch.stage_closed', 'signature.failed', 'signed.issued',
       'step.checked', 'step.done', 'step.note', 'step.started', 'step.value']);
   });
 

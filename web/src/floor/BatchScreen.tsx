@@ -10,6 +10,7 @@ import { StepScreen } from './StepScreen.js';
 import { DemoSkip } from './DemoSkip.js';
 import { Terminate, terminatedText } from '../release/Terminate.js';
 import { deviationText } from '../../../shared/engine/release.js';
+import { Exceptions } from '../components/Exceptions.js';
 import './floor.css';
 
 // One batch on the floor: its header, the stages as a progress bar and the alerts, then the overview, one step, or
@@ -46,7 +47,7 @@ export function BatchScreen({ me, id, step, approve }: { me: Me; id: number; ste
       {error && <p className="notice bad" role="alert">{error}</p>}
       {step ? (row ? <StepScreen me={me} d={d} blocks={blocks} row={row} now={now} reload={reload} /> : <p className="notice">This step is not open in the batch yet.</p>)
         : approve ? <Approval d={d} blocks={blocks} reload={reload} />
-        : <><Overview d={d} blocks={blocks} now={now} reload={() => reload()} /><DemoSkip me={me} d={d} reload={() => reload()} /></>}
+        : <><Overview me={me} d={d} blocks={blocks} now={now} reload={() => reload()} /><DemoSkip me={me} d={d} reload={() => reload()} /></>}
     </div>
   );
 }
@@ -79,7 +80,7 @@ export function BatchHeader({ d }: { d: BatchDetail }) {
 
 const finished = (s: StepRow) => ['done', 'checked', 'not_applicable'].includes(s.state);
 
-function Overview({ d, blocks, now, reload }: { d: BatchDetail; blocks: Block[]; now: number; reload: () => Promise<void> }) {
+function Overview({ me, d, blocks, now, reload }: { me: Me; d: BatchDetail; blocks: Block[]; now: number; reload: () => Promise<void> }) {
   const at = d.stages.find((s) => s.open && !s.closed) ?? d.stages.find((s) => !s.closed);
   // A batch terminated, released or rejected runs no more: no stage is "now"; one left unclosed says Terminated.
   const ended = !!d.batch.terminated || ['released', 'rejected'].includes(d.batch.status);
@@ -121,6 +122,11 @@ function Overview({ d, blocks, now, reload }: { d: BatchDetail; blocks: Block[];
           })}
         </div>
       </section>
+      {d.batch.exceptions.length > 0 && <section className="dash-panel" aria-label="Deviation notes without a number">
+        <div className="panel-head"><h2>Deviation notes without a number</h2><span className="muted">closed here (reason and signature) or sent to Deviations</span></div>
+        <Exceptions me={me} batchId={d.batch.id} batchNo={d.batch.batchNo} exceptions={d.batch.exceptions} contentHash={d.batch.contentHash} deviationsLink={d.batch.deviationsLink}
+          ended={ended} stepName={(k) => k} onDone={async () => reload()} />
+      </section>}
       {!d.batch.terminated && <section className="dash-panel" aria-label="Production approval">
         <div className="panel-head"><h2>Production approval</h2><span className="muted">when every stage is closed</span></div>
         <button className="big" onClick={() => go(`${batchLink(d.batch.id)}/approve`)}>{d.batch.status === 'manufacturing complete' ? 'Review and approve the record' : 'See what is still open'}</button>
@@ -159,6 +165,7 @@ export function Alerts({ d, blocks, now, only }: { d: BatchDetail; blocks: Block
     if (s.inputChanged.length) items.push({ tone: 'warn', tag: 'Input changed', text: title(s.key), sub: 'A value this step used was corrected: sign it again', step: s.id });
   }
   for (const v of d.batch.deviations.filter((x) => x.open)) items.push({ tone: 'bad', tag: 'Open deviation', text: `${deviationText(v)}: ${v.text}`, step: v.step });
+  for (const v of d.batch.exceptions.filter((x) => x.decision === 'open')) items.push({ tone: 'warn', tag: 'Note to decide', text: v.text, sub: 'Close it here or send it to Deviations', step: v.step });
   const shown = only ? items.filter((x) => x.step === only) : items;
   if (!shown.length) return only ? null : <p className="all-good"><span aria-hidden="true">✓</span> No alerts on this batch.</p>;
   return (

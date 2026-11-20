@@ -15,7 +15,7 @@ import { blocking, masterChecks } from '../../shared/master/checks.js';
 import type { MasterDoc } from '../../shared/master/schema.js';
 import { Dec } from '../../shared/templates/index.js';
 import {
-  ACTIONS, BATCH_ACTIONS, CERTIFICATE, DEVIATION_DONE, LINK_OF, bulkRefusal, MATERIAL_USE, batchRefusal, filedKey, inLotUnit, issuedLots, bulkLeft, returnProblems, returnsOf, usedQuantity, usesOfLot, stepLabel, stepPlace, stepTitle, handFields, isHand, batchView, doneProblems, evaluate, lateItems, openSteps, parseKey, readValue, refusal, review, timers,
+  ACTIONS, BATCH_ACTIONS, NOTE_ACTIONS, NOTE_EVENTS, CERTIFICATE, DEVIATION_DONE, LINK_OF, bulkRefusal, MATERIAL_USE, batchRefusal, filedKey, inLotUnit, issuedLots, bulkLeft, returnProblems, returnsOf, usedQuantity, usesOfLot, stepLabel, stepPlace, stepTitle, handFields, isHand, batchView, doneProblems, evaluate, lateItems, openSteps, parseKey, readValue, refusal, review, timers,
   trainingCheck, trainingTyped, coaText, resultText, inProcessText, isPick, keyId, labRequestId, labTests, ipcCodes, currentValues, endsTheRounds, requestRound, type Training,
   type Action, type BatchAction, type BatchEvent, type BulkChecked, type BulkDeviation, type BulkIssue, type BulkDeviations, type DeviationStatus, type LinkState, type Source, type StageView, type Stored, type StepEvent, type StepKey, type StepView, type Timer, type Value,
 } from '../../shared/engine/index.js';
@@ -350,6 +350,9 @@ const BATCH_BODIES: Record<BatchAction, z.ZodTypeAny> = {
   // Per lot the batch used: how much went back to stores unused (stock.ts issuedLots, returnProblems).
   terminate: signBody.extend({ reason, returns: z.array(z.object({ lot: z.string().max(60), value: z.string().trim().regex(/^\d+(\.\d+)?$/, 'a quantity, 0 or more'), unit: z.string().max(20) })).max(200).optional() }),
   'close-deviation': z.object({ note: z.number().int().positive(), reason }),
+  // Owner decision 20 Nov 2026: a note without a number, closed here (reason, e-signature) or sent to Deviations.
+  'close-exception': signBody.extend({ note: z.number().int().positive(), reason }),
+  'send-exception': z.object({ note: z.number().int().positive() }),
 };
 // GET /api/batches/:id shows the last few events of each step; the full history is per step.
 const LAST_EVENTS = 5;
@@ -588,10 +591,10 @@ export function batchRoutes(app: FastifyInstance, sql: Sql) {
       const bv = view(l, (await deviationsRead(app, l)).read);
       const waiting = bv.status === 'production approved' ? 'QC' : bv.status === 'QC approved' ? 'QA' : 'production';
       if (!req.user!.permissions.includes(waiting === 'QC' ? 'truebatch_liquids.qc.approve' : 'truebatch_liquids.qa.release')) continue;
-      const last = l.batchEvents.filter((e) => e.kind !== 'deviation_closed').at(-1);
+      const last = l.batchEvents.filter((e) => !NOTE_EVENTS.includes(e.kind)).at(-1);
       out.push({ id, batchNo: l.batch.batchNo, productCode: l.doc.header.productCode, productName: l.doc.header.productName, status: bv.status, waiting,
         since: last?.at ?? l.batch.issuedAt, by: last?.personName ?? '', openDeviations: bv.deviations.filter((d) => d.open).length,
-        actions: BATCH_NAMES.filter((a) => a !== 'close-deviation' && !batchRefusal(a, bv, req.user!)) });
+        actions: BATCH_NAMES.filter((a) => !NOTE_ACTIONS.includes(a) && !batchRefusal(a, bv, req.user!)) });
     }
     return out;
   });
@@ -609,7 +612,7 @@ export function batchRoutes(app: FastifyInstance, sql: Sql) {
     // A released or rejected batch takes no more step actions and runs no more timers (a terminated one included).
     const decided = bv.status === 'released' || bv.status === 'rejected';
     return {
-      batch: { ...l.batch, ...bv, deviationsLink: dv.link, contentHash: batchHash(l), actions: BATCH_NAMES.filter((a) => a !== 'close-deviation' && !batchRefusal(a, bv, req.user!)),
+      batch: { ...l.batch, ...bv, deviationsLink: dv.link, contentHash: batchHash(l), actions: BATCH_NAMES.filter((a) => !NOTE_ACTIONS.includes(a) && !batchRefusal(a, bv, req.user!)),
         terminated: l.batchEvents.find((e) => e.payload.terminated) ?? null,
         // What the batch has used of each lot: what terminating it asks about (the quantities that went back to stores).
         issued: issuedLots(l.doc, steps) },
@@ -789,8 +792,11 @@ export function batchRoutes(app: FastifyInstance, sql: Sql) {
           await tx`select pg_advisory_xact_lock(${id}::bigint)`;
           const l = await loadBatch(tx, id);
           if (!l) throw new StepError(404, 'not_found');
-          const no = batchRefusal(action, view(l, (await deviationsRead(app, l)).read), user, b.note);
+          const dv = await deviationsRead(app, l);
+          const no = batchRefusal(action, view(l, dv.read), user, b.note);
           if (no) throw new StepError(no.status, no.error, no.problems);
+          // Sent to Deviations only where there is a Deviations system to file it (owner decision 20 Nov 2026).
+          if (action === 'send-exception' && dv.link === 'absent') throw new StepError(409, 'not_linked', ['Deviations is not linked: close it here.']);
           // Packing (S24): the bulk batch's deviations, all closed in the Deviations system, or confirmed by QA by hand.
           const bulk = action === 'release' ? await bulkDeviations(app, l) : null;
           const held = bulkRefusal(bulk, b.bulkChecked);
