@@ -6,6 +6,7 @@ import { charge } from './charge.js';
 import { check } from './check.js';
 import { coatingSuspension } from './coating-suspension.js';
 import { densityFlow } from './density-flow.js';
+import { dissolution } from './dissolution.js';
 import { dryConstant } from './dry-constant.js';
 import { dryMix } from './dry-mix.js';
 import { dry } from './dry.js';
@@ -46,7 +47,8 @@ export const BLOCKS: readonly Block[] = [
   L.filtration, L.bulkTest, L.bulkAdjust, L.bulkTransfer, L.bulkYield, L.bulkYieldWeight, L.roomStatus,
   // A dry syrup: sifting, (wet) granulation, blending and coating of granules.
   sift, binderSolution, coatingSuspension, dryMix, mix, granulate, dry, dryConstant, sieve,
-  subBatchCombine, blendUniformity, densityFlow, sprayCoat, check, qaSample, stageYield, lineClearance,
+  // A suspension or a dry syrup: dissolution in the QC lab, picked from LIMS (fix round 21 Nov 2026).
+  subBatchCombine, blendUniformity, densityFlow, dissolution, sprayCoat, check, qaSample, stageYield, lineClearance,
   // Any edition: assembling devices (a dosing device or dropper, autoinjectors, inhalers) from a component lot.
   deviceAssembly,
   // TrueBatch Liquids Packing, in the order of a packing record.

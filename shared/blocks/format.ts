@@ -143,7 +143,10 @@ export function blockProblems(b: Block): string[] {
     if (f.figure === 'AV' && !b.settings.some((s) => s.name === 'coating')) p.push(`field ${f.name}: the acceptance value needs the coating setting`);
     if (f.nextStage) {
       const next = b.fields.find((x) => x.name === f.nextStage);
-      if (!next || next.qc !== 'in_process' || next.count === undefined || f.count === undefined || f.qc !== 'in_process' || next.nextStage) {
+      // A3 (fix round 21 Nov 2026): a chain of stages (dissolution 6, 6, 12), never back to an earlier one.
+      const seen = new Set([f.name]);
+      for (let x = next; x?.nextStage; x = b.fields.find((y) => y.name === x!.nextStage)) { if (seen.has(x.name)) { p.push(`field ${f.name}: the stages go round in a circle`); break; } seen.add(x.name); }
+      if (!next || next.qc !== 'in_process' || next.count === undefined || f.count === undefined || f.qc !== 'in_process') {
         p.push(`field ${f.name}: the next stage is another in-process list of readings`);
       }
     }

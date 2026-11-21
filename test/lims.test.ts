@@ -885,3 +885,35 @@ describe('round 45: in-process test codes unique within the product (lab_request
     });
   });
 });
+
+describe('A3 dissolution in three stages, picked from LIMS (fix round 21 Nov 2026)', () => {
+  const d = findBlock({ id: 'dissolution', version: 1 })!;
+  const [s1, s2, s3] = d.fields;
+  const six = ['85', '88', '90', '86', '87', '89'];
+  const r = (individual: string[], reported?: string): QcResult => ({ resultId: 'r', coaId: 'c', coaNumber: 'IPR2600009', testName: 'Dissolution', unit: '%', limitText: null, analysisNumber: null, outsideLab: null,
+    requestId: 'TB260001/0.1.0.1', individual, figure: 'mean', reported: reported ?? null, ipcCode: 'dissolution' });
+  const codes = ipcCodes({ stages: [{ steps: [{ block: { id: 'dissolution' } }] }] }, 0, 0, d.fields);
+  it('one test of 24 values in LIMS: code, label and stages of the lab request', () => {
+    expect(codes).toEqual({ results: 'dissolution', moreResults: 'dissolution', lastResults: 'dissolution' });
+    expect(labTests(d.fields, () => '%', codes)).toEqual([{ code: 'dissolution', name: 'results', unit: '%', individual: 24, stages: [6, 6, 12],
+      label: 'Dissolved, 6 units (% of label claim), then dissolved, 6 more units (% of label claim), then dissolved, 12 more units (% of label claim)' }]);
+    expect(blockProblems(d)).toEqual([]);
+  });
+  it('6, 12 or 24 values fill the stages in order; a later stage alone needs the earlier ones recorded and agreeing', () => {
+    const twelve = [...six, '70', '75', '80', '82', '84', '86'];
+    const all = [...twelve, ...Array.from({ length: 12 }, () => '80')];
+    expect(inProcessFit(r(six), s1!, '%', d.fields, {}, undefined, codes)).toEqual({ take: { results: six } });
+    expect(inProcessFit(r(twelve), s1!, '%', d.fields, {}, undefined, codes)).toEqual({ take: { results: six, moreResults: twelve.slice(6) } });
+    expect(inProcessFit(r(all), s1!, '%', d.fields, {}, undefined, codes)).toEqual({ take: { results: six, moreResults: twelve.slice(6), lastResults: all.slice(12) } });
+    expect(inProcessFit(r(six.slice(0, 5)), s1!, '%', d.fields, {}, undefined, codes)).toMatchObject({ error: expect.stringContaining('takes exactly 6 (or 12 with dissolved, 6 more units (% of label claim), or 24 with') });
+    const rec = (vals: string[]) => vals.map((value) => ({ value, unit: '%' }));
+    // Stage 3 alone: stages 1 and 2 recorded first.
+    expect(inProcessFit(r(all.slice(12)), s3!, '%', d.fields, { results: rec(six) }, undefined, codes)).toMatchObject({ error: 'Pick dissolved, 6 more units (% of label claim) first: Dissolution of in-process report IPR2600009 has only the 12 values of the next stage.' });
+    expect(inProcessFit(r(all.slice(12)), s3!, '%', d.fields, { results: rec(six), moreResults: rec(twelve.slice(6)) }, undefined, codes)).toEqual({ take: { lastResults: all.slice(12) } });
+    // All 24 to stage 3 with stage 1 recorded otherwise: refused.
+    expect(inProcessFit(r(all), s3!, '%', d.fields, { results: rec(['1', ...six.slice(1)]), moreResults: rec(twelve.slice(6)) }, undefined, codes)).toMatchObject({ error: expect.stringContaining('are not the 12 recorded') });
+    // LIMS's mean of all 24 must agree.
+    expect(inProcessFit(r(all.slice(12), '50.0'), s3!, '%', d.fields, { results: rec(six), moreResults: rec(twelve.slice(6)) }, undefined, codes)).toMatchObject({ error: expect.stringContaining('works it out from the same 24 values') });
+    expect(s2!.optional).toBe(true);
+  });
+});

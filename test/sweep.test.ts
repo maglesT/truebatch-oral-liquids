@@ -31,6 +31,7 @@ const SETTINGS: Record<string, Step['settings']> = {
   dry: { lodLimit: { high: '2.0', unit: '%' } },
   'dry-constant': { maxChange: '0.5 g' },
   'sub-batch-combine': { accountabilityLimit: pct('99.0', '100.5') },
+  dissolution: { test: 'dissolution IR', q: '80', timePoint: '30 min, 900 mL pH 6.8' },
   'blend-uniformity': { meanLimit: pct('90.0', '110.0'), rsdLimit: { high: '5.0', unit: '%' }, individualLimit: pct('85.0', '115.0') },
   'density-flow': { carrLimit: { high: '20', unit: '%' }, hausnerLimit: { high: '1.25', unit: '' }, reposeLimit: { high: '40', unit: '°' } },
   compress: weights,
