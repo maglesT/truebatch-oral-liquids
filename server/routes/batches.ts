@@ -4,7 +4,8 @@ import type { Sql, Tx } from '../db.js';
 import { audit } from '../audit.js';
 import { parseId, requirePermission, type SessionUser } from '../auth.js';
 import { usableItem } from '../master.js';
-import { dispensingRooms, machineRefusal, roomRefusal } from '../../shared/engine/picks.js';
+import { dispensingRooms, isBalance, machineRefusal, roomRefusal } from '../../shared/engine/picks.js';
+import { weighTarget } from '../../shared/engine/values.js';
 import { handProblem, lineOf, mfgDateProblem, pullBulk, pullCoa, pullInProcess, pullItem, pullLot, pullQcResult, pulledWords, usableCoas, usableInProcess, usableResults } from '../pull.js';
 import { SignError, authenticateSigner, contentHash, sign, signBody } from '../signatures.js';
 import { masterVersion } from './masters.js';
@@ -240,7 +241,8 @@ async function readValues(app: FastifyInstance, tx: Tx, doc: MasterDoc, key: Ste
       const rooms = await app.master.rooms();
       const item = f.kind === 'machine' ? usableItem(await app.master.equipment(), String(x), 'machine') : usableItem(rooms, String(x), 'room');
       const type = 'type' in item ? item.type : item.area;
-      const no = 'type' in item ? machineRefusal(stage, f, item, rooms, dispensingRooms(doc, rooms)) : roomRefusal(stage, item);
+      // A8: a balance within its range for the quantity this step weighs.
+      const no = 'type' in item ? machineRefusal(stage, f, item, rooms, dispensingRooms(doc, rooms), isBalance(f) ? weighTarget(doc, key, current.results) : undefined) : roomRefusal(stage, item);
       if (no) { problems.push(no); continue; }
       // The area of the room it stands in, so a later stage that runs in that area keeps it in use by the batch (equipment_use_v1).
       const room = 'room' in item ? item.room : item.code;

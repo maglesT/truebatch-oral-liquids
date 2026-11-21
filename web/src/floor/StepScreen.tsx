@@ -13,7 +13,7 @@ import { ReasonDialog } from './ReasonDialog.js';
 import { CERTIFICATE, fieldLabel, handEntered, LINK_OF } from '../../../shared/engine/links.js';
 import { answersField, inProcessFit, ipcCodes, labRequestId, sameUnit } from '../../../shared/engine/lims.js';
 import { askedFields, cutShort, notYetText } from '../../../shared/engine/batch.js';
-import { limitInReadingUnit, lineQuantity } from '../../../shared/engine/values.js';
+import { limitInReadingUnit, lineQuantity, weighTarget } from '../../../shared/engine/values.js';
 import { plantText } from '../../../shared/plant-time.js';
 import { dispensingRooms, emptyNote, inLogbook, machineRefusal, roomRefusal } from '../../../shared/engine/picks.js';
 import { materialLines } from '../../../shared/master/schema.js';
@@ -162,14 +162,16 @@ export function StepScreen({ me, d, blocks, row, now, reload }: { me: Me; d: Bat
   // What each machine or room field offers: as the server accepts it (shared/engine/picks.ts), and while the Logbook
   // is linked only what the Logbook has; an empty picker says what is left out and why.
   const logbook = useLogbookItems(block.fields.some((f) => f.kind === 'machine' || f.kind === 'room'));
+  // A8: a balance is offered for the quantity this step weighs (within its range).
+  const qty = weighTarget(doc, row.key, row.results);
   const fits = (f: BlockField) => (f.kind === 'room' ? md.room.filter((r) => r.active && !roomRefusal(stage, r))
-    : f.kind === 'machine' ? md.machine.filter((m) => m.active && !machineRefusal(stage, f, m, md.room, dispensingRooms(doc, md.room))) : []);
+    : f.kind === 'machine' ? md.machine.filter((m) => m.active && !machineRefusal(stage, f, m, md.room, dispensingRooms(doc, md.room), qty)) : []);
   const pickOf = (f: BlockField) => inLogbook(fits(f), logbook?.items ?? null);
   // A machine or room not fit for use in the Logbook is marked with why ("Dirty in the Logbook") before it is picked.
   const picksFor = (f: BlockField) => pickOf(f).offered.map((p) => ({ ...p, notFit: logbook?.notFit[p.itemId] }));
   // An empty picker says why (once master data is read) and what the Logbook leaves out; one with choices says nothing.
   const mdRead = md.room.length > 0 && (md.machine.length > 0 || !block.fields.some((x) => x.kind === 'machine'));
-  const noteFor = (f: BlockField) => [mdRead && !fits(f).length ? emptyNote(stage, f, md.machine, md.room, dispensingRooms(doc, md.room)) : null, pickOf(f).note];
+  const noteFor = (f: BlockField) => [mdRead && !fits(f).length ? emptyNote(stage, f, md.machine, md.room, dispensingRooms(doc, md.room), qty) : null, pickOf(f).note];
 
   const post = (action: string, body: object = {}, key = row.id) => api('POST', `/api/batches/${d.batch.id}/steps/${key}/${action}`, body);
   const run = async (fn: () => Promise<unknown>) => {

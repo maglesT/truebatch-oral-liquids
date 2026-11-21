@@ -33,6 +33,9 @@ export const fieldSchema = z.object({
   // with one of the notTypes words is not taken (a QC lab "Analytical balance" is not a dispensing balance).
   types: z.array(z.string().regex(/^[a-z][a-z ]*$/)).optional(),
   notTypes: z.array(z.string().regex(/^[a-z][a-z ]*$/)).optional(),
+  // machine (fix round 21 Nov 2026, A8): a capability the machine must have, named in master data's type or name (any
+  // of these words, without case): a bilayer tablet press is "Rotary tablet press 45 station (bilayer)".
+  capability: z.array(z.string().regex(/^[a-z][a-z -]*$/)).optional(),
   // number: a QC result of this batch (from the QC report). While the LIMS link answers it is picked from the batch's
   // approved CoA in LIMS (result_v1, its reported figure); absent or down, typed by hand (shared/engine/lims.ts).
   // Round 42 (owner: in-process lab tests are picked from LIMS, not typed): 'in_process' is an in-process test done in

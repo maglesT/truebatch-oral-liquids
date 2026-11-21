@@ -372,6 +372,31 @@ export function evaluate(doc: MasterDoc, events: readonly StepEvent[], key: Step
   return results;
 }
 
+/** A quantity written with a unit of the unit list ("20 mg"), as the master checks read it (QUANTITY). */
+const QUANTITY = /^[+-]?(\d+(\.\d*)?|\.\d+)\s*(\S.*)?$/;
+function quantityOf(text: string | undefined): { value: string; unit: string } | undefined {
+  const m = QUANTITY.exec(text?.trim() ?? '');
+  const u = m && findUnit(m[3] ?? '');
+  return m && u ? { value: m[1]!, unit: u.symbol } : undefined;
+}
+
+/**
+ * Fix round 21 Nov 2026 (A8): the quantity a weighing step weighs, for the balance's range: its target as worked out
+ * (`results`, once a value is recorded: adjusted with the lot), else the formula line's batch quantity before any
+ * adjustment, or a target typed in the master. Undefined for a step without a target.
+ */
+export function weighTarget(doc: MasterDoc, key: StepKey, results: Readonly<Record<string, Stored>> = {}): { value: string; unit: string } | undefined {
+  const st = doc.stages[key.stage]?.steps[key.step];
+  const v = st?.settings.target;
+  if (!st || !v || !findBlock(st.block)?.settings.some((s) => s.name === 'target' && s.kind === 'quantity')) return undefined;
+  const r = results.target;
+  if (r?.ok) return { value: r.value, unit: r.unit };
+  if (typeof v === 'string') { const q = quantityOf(v); return q; }
+  const line = typeof v === 'object' && 'formula' in v ? doc.formula.find((l) => l.key === v.formula) : undefined;
+  const q = line ? lineQuantity(doc, [], key, line, false, {}) : undefined;
+  return q?.ok ? { value: q.value, unit: q.unit } : undefined;
+}
+
 /**
  * Fix round 21 Nov 2026 (A11, leak test: limit in kPa, reading in mbar): the limit setting a block checks a reading
  * against (C1, "$field" against "$limit"), when the reading's unit is named by the step (unit "$setting") and the

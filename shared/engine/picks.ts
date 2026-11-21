@@ -9,7 +9,9 @@
 import type { BlockField } from '../blocks/format.js';
 import type { MasterDoc, Stage } from '../master/schema.js';
 
-export interface PickMachine { code: string; type?: string | null; room?: string | null }
+export interface PickMachine { code: string; type?: string | null; room?: string | null; name?: string | null }
+/** A quantity to weigh (the step's target), for the balance's range. */
+export interface PickQuantity { value: string; unit: string }
 export interface PickRoom { code: string; area?: string | null }
 const among = (list: readonly string[], x: string | null | undefined) => list.some((a) => a.toLowerCase() === (x ?? '').toLowerCase());
 // Master data's laboratory room areas (the demo has QC, Microbiology, Wet chemistry, Stability).
@@ -25,13 +27,42 @@ export function roomRefusal(stage: Stage, r: PickRoom): string | null {
     : `${r.code} is not one of the rooms this stage allows (${stage.roomTypes.join(', ')})`;
 }
 
-/** Why a machine does not fit the field in this stage; null when it does. `dispensing`: the master's dispensing rooms. */
-export function machineRefusal(stage: Stage, f: BlockField, m: PickMachine, rooms: readonly PickRoom[], dispensing: readonly string[] = []): string | null {
+const MASS: Record<string, number> = { mg: 1e-6, g: 1e-3, kg: 1 };
+/**
+ * Fix round 21 Nov 2026 (A8): a balance's capacity, from its name in master data ("Platform balance 300 kg",
+ * "Analytical balance 220 g"); none when the name gives none (then the range is not checked).
+ */
+export function balanceCapacity(m: PickMachine): number | null {
+  const all = [...(m.name ?? '').matchAll(/(\d+(?:\.\d+)?)\s*(mg|g|kg)\b/gi)];
+  const last = all.at(-1);
+  return last ? Number(last[1]) * MASS[last[2]!.toLowerCase()]! : null;
+}
+// The smallest share of its capacity a balance weighs (0.5 %): 40 g is not weighed on a 300 kg platform balance.
+export const BALANCE_MIN_SHARE = 0.005;
+/** Why a balance does not fit the quantity to weigh (A8); null when it does, or when either is not known. */
+export function rangeRefusal(m: PickMachine, q: PickQuantity | undefined): string | null {
+  const cap = balanceCapacity(m);
+  const per = q && MASS[q.unit];
+  if (!cap || !q || per === undefined) return null;
+  const kg = Number(q.value) * per;
+  const shown = (x: number) => (x >= 1 ? `${+x.toFixed(3)} kg` : `${+(x * 1000).toFixed(3)} g`);
+  if (kg > cap) return `${m.code} weighs at most ${shown(cap)}: ${q.value} ${q.unit} is too much for it`;
+  if (kg < cap * BALANCE_MIN_SHARE) return `${m.code} (${shown(cap)}) is too large for ${q.value} ${q.unit}: a balance weighs at least ${BALANCE_MIN_SHARE * 100} % of its capacity (${shown(cap * BALANCE_MIN_SHARE)}); use a smaller balance`;
+  return null;
+}
+
+/** Why a machine does not fit the field in this stage; null when it does. `dispensing`: the master's dispensing rooms;
+ *  `quantity`: what a balance weighs in this step (A8: within its range). */
+export function machineRefusal(stage: Stage, f: BlockField, m: PickMachine, rooms: readonly PickRoom[], dispensing: readonly string[] = [], quantity?: PickQuantity): string | null {
   const balance = isBalance(f);
   if (!balance && stage.machineTypes.length && !among(stage.machineTypes, m.type)) return `${m.code} is not one of the machine types this stage allows (${stage.machineTypes.join(', ')})`;
   const type = (m.type ?? '').toLowerCase();
   if (!type && f.types?.length) return `${m.code} has no type in master data, so it is not offered as a ${f.label.toLowerCase()}`;
   if (!fitsType(f, m)) return `${m.code} is not a ${f.label.toLowerCase()} (master data: ${m.type ?? 'no type'})`;
+  if (f.capability?.length && !f.capability.some((w) => `${m.type ?? ''} ${m.name ?? ''}`.toLowerCase().includes(w))) {
+    return `${m.code} is not a ${f.capability[0]} machine (master data: ${[m.type, m.name].filter(Boolean).join(', ') || 'no type'})`;
+  }
+  if (balance) { const r = rangeRefusal(m, quantity); if (r) return r; }
   const room = m.room ? rooms.find((r) => r.code === m.room) : undefined;
   if (balance && room && LAB_AREA.test(room.area ?? '')) return `${m.code} stands in ${room.code} (${room.area}), a laboratory area: weigh with a balance of a dispensing room of the master or of a room this stage allows`;
   if (!stage.roomTypes.length || (balance && among(dispensing, m.room))) return null;
@@ -61,12 +92,12 @@ export function untypedNote(f: BlockField, machines: readonly (PickMachine & { a
  * field's type and where they stand (or that master data has none of that type), and the untyped ones in a few words.
  */
 export function emptyNote(stage: Stage, f: BlockField, machines: readonly (PickMachine & { active?: boolean })[], rooms: readonly (PickRoom & { active?: boolean })[],
-  dispensing: readonly string[] = []): string {
+  dispensing: readonly string[] = [], quantity?: PickQuantity): string {
   const allowed = stage.roomTypes.length ? ` (${stage.roomTypes.join(', ')})` : '';
   if (f.kind === 'room') return `No room this stage allows${allowed} is active in master data. Engineering adds or activates it in master data.`;
   const what = f.label.toLowerCase();
   const ofType = machines.filter((m) => m.active !== false && (!f.types?.length || m.type?.trim()) && fitsType(f, m));
-  const why = ofType.map((m) => machineRefusal(stage, f, m, rooms, dispensing)).filter((x): x is string => !!x);
+  const why = ofType.map((m) => machineRefusal(stage, f, m, rooms, dispensing, quantity)).filter((x): x is string => !!x);
   const untyped = untypedNote(f, machines);
   const shown = why.length > 3 ? `${why.slice(0, 3).join('; ')}; and ${why.length - 3} more` : why.join('; ');
   return [

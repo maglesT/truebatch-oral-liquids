@@ -9,6 +9,7 @@ import { findBlock } from '../blocks/index.js';
 import { dispensingRooms, isBalance, machineRefusal, type PickMachine, type PickRoom } from '../engine/picks.js';
 import type { Problem } from './checks.js';
 import type { MasterDoc } from './schema.js';
+import { weighTarget } from '../engine/values.js';
 
 export interface PlaceData { equipment: readonly (PickMachine & { active?: boolean })[]; rooms: readonly (PickRoom & { active?: boolean })[] }
 
@@ -21,9 +22,11 @@ export function placeChecks(doc: MasterDoc, md: PlaceData): Problem[] {
     const block = findBlock(t.block);
     for (const f of block?.fields ?? []) {
       if (f.kind !== 'machine' || f.optional) continue;
-      if (machines.some((m) => machineRefusal(s, f, m, rooms, dispensing) === null)) continue;
+      // A8: a balance for the formula quantity this step weighs (before any adjustment for the lot).
+      const qty = isBalance(f) ? weighTarget(doc, { stage: si, sub: 1, step: ti, round: 1 }) : undefined;
+      if (machines.some((m) => machineRefusal(s, f, m, rooms, dispensing, qty) === null)) continue;
       // The machines of the right type, wherever they stand: the author sees where they are.
-      const typed = machines.filter((m) => machineRefusal({ ...s, roomTypes: [], machineTypes: [] }, f, m, rooms) === null);
+      const typed = machines.filter((m) => machineRefusal({ ...s, roomTypes: [], machineTypes: [] }, f, m, rooms, [], qty) === null);
       const where = typed.slice(0, 3).map((m) => `${m.code} stands in ${m.room ?? 'no room'}`).join('; ') + (typed.length > 3 ? `; and ${typed.length - 3} more` : '');
       const allowed = [...s.roomTypes, ...(isBalance(f) ? dispensing : [])].join(', ');
       const what = f.label.toLowerCase();
