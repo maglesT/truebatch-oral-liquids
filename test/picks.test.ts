@@ -21,6 +21,7 @@ const OFFERS: Record<string, string[]> = {
   'sift.machine': ['Sifter'],
   'sieve.machine': ['Sifter', 'Multimill', 'Colloid mill'], 'binder-solution.machine': ['Manufacturing vessel', 'Holding tank', 'Stirrer'],
   'charge.machine': [...BLENDERS, 'Rapid mixer granulator', 'Fluid bed dryer', 'Manufacturing vessel', 'Stirrer'],
+  'line-setup.machine2': ['Case packer', ...LINES, 'Capping machine'], 'line-setup.machine3': ['Case packer', ...LINES, 'Capping machine'], 'line-setup.machine4': ['Case packer', ...LINES, 'Capping machine'],
   'liquid-bulk-issue.line': LINES, 'pack-clearance.line': LINES, 'pack-clearance-after.line': LINES,
   'bottle-wash.washer': ['Bottle washing machine', 'Air rinser'], 'liquid-fill.machine': ['Bottle filling line', 'Filling and capping machine'],
   'cap-check.capper': ['Filling and capping machine', 'Capping machine'],

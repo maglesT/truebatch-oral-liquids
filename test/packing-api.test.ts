@@ -57,6 +57,7 @@ beforeAll(async () => {
     { ...item('prd-1', 'PRD-001', 'Examplol 120 mg/5 mL syrup'), strength: '120 mg/5 mL', dosageForm: 'syrup' });
   for (const m of packing().pack!.materials) t.master.materials_.push({ ...item(m.materialItemId, m.code, m.name), category: 'packing', unit: m.unit === 'units' ? 'nos' : m.unit });
   t.master.equipment_.push({ ...item('ln-1', 'FL-01', 'Filling line 1'), kind: 'equipment', type: 'filling line', room: 'PK-01' },
+    { ...item('lb-1', 'LB-01', 'Labeller 1'), kind: 'equipment', type: 'labeller', room: 'PK-01' },
     { ...item('ln-2', 'FL-02', 'Filling line 2'), kind: 'equipment', type: 'filling line', room: 'PK-02' },
     { ...item('ln-3', 'FL-03', 'Filling line 3'), kind: 'equipment', type: 'filling line', room: 'PK-03' },
     // The machines of the filling line 1's room: the air rinser, the filling machine and the capping machine.
@@ -272,7 +273,8 @@ describe('a packing batch from a released bulk batch', () => {
     const issued: Record<string, string> = { bottle: '10200', cap: '10200', cup: '10200', label: '10200', carton: '10200', leaflet: '10200' };
     for (const [i, k] of Object.keys(issued).entries()) await step(`0.1.${i + 1}.1`, { lot: `${k.toUpperCase()}-1`, ...handLabels('lot', 'lot'), issued: issued[k], matches: 'yes' });
     await step('1.1.0.1', { ...line, ...yes('noPrevious', 'coderCleared', 'rejectsEmpty', 'clean'), cleanedOn: '2026-11-15 07:00', cleanedBy: 'CLEANER ONE' });
-    await step('1.1.1.1', yes('components', 'changeParts', 'coderSet', 'specimens'));
+    // A9 (fix round 21 Nov 2026): the line is several machines: the labeller is recorded at line set-up.
+    await step('1.1.1.1', { machine2: 'lb-1', ...handLabels('machine2', 'machine'), ...yes('components', 'changeParts', 'coderSet', 'specimens') });
     await step('1.1.2.1', { washer: 'rn-1', ...handLabels('washer', 'machine'), method: 'air rinse', count: '10200', visual: 'yes' });
     // One fill round of 10 bottles, the last (filling finished); its time against the bulk's hold (ready 1 day ago, 720 h).
     const fill = await step('1.1.3.1', { machine: 'fm-1', ...handLabels('machine', 'machine'), round: 'end', checkedAt: 'now', fills: Array(10).fill('76.9'), counter: '10000', filling: 'finished' });
@@ -418,13 +420,14 @@ describe('a packing batch from a released bulk batch', () => {
     expect(await lineUse()).toEqual({ ended: true });
     // One use of the line, for its whole filling stage (not the line named at issue, nor the clearance after packing);
     // named only in the line clearance, it was used by the stage: the Logbook reads "(Filling and packing)". The
-    // machines named in a step (the rinser, the filling machine, the capper) were used by that step.
+    // machines named in a step (the rinser, the filling machine, the capper, the labeller of the line set-up) were used by that step.
     const eq = await t.owner.unsafe(`select equipment_code, equipment_type, room_code, step, step_name, ended_at is not null as ended from ${t.schema}_report.equipment_use_v1 where batch_number = $1 order by equipment_code`, [batchNo]);
     expect(eq).toEqual([
       { equipment_code: 'AR-01', equipment_type: 'air jet rinser', room_code: 'PK-01', step: 'filling/wash', step_name: 'Filling and packing › Wash or air-rinse the containers: bottles', ended: true },
       { equipment_code: 'CP-01', equipment_type: 'capping machine', room_code: 'PK-01', step: 'filling/capping', step_name: 'Filling and packing › Cap and check the closures', ended: true },
       { equipment_code: 'FL-01', equipment_type: 'filling line', room_code: 'PK-01', step: 'filling/clearance', step_name: 'Filling and packing', ended: true },
-      { equipment_code: 'FM-01', equipment_type: 'filling machine', room_code: 'PK-01', step: 'filling/fill', step_name: 'Filling and packing › Fill bottles with periodic fill checks', ended: true }]);
+      { equipment_code: 'FM-01', equipment_type: 'filling machine', room_code: 'PK-01', step: 'filling/fill', step_name: 'Filling and packing › Fill bottles with periodic fill checks', ended: true },
+      { equipment_code: 'LB-01', equipment_type: 'labeller', room_code: 'PK-01', step: 'filling/setup', step_name: 'Filling and packing › Line set-up and component check', ended: true }]);
     // Whole-suite run, S17: the use starts when the line was recorded on the line clearance, not when that step started.
     const [use] = await t.owner.unsafe(`select started_at from ${t.schema}_report.equipment_use_v1 where batch_number = $1 and equipment_code = 'FL-01'`, [batchNo]);
     const [rec] = await t.owner<{ at: Date }[]>`select min(at) as at from step_events where batch_id = ${id} and stage = 1 and sub = 1 and step = 0 and kind = 'value'`;
