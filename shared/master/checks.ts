@@ -6,7 +6,7 @@
 import { findBlock, type Block } from '../blocks/index.js';
 import { Dec, c1WithinLimits, convert, findUnit, t10Compensating, t11SaltFactor, t2Total, type Q } from '../templates/index.js';
 import { decimalsOf } from '../templates/core.js';
-import { claimMg, claimWords, evaluate, headerValue, lineQuantity, perBatch } from '../engine/values.js';
+import { claimMg, claimWords, evaluate, headerValue, limitInReadingUnit, lineQuantity, perBatch } from '../engine/values.js';
 import { materialLines, type Answer, type FormulaLine, type Limit, type MasterDoc, type SettingValue } from './schema.js';
 import { packingChecks } from './packing.js';
 import { neededKind, unitKindProblem } from './kinds.js';
@@ -103,6 +103,14 @@ export function masterChecks(doc: MasterDoc): Problem[] {
         const lim = c.template === 'C1' && typeof a.limit === 'string' ? block.settings.find((x) => x.name === a.limit!.toString().slice(1) && x.optional) : undefined;
         const f = typeof a.value === 'string' ? block.fields.find((x) => x.name === (a.value as string).slice(1)) : undefined;
         if (lim && f && findUnit(f.unit ?? '')?.kind === 'temperature' && st.settings[lim.name] === undefined) warn(`${p}.settings.${lim.name}`, `${f.label} is recorded but not checked: set the ${lim.label.toLowerCase()}`);
+      }
+      // A11 (fix round 21 Nov 2026): a reading recorded in the step's unit checked against a limit written in another
+      // unit of the same kind (the leak test vacuum in mbar against a limit in kPa): the floor shows the limit in both,
+      // but one unit is clearer. A warning: a version made before this still issues.
+      for (const bs of block.settings.filter((x) => x.kind === 'limit')) {
+        const both = limitInReadingUnit(block, st, bs.name);
+        const lim = st.settings[bs.name] as Limit | undefined;
+        if (both && lim) warn(`${p}.settings.${bs.name}`, `${bs.label} is written in ${lim.unit} but ${both.label} is recorded in ${both.reading}: write the limits in ${both.reading} (${limitWords(both.limit)}), or record in ${lim.unit}`);
       }
       // A stage's yield (by mass) on an earlier stage's output while this stage adds formula materials (extragranular materials,
       // the lubricant): the base leaves out what the stage adds, so the yield reads above 100 %.
@@ -308,6 +316,8 @@ const asker = (doc: MasterDoc, out: Problem[]) => (path: string, key: string, me
   out.push({ level: 'warning', path, message, question: { key, options, needsReason, ...(ok ? { answer: a } : {}) } });
   return ok ? a.choice : undefined;
 };
+
+const limitWords = (l: Limit) => (l.low && l.high ? `${l.low} to ${l.high} ${l.unit}` : l.high ? `not more than ${l.high} ${l.unit}` : `at least ${l.low} ${l.unit}`);
 
 function calculationChecks(doc: MasterDoc, out: Problem[]): void {
   const ask = asker(doc, out);

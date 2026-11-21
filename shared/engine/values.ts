@@ -2,7 +2,7 @@
  * Recorded values and the results of the block's calculations. Every GMP number comes from the templates library:
  * this file only picks the inputs (fields, settings, earlier steps, formula lines) and calls the templates.
  */
-import { Dec, findUnit, type Outcome, type Q, type ResultValue } from '../templates/index.js';
+import { convert, Dec, findUnit, type Outcome, type Q, type ResultValue } from '../templates/index.js';
 import { findBlock, type Block, type BlockField } from '../blocks/index.js';
 import type { FormulaLine, HEADER_VALUES, Limit, MasterDoc, Pack, SettingValue, Step } from '../master/schema.js';
 import { callTemplate } from './templates.js';
@@ -370,6 +370,33 @@ export function evaluate(doc: MasterDoc, events: readonly StepEvent[], key: Step
     if (r.ok) asResults[c.name] = { ok: true, value: new Dec(r.value), unit: r.unit };
   }
   return results;
+}
+
+/**
+ * Fix round 21 Nov 2026 (A11, leak test: limit in kPa, reading in mbar): the limit setting a block checks a reading
+ * against (C1, "$field" against "$limit"), when the reading's unit is named by the step (unit "$setting") and the
+ * limit is written in another unit of the same kind: the limit in the reading's unit, for the floor to show beside it
+ * ("60 to 80 kPa, that is 600 to 800 mbar") and the master check to warn about. Null when the units are the same.
+ */
+export function limitInReadingUnit(block: Block, st: Step, limitName: string): { reading: string; limit: Limit; label: string } | null {
+  const lim = st.settings[limitName];
+  if (!lim || typeof lim !== 'object' || !('unit' in lim)) return null;
+  for (const c of block.calcs) {
+    const a = c.args as { value?: unknown; limit?: unknown };
+    if (c.template !== 'C1' || typeof a.limit !== 'string' || a.limit.replace(/^\$|\?$/g, '') !== limitName || typeof a.value !== 'string') continue;
+    const f = block.fields.find((x) => x.name === a.value!.toString().replace(/^\$|\?$/g, ''));
+    const named = f?.unit?.startsWith('$') ? st.settings[f.unit.slice(1)] : undefined;
+    const reading = typeof named === 'string' ? findUnit(named) : undefined;
+    const written = findUnit(lim.unit);
+    if (!f || !reading || !written || reading.symbol === written.symbol || reading.kind !== written.kind) continue;
+    const to = (x?: string) => (x === undefined ? undefined : convert(new Dec(x), written, reading).toDecimalPlaces(6).toString());
+    const out: Limit = { unit: reading.symbol };
+    for (const k of ['low', 'high', 'alertLow', 'alertHigh'] as const) { const v = to(lim[k]); if (v !== undefined) out[k] = v; }
+    if (lim.lowStrict) out.lowStrict = true;
+    if (lim.highStrict) out.highStrict = true;
+    return { reading: reading.symbol, limit: out, label: f.label };
+  }
+  return null;
 }
 
 /** Demo only: the timer id of a block's minimum duration (a mixing time) in one step instance (batch.ts timers). */

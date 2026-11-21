@@ -3,6 +3,7 @@ import { findBlock } from '../shared/blocks/index.js';
 import { blocking, masterChecks } from '../shared/master/checks.js';
 import { masterSchema, type MasterDoc } from '../shared/master/schema.js';
 import { batchRefusal, batchView, doneProblems, evaluate, openSteps, stepLabel, stepTitle, type BatchEvent, type StepEvent } from '../shared/engine/index.js';
+import { limitInReadingUnit } from '../shared/engine/values.js';
 import { c8PrintedData, c9SerialCodes, expiryMonth, gs1, printedMonth, t27Expiry } from '../shared/templates/index.js';
 import { at, ev, small } from './engine-fixture.js';
 import { code, GTIN, packing } from './packing-fixture.js';
@@ -170,6 +171,21 @@ describe('a packing material\'s unit changed after its steps were added (Tablets
 });
 
 describe('the packing blocks', () => {
+  it('A11 the leak test limit in kPa with the vacuum recorded in mbar: the master warns, the floor sees the limit in mbar too, the check converts', () => {
+    // The Liquids packing fixture has no leak test: one is added to the filling stage (a sachet line has one).
+    const d = packing();
+    d.stages[1]!.steps.push({ ...d.stages[1]!.steps[0]!, key: 'leak', block: { id: 'leak-test', version: 1 }, checker: false, settings: { vacuumUnit: 'mbar', vacuumLimit: { low: '400', high: '600', unit: 'mbar' }, level: 'S-3', aql: '0.65' } } as never);
+    const l = where(d, 'leak-test');
+    expect(limitInReadingUnit(findBlock(l.st.block)!, l.st, 'vacuumLimit')).toBeNull();
+    l.st.settings.vacuumLimit = { low: '60', high: '80', unit: 'kPa' };
+    expect(limitInReadingUnit(findBlock(l.st.block)!, l.st, 'vacuumLimit')).toEqual({ reading: 'mbar', label: 'Vacuum', limit: { low: '600', high: '800', unit: 'mbar' } });
+    expect(masterChecks(d).filter((p) => p.path.endsWith('.vacuumLimit')).map((p) => [p.level, p.message]))
+      .toEqual([['warning', 'Vacuum limits is written in kPa but Vacuum is recorded in mbar: write the limits in mbar (600 to 800 mbar), or record in kPa']]);
+    const vac = (v: string) => results(d, [issued(d)], l.key, { vacuum: { value: v, unit: 'mbar' } }).vacuumCheck;
+    expect(vac('700')).toMatchObject({ check: { pass: true } });
+    expect(vac('70')).toMatchObject({ check: { pass: false } });
+  });
+
   it('TL-P8 the expiry is worked out from the approved shelf life and the date of manufacture, never typed; the bottles to fill are the bulk ÷ the fill target', () => {
     expect(expiryMonth('2026-11-03', '24')).toBe('2028-10');
     expect(expiryMonth('2026-01-15', '24')).toBe('2027-12');

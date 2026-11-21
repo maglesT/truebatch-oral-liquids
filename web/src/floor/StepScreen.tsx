@@ -13,7 +13,7 @@ import { ReasonDialog } from './ReasonDialog.js';
 import { CERTIFICATE, fieldLabel, handEntered, LINK_OF } from '../../../shared/engine/links.js';
 import { answersField, inProcessFit, ipcCodes, labRequestId, sameUnit } from '../../../shared/engine/lims.js';
 import { askedFields, cutShort, notYetText } from '../../../shared/engine/batch.js';
-import { lineQuantity } from '../../../shared/engine/values.js';
+import { limitInReadingUnit, lineQuantity } from '../../../shared/engine/values.js';
 import { plantText } from '../../../shared/plant-time.js';
 import { dispensingRooms, emptyNote, inLogbook, machineRefusal, roomRefusal } from '../../../shared/engine/picks.js';
 import { materialLines } from '../../../shared/master/schema.js';
@@ -44,8 +44,10 @@ function settingsText(doc: BatchDetail['master']['doc'], block: Block, st: Step,
     if (m) return [[s.label, what!]];
     if (typeof v === 'string') return v && s.kind !== 'text' ? [[s.label, v]] : [];
     if (!v || !('unit' in v)) return [];
-    const u = v.unit ? ` ${v.unit}` : '';
-    return [[s.label, v.low && v.high ? `${v.low} to ${v.high}${u}` : v.high ? `not more than ${v.high}${u}` : `at least ${v.low}${u}`]];
+    const text = (l: { low?: string; high?: string; unit: string }) => { const u = l.unit ? ` ${l.unit}` : ''; return l.low && l.high ? `${l.low} to ${l.high}${u}` : l.high ? `not more than ${l.high}${u}` : `at least ${l.low}${u}`; };
+    // A11: a limit in another unit than the reading (kPa, reading in mbar) is shown in the reading's unit too.
+    const both = limitInReadingUnit(block, st, s.name);
+    return [[s.label, `${text(v)}${both ? `, that is ${text(both.limit)} (${both.label.toLowerCase()} is recorded in ${both.reading})` : ''}`]];
   });
 }
 
