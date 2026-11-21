@@ -62,7 +62,7 @@ export function masterRoutes(app: FastifyInstance, sql: Sql) {
   app.get('/api/masters', anyUser, async () => sql`
     select v.id::int, v.master_id::int as "masterId", v.version_no as "versionNo", v.state, v.doc->'header' as header, v.created_at as "createdAt",
       jsonb_path_query_array(v.doc, '$.formula[*].materialItemId') as "materialIds", u.full_name as "createdByName"
-    from master_versions v join users u on u.id = v.created_by order by v.master_id, v.version_no`);
+    from master_versions v join users u on u.id = v.created_by where v.state <> 'deleted' order by v.master_id, v.version_no`);
 
   // A new master: version 1, a draft.
   app.post('/api/masters', author, async (req, reply) => {
@@ -83,8 +83,10 @@ export function masterRoutes(app: FastifyInstance, sql: Sql) {
     const masterId = parseId(req.params.masterId);
     const b = z.object({ doc: masterSchema.optional() }).safeParse(req.body);
     if (masterId === null || !b.success) return invalid(reply, b.error?.issues);
+    // A new version starts from the latest version that was not deleted (A4); its number follows every number used.
     const [latest] = await sql<{ versionNo: number; doc: MasterDoc }[]>`
-      select version_no as "versionNo", doc from master_versions where master_id = ${masterId} order by version_no desc limit 1`;
+      select (select max(version_no) from master_versions where master_id = ${masterId}) as "versionNo", doc
+      from master_versions where master_id = ${masterId} and state <> 'deleted' order by version_no desc limit 1`;
     if (!latest) return reply.code(404).send({ error: 'not_found' });
     const doc = await withMasterData(app.master, b.data.doc ?? latest.doc);
     try {
@@ -141,6 +143,9 @@ export const REVIEW_ACTIONS = {
   return: { from: 'in_review', to: 'draft', event: 'returned', meaning: null, needs: ['truebatch_liquids.master.check', 'truebatch_liquids.master.approve'] },
   approve: { from: 'in_review', to: 'approved', event: 'approved', meaning: 'approved', needs: ['truebatch_liquids.master.approve'] },
   'make-effective': { from: 'approved', to: 'effective', event: 'effective', meaning: null, needs: ['truebatch_liquids.master.approve'] },
+  // Fix round 21 Nov 2026 (A4): a draft is deleted with a reason (never effective, so never used for a batch). The
+  // version is kept, in the state 'deleted', and is no longer listed (db/migrations/0026).
+  delete: { from: 'draft', to: 'deleted', event: 'deleted', meaning: null, needs: ['truebatch_liquids.master.author'] },
 } as const satisfies Record<string, { from: MasterState; to: MasterState | null; event: string; meaning: Meaning | null; needs: Permission[] }>;
 export type ReviewAction = keyof typeof REVIEW_ACTIONS;
 const REVIEW_NAMES = Object.keys(REVIEW_ACTIONS) as ReviewAction[];
@@ -161,7 +166,7 @@ async function loadReview(q: Sql | Tx, id: number, lock = false): Promise<Loaded
       and action in ('master.created', 'master.version_created', 'master.updated')`;
   const authors = [...new Set([v.createdBy, ...edited.map((r) => r.id), ...events.filter((e) => e.kind === 'submitted').map((e) => e.person)])];
   const [previous] = await q<NonNullable<Loaded['previous']>[]>`
-    select id::int, version_no as "versionNo", state, doc from master_versions where master_id = ${v.masterId} and version_no < ${v.versionNo} order by version_no desc limit 1`;
+    select id::int, version_no as "versionNo", state, doc from master_versions where master_id = ${v.masterId} and version_no < ${v.versionNo} and state <> 'deleted' order by version_no desc limit 1`;
   return { v, events: [...events], authors, ...(previous ? { previous } : {}) };
 }
 
@@ -233,6 +238,7 @@ const reviewBodies = {
   return: z.object({ reason: z.string().trim().min(1).max(1000) }),
   approve: z.object({ proof: z.string().min(1).max(2000), contentHash: z.string().regex(/^[0-9a-f]{64}$/), changeControl: z.string().trim().min(1, 'the change control number is required').max(60) }),
   'make-effective': z.object({}),
+  delete: z.object({ reason: z.string().trim().min(1).max(1000) }),
 } satisfies Record<ReviewAction, z.ZodTypeAny>;
 
 function reviewRoutes(app: FastifyInstance, sql: Sql) {

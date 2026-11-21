@@ -184,4 +184,29 @@ describe('master review and approval', () => {
     expect((await act('author', id, 'submit')).statusCode).toBe(200);
     expect((await act('checker', id, 'pass')).statusCode).toBe(200);
   });
+
+  it('A4 a draft is deleted with a reason: kept as deleted, no longer listed; a version in review or effective is not', async () => {
+    const { id, masterId } = await draft();
+    expect((await as('author', 'POST', `/api/master-versions/${id}/delete`, { reason: '' })).statusCode).toBe(400);
+    expect((await as('viewer', 'POST', `/api/master-versions/${id}/delete`, { reason: 'Wrong product' })).statusCode).toBe(403);
+    expect((await as('author', 'POST', `/api/master-versions/${id}/delete`, { reason: 'Wrong product' })).statusCode).toBe(200);
+    expect(await state(id)).toBe('deleted');
+    expect((await review(id)).events).toMatchObject([{ kind: 'deleted', payload: { reason: 'Wrong product' } }]);
+    const listed = (await as('viewer', 'GET', '/api/masters')).json() as { id: number }[];
+    expect(listed.some((r) => r.id === id)).toBe(false);
+    expect((await as('author', 'PUT', `/api/master-versions/${id}`, { doc: placed(tablet()) })).statusCode).toBe(409);
+    expect((await as('author', 'POST', `/api/master-versions/${id}/delete`, { reason: 'again' })).json().error).toBe('wrong_state');
+    const [audit] = await t.owner`select reason from audit_log where action = 'master.deleted' and object_id = ${String(id)}`;
+    expect(audit?.reason).toBe('Wrong product');
+    // Effective v1 with a v2 draft: the draft is deleted, the next new version is v3 and starts from v1.
+    const v1 = await approved();
+    expect((await as('qachecker', 'POST', `/api/master-versions/${v1.id}/make-effective`, {})).statusCode).toBe(200);
+    expect((await as('author', 'POST', `/api/master-versions/${v1.id}/delete`, { reason: 'x' })).json().error).toBe('wrong_state');
+    const v2 = (await as('author', 'POST', `/api/masters/${v1.masterId}/versions`, {})).json() as { id: number; versionNo: number };
+    expect((await as('author', 'POST', `/api/master-versions/${v2.id}/delete`, { reason: 'Not needed' })).statusCode).toBe(200);
+    const v3 = (await as('author', 'POST', `/api/masters/${v1.masterId}/versions`, {})).json() as { id: number; versionNo: number };
+    expect(v3.versionNo).toBe(3);
+    expect((await review(v3.id)).previous?.versionNo).toBe(1);
+    expect(masterId).toBeGreaterThan(0);
+  });
 });

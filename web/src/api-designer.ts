@@ -15,8 +15,8 @@ export interface Equipment extends Item { kind: 'equipment' | 'instrument'; type
 export interface Room extends Item { area: string | null; grade: string | null }
 export interface MasterData { products: Product[]; materials: Material[]; equipment: Equipment[]; rooms: Room[] }
 
-export type ReviewAction = 'submit' | 'pass' | 'return' | 'approve' | 'make-effective';
-export interface MasterEvent { id: number; kind: 'submitted' | 'passed' | 'returned' | 'approved' | 'effective' | 'retired'; payload: { reason?: string; changeControl?: string }; personName: string; at: string }
+export type ReviewAction = 'submit' | 'pass' | 'return' | 'approve' | 'make-effective' | 'delete';
+export interface MasterEvent { id: number; kind: 'submitted' | 'passed' | 'returned' | 'approved' | 'effective' | 'retired' | 'deleted'; payload: { reason?: string; changeControl?: string }; personName: string; at: string }
 export interface Comment { id: number; path: string | null; text: string; personName: string; at: string }
 export interface ReviewData {
   events: MasterEvent[]; comments: Comment[]; contentHash: string;
@@ -24,8 +24,8 @@ export interface ReviewData {
   actions: ReviewAction[]; refusals: Record<ReviewAction, string | null>;
 }
 
-export const STATE_LABEL: Record<MasterState, string> = { draft: 'Draft', in_review: 'In review', approved: 'Approved', effective: 'Effective', retired: 'Retired' };
-export const STATE_CHIP: Record<MasterState, string> = { draft: 'chip chip-draft', in_review: 'chip chip-info', approved: 'chip chip-warn', effective: 'chip chip-ok', retired: 'chip chip-draft muted' };
+export const STATE_LABEL: Record<MasterState, string> = { draft: 'Draft', in_review: 'In review', approved: 'Approved', effective: 'Effective', retired: 'Retired', deleted: 'Deleted' };
+export const STATE_CHIP: Record<MasterState, string> = { draft: 'chip chip-draft', in_review: 'chip chip-info', approved: 'chip chip-warn', effective: 'chip chip-ok', retired: 'chip chip-draft muted', deleted: 'chip chip-draft muted' };
 
 export const listMasters = () => api<MasterRow[]>('GET', '/api/masters');
 export const getVersion = (id: number) => api<Version>('GET', `/api/master-versions/${id}`);

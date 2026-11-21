@@ -234,5 +234,6 @@ export type PackMaterial = z.infer<typeof packMaterialSchema>;
 /** Every material a step may name: the formula lines, or a packing master's packing materials. */
 export const materialLines = (doc: MasterDoc): (FormulaLine | PackMaterial)[] => [...doc.formula, ...(doc.pack?.materials ?? [])];
 
-export const MASTER_STATES = ['draft', 'in_review', 'approved', 'effective', 'retired'] as const;
+// 'deleted': a draft deleted with a reason (fix round 21 Nov 2026, A4); kept, no longer listed.
+export const MASTER_STATES = ['draft', 'in_review', 'approved', 'effective', 'retired', 'deleted'] as const;
 export type MasterState = (typeof MASTER_STATES)[number];

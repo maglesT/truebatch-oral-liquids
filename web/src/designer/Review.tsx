@@ -10,16 +10,16 @@ import type { MasterDoc } from '../../../shared/master/schema.js';
 import { describeMaster, diffMasters, type DiffSection, type Units } from './describe.js';
 import { placeLabel } from './model.js';
 
-const EVENT_TEXT: Record<MasterEvent['kind'], string> = { submitted: 'Sent for review', passed: 'Checked (passed)', returned: 'Returned to the author', approved: 'Approved by QA', effective: 'Made effective', retired: 'Retired' };
+const EVENT_TEXT: Record<MasterEvent['kind'], string> = { submitted: 'Sent for review', passed: 'Checked (passed)', returned: 'Returned to the author', approved: 'Approved by QA', effective: 'Made effective', retired: 'Retired', deleted: 'Deleted' };
 const SIGNED: Partial<Record<ReviewAction, { meaning: string; what: string }>> = {
   submit: { meaning: 'prepared', what: 'You sign that you prepared this version and send it to a second person to check.' },
   pass: { meaning: 'checked', what: 'You sign that you checked this version, independently of its author, and found it correct.' },
   approve: { meaning: 'approved', what: 'You approve this version for use in production (QA).' },
 };
-const BUTTON: Record<ReviewAction, string> = { submit: 'Send for review', pass: 'Pass the check', return: 'Return to the author', approve: 'Approve', 'make-effective': 'Make effective' };
+const BUTTON: Record<ReviewAction, string> = { submit: 'Send for review', pass: 'Pass the check', return: 'Return to the author', approve: 'Approve', 'make-effective': 'Make effective', delete: 'Delete this draft' };
 
-export function Review({ me, version, doc, blocked, onChanged, onGo }: {
-  me: Me; version: Version; doc: MasterDoc; blocked: boolean; onChanged: () => Promise<void>; onOpen: (id: number) => void; onGo: (path: string) => void;
+export function Review({ me, version, doc, blocked, onChanged, onGo, onDeleted }: {
+  me: Me; version: Version; doc: MasterDoc; blocked: boolean; onChanged: () => Promise<void>; onOpen: (id: number) => void; onGo: (path: string) => void; onDeleted?: () => void;
 }) {
   const [data, setData] = useState<ReviewData | null>(null);
   const [view, setView] = useState<'plain' | 'changes'>('plain');
@@ -43,7 +43,7 @@ export function Review({ me, version, doc, blocked, onChanged, onGo }: {
     try { await reviewAction(version.id, action, body); await done(); }
     catch (e) { setError(e instanceof ApiError ? (e.problems[0] ?? e.message) : String(e)); }
   };
-  const shown: ReviewAction[] = (['submit', 'pass', 'return', 'approve', 'make-effective'] as const).filter((a) =>
+  const shown: ReviewAction[] = (['submit', 'pass', 'return', 'approve', 'make-effective', 'delete'] as const).filter((a) =>
     data.actions.includes(a) || (a === 'submit' && version.state === 'draft' && can(me, 'master.author'))
     // QA who typed the change control by hand sees why another person makes the version effective.
     || (a === 'make-effective' && version.state === 'approved' && can(me, 'master.approve')));
@@ -72,7 +72,7 @@ export function Review({ me, version, doc, blocked, onChanged, onGo }: {
             const why = a === 'submit' && blocked ? 'Fix the ⛔ problems and answer the ⚠️ calculation checks of the master check first.' : data.refusals[a];
             return (
               <div key={a}>
-                <button className={a === 'return' ? '' : 'primary'} disabled={!!why} onClick={() => { setError(''); setDoing(a); }}>{BUTTON[a]}</button>
+                <button className={a === 'return' || a === 'delete' ? '' : 'primary'} disabled={!!why} onClick={() => { setError(''); setDoing(a); }}>{BUTTON[a]}</button>
                 {why && <p className="muted small">{why}</p>}
               </div>
             );
@@ -126,6 +126,13 @@ export function Review({ me, version, doc, blocked, onChanged, onGo }: {
       )}
       {doing === 'return' && (
         <Dialog title="Return to the author" onCancel={close} onSubmit={() => (reason.trim() ? void run('return', { reason }) : setError('Say why.'))} submit="Return" error={error}>
+          <label>Reason<textarea autoFocus value={reason} onChange={(e) => setReason(e.target.value)} /></label>
+        </Dialog>
+      )}
+      {doing === 'delete' && (
+        <Dialog title="Delete this draft" onCancel={close} submit="Delete"
+          onSubmit={() => (reason.trim() ? void reviewAction(version.id, 'delete', { reason }).then(() => { close(); onDeleted?.(); }, (e) => setError(e instanceof ApiError ? (e.problems[0] ?? e.message) : String(e))) : setError('Say why.'))} error={error}>
+          <p>Version {version.versionNo} is a draft: no batch was ever issued from it. It is kept in the audit trail with your reason and is no longer listed.</p>
           <label>Reason<textarea autoFocus value={reason} onChange={(e) => setReason(e.target.value)} /></label>
         </Dialog>
       )}

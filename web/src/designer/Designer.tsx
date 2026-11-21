@@ -109,7 +109,7 @@ export function Designer({ me, versionId, onBack, onOpen }: { me: Me; versionId:
             {tab === 'process' && <Process doc={doc} onChange={change} md={md} place={place} onPlace={setPlace} editable={!!editable} />}
           </fieldset>
           {tab === 'preview' && <Preview doc={doc} />}
-          {tab === 'review' && <Review me={me} version={v} doc={doc} blocked={blocked} onChanged={load} onOpen={onOpen} onGo={go} />}
+          {tab === 'review' && <Review me={me} version={v} doc={doc} blocked={blocked} onChanged={load} onOpen={onOpen} onGo={go} onDeleted={onBack} />}
         </div>
         <CheckPanel doc={doc} state={v.state} problems={problems} invalid={parsed && !parsed.success ? issueText(doc, parsed.error.issues[0]!.path, parsed.error.issues[0]!.message) : undefined} onGo={go} onAnswer={onAnswer} />
       </div>
