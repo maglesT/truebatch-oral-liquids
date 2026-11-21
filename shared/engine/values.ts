@@ -48,6 +48,12 @@ export interface Current {
 export function currentValues(events: readonly StepEvent[]): Current {
   const c: Current = { values: {}, results: {}, replaced: [], uses: [], source: {} };
   for (const e of events) {
+    // A7: undone: every value is replaced by nothing (kept in the record as undone, with the reason); recorded again after.
+    if (e.kind === 'undone') {
+      for (const [k, v] of Object.entries(c.values)) c.replaced.push({ field: k, was: v, now: 'undone', reason: e.payload.reason ?? '', person: e.person, at: e.at });
+      Object.assign(c, { values: {}, results: {}, uses: [], source: {} });
+      continue;
+    }
     if (e.kind !== 'value' && e.kind !== 'corrected' && !e.payload.results) continue;
     for (const [k, v] of Object.entries(e.payload.values ?? {})) {
       const was = c.values[k];

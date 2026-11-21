@@ -6,7 +6,7 @@ import type { Permission } from '../../server/auth.js';
 import type { Stored, Value } from './values.js';
 import type { Source } from './links.js';
 
-export const EVENT_KINDS = ['started', 'value', 'done', 'checked', 'sent_back', 'corrected', 'not_applicable', 'late', 'qa_released_hold', 'note', 'demo_wait_skipped'] as const;
+export const EVENT_KINDS = ['started', 'value', 'done', 'checked', 'sent_back', 'corrected', 'not_applicable', 'late', 'qa_released_hold', 'note', 'demo_wait_skipped', 'undone'] as const;
 export type EventKind = (typeof EVENT_KINDS)[number];
 
 /** Stage and step are positions in the master (from 0); sub-batch and round are numbers people see (from 1). */
@@ -58,11 +58,13 @@ export function stepState(events: readonly StepEvent[], needsCheck: boolean): { 
     else if (e.kind === 'sent_back') state = 'in_progress';
     else if (e.kind === 'corrected') { state = 'in_progress'; needsResign = true; }
     else if (e.kind === 'not_applicable') state = 'not_applicable';
+    // A7: a weighing undone (another lot): back in progress, nothing recorded or signed since.
+    else if (e.kind === 'undone') { state = 'in_progress'; needsResign = false; }
   }
   return { state, needsResign };
 }
 
-export type Action = 'start' | 'record' | 'done' | 'check' | 'send-back' | 'correct' | 'not-applicable' | 'release-hold' | 'note';
+export type Action = 'start' | 'record' | 'done' | 'check' | 'send-back' | 'correct' | 'not-applicable' | 'release-hold' | 'note' | 'undo';
 export interface ActionRule {
   event: EventKind;
   from: readonly State[];
@@ -91,7 +93,12 @@ export const ACTIONS: Record<Action, ActionRule> = {
   'release-hold': { event: 'qa_released_hold', from: ['done', 'checked'], permissions: ['truebatch_liquids.qa.release'], meaning: 'released' },
   // A deviation note; anyone working on the batch, in any state.
   note: { event: 'note', from: ALL, permissions: ['truebatch_liquids.batch.operate', 'truebatch_liquids.batch.check', 'truebatch_liquids.batch.supervise', 'truebatch_liquids.qa.release'] },
+  // Fix round 21 Nov 2026 (A7): a weighing is undone to weigh another lot (the lot was wrong, or its certificate values
+  // differ), with a reason and a signature, before the next step uses it. Its values are kept in the record as undone.
+  undo: { event: 'undone', from: ['in_progress', 'done_awaiting_check', 'done', 'checked'], permissions: OPERATE, meaning: 'performed', reason: true },
 };
+/** A7: the events of a step since it was last undone (all of them when it never was). */
+export const sinceUndo = <E extends { kind: string }>(events: readonly E[]): E[] => events.slice(events.map((e) => e.kind).lastIndexOf('undone') + 1);
 
 export interface Refused { status: 403 | 409; error: string; message: string }
 export interface ActionContext {
@@ -99,6 +106,8 @@ export interface ActionContext {
   events: readonly StepEvent[];
   flow: 'none' | 'repeat-until' | 'optional-with-reason' | 'qa-hold';
   user: { id: number; permissions: readonly string[] };
+  // A7: why this step cannot be undone (not a weighing of a lot, or a later step uses it); null when it can.
+  undo?: string | null;
 }
 
 const INVOLVING: EventKind[] = ['started', 'value', 'done', 'corrected', 'not_applicable'];
@@ -109,12 +118,14 @@ export const involved = (events: readonly StepEvent[]) => new Set(events.filter(
 export function refusal(action: Action, c: ActionContext): Refused | null {
   const rule = ACTIONS[action];
   if (!rule.permissions.some((p) => c.user.permissions.includes(p))) return { status: 403, error: 'forbidden', message: 'You do not have the permission for this action.' };
-  const signed = c.events.some((e) => e.kind === 'done');
+  const signed = sinceUndo(c.events).some((e) => e.kind === 'done');
   const wrong = (message: string): Refused => ({ status: 409, error: 'wrong_state', message });
   if (!rule.from.includes(c.state)) return wrong(`Not possible while the step is ${c.state.replaceAll('_', ' ')}.`);
   if (action === 'record' && signed) return wrong('The step was signed: change a value by correction, with a reason.');
   if (action === 'correct' && !signed) return wrong('Nothing signed to correct yet: record the value.');
   if (action === 'not-applicable' && c.flow !== 'optional-with-reason') return wrong('Only an optional step can be marked not applicable.');
+  if (action === 'undo' && c.undo !== null) return wrong(c.undo ?? 'Only a weighing of a lot can be undone.');
+  if (action === 'undo' && !sinceUndo(c.events).some((e) => e.kind === 'value' || e.kind === 'corrected')) return wrong('Nothing recorded to undo.');
   if (action === 'release-hold' && (c.flow !== 'qa-hold' || c.events.some((e) => e.kind === 'qa_released_hold'))) return wrong('There is no QA hold to release on this step.');
   if (rule.notInvolved && involved(c.events).has(c.user.id)) return { status: 403, error: 'own_work', message: 'You cannot check a step you performed, recorded or corrected.' };
   return null;

@@ -20,7 +20,7 @@ import { materialLines } from '../../../shared/master/schema.js';
 import { perPackText, unitName } from '../../../shared/engine/stock.js';
 import { neededText, tickText, trainingOf, trainingText, type Skill, type Training } from '../../../shared/engine/training.js';
 
-type Dialog = { kind: 'done' | 'repeat' | 'check' | 'na' | 'send-back' | 'note' | 'release-hold' } | { kind: 'na-sign'; reason: string } | { kind: 'correct'; field: BlockField };
+type Dialog = { kind: 'done' | 'repeat' | 'check' | 'na' | 'send-back' | 'note' | 'release-hold' | 'undo' } | { kind: 'na-sign' | 'undo-sign'; reason: string } | { kind: 'correct'; field: BlockField };
 const INVOLVING = ['started', 'value', 'done', 'corrected', 'not_applicable'];
 const same = (a: StepRow['key'], b: StepRow['key']) => a.stage === b.stage && a.sub === b.sub && a.step === b.step;
 
@@ -381,6 +381,8 @@ export function StepScreen({ me, d, blocks, row, now, reload }: { me: Me; d: Bat
         </>)}
         <span className="spacer" />
         {can('not-applicable') && <button className="big" disabled={busy} onClick={() => setDialog({ kind: 'na' })}>Not applicable</button>}
+        {/* A7: undo the weighing to weigh another lot (reason and signature), while no later step uses it. */}
+        {can('undo') && <button className="big" disabled={busy} onClick={() => setDialog({ kind: 'undo' })}>Undo: weigh another lot</button>}
         {can('note') && <button className={noteNeeded ? 'big attn' : 'big'} disabled={busy} onClick={() => setDialog({ kind: 'note' })}>Add deviation note</button>}
       </div>
 
@@ -410,6 +412,14 @@ export function StepScreen({ me, d, blocks, row, now, reload }: { me: Me; d: Bat
       {dialog?.kind === 'na' && (
         <ReasonDialog title="Not applicable" label="Why this step does not apply to this batch" submit="Next: sign" onCancel={() => setDialog(null)}
           onSubmit={async (reason) => setDialog({ kind: 'na-sign', reason })} />
+      )}
+      {dialog?.kind === 'undo' && (
+        <ReasonDialog title="Undo the weighing" label="Why another lot is weighed (the material goes back to its lot)" submit="Next: sign" onCancel={() => setDialog(null)}
+          hint="The values recorded stay in the record as undone. The step is then recorded again with the other lot and signed again."
+          onSubmit={async (reason) => setDialog({ kind: 'undo-sign', reason })} />
+      )}
+      {dialog?.kind === 'undo-sign' && (
+        <SignDialog meaning="performed" what={`${title} · batch ${d.batch.batchNo}: weighing undone, another lot will be weighed. Reason: “${dialog.reason}”`} onCancel={() => setDialog(null)} onSign={signed('undo', { reason: dialog.reason })} />
       )}
       {dialog?.kind === 'na-sign' && (
         <SignDialog meaning="performed" what={`${title} · batch ${d.batch.batchNo}: not applicable. Reason: “${dialog.reason}”`} onCancel={() => setDialog(null)} onSign={signed('not-applicable', { reason: dialog.reason })} />
@@ -524,6 +534,7 @@ function History_({ h, block, deviations, exceptions }: { h: History | null; blo
     // The deviation's number and status, read live: the one written with the note, or the one Deviations filed from it.
     note: `Deviation note${((x) => (x ? ` ${deviationText(x)}` : e.payload.reference ? ` ${e.payload.reference}` : ''))(deviations.find((x) => x.note === e.id))}: “${e.payload.text}”${((x) => (x ? ` · ${exceptionText(x, plainClock)}` : ''))(exceptions.find((x) => x.note === e.id))}`, qa_released_hold: 'QA released the hold',
     demo_wait_skipped: `DEMO: wait skipped by ${e.personName ?? '—'} at ${plainClock(e.at)}: ${String(e.payload.label ?? '')}`,
+    undone: `Weighing undone (signed), to weigh another lot: “${e.payload.reason}”`,
   })[e.kind];
   return (
     <section className="dash-panel" aria-label="History">

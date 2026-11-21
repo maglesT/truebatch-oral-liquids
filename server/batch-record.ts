@@ -24,7 +24,7 @@ const MEANING: Record<string, string> = {
 const EVENT: Record<EventKind, string> = {
   started: 'Started', value: 'Recorded', done: 'Signed as done', checked: 'Checked', sent_back: 'Sent back', corrected: 'Corrected',
   not_applicable: 'Not applicable', late: 'Ran over (server timer)', qa_released_hold: 'QA released the hold', note: 'Deviation note',
-  demo_wait_skipped: 'DEMO: wait skipped',
+  demo_wait_skipped: 'DEMO: wait skipped', undone: 'Weighing undone (another lot)',
 };
 const STATE: Record<string, string> = {
   waiting: 'not started', open: 'not started', in_progress: 'in progress', done_awaiting_check: 'waiting for check', done: 'done', checked: 'checked', not_applicable: 'not applicable',

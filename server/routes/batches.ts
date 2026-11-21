@@ -17,7 +17,7 @@ import type { MasterDoc } from '../../shared/master/schema.js';
 import { Dec } from '../../shared/templates/index.js';
 import {
   ACTIONS, BATCH_ACTIONS, NOTE_ACTIONS, NOTE_EVENTS, CERTIFICATE, DEVIATION_DONE, LINK_OF, bulkRefusal, MATERIAL_USE, batchRefusal, filedKey, inLotUnit, issuedLots, bulkLeft, returnProblems, returnsOf, usedQuantity, usesOfLot, stepLabel, stepPlace, stepTitle, handFields, isHand, batchView, doneProblems, evaluate, lateItems, openSteps, parseKey, readValue, refusal, review, timers,
-  trainingCheck, trainingTyped, coaText, resultText, inProcessText, isPick, keyId, labRequestId, labTests, ipcCodes, currentValues, endsTheRounds, requestRound, type Training,
+  trainingCheck, trainingTyped, undoRefusal, coaText, resultText, inProcessText, isPick, keyId, labRequestId, labTests, ipcCodes, currentValues, endsTheRounds, requestRound, type Training,
   type Action, type BatchAction, type BatchEvent, type BulkChecked, type BulkDeviation, type BulkIssue, type BulkDeviations, type DeviationStatus, type LinkState, type Source, type StageView, type Stored, type StepEvent, type StepKey, type StepView, type Timer, type Value,
 } from '../../shared/engine/index.js';
 
@@ -343,6 +343,7 @@ const BODIES: Record<Action, z.ZodTypeAny> = {
   'not-applicable': signBody.extend({ reason }),
   'release-hold': signBody,
   note: z.object({ text: reason, reference: z.string().trim().min(1).max(60).optional() }),
+  undo: signBody.extend({ reason }),
 };
 const BATCH_BODIES: Record<BatchAction, z.ZodTypeAny> = {
   'production-approve': signBody,
@@ -364,7 +365,7 @@ const LAST_EVENTS = 5;
 const NAMES = Object.keys(ACTIONS) as Action[];
 const BATCH_NAMES = Object.keys(BATCH_ACTIONS) as BatchAction[];
 const flowOf = (doc: MasterDoc, k: StepKey) => doc.stages[k.stage]!.steps[k.step]!.flow.kind;
-const context = (doc: MasterDoc, v: StepView, user: SessionUser) => ({ state: v.state, events: v.events, flow: flowOf(doc, v.key), user });
+const context = (doc: MasterDoc, v: StepView, user: SessionUser, all: readonly StepEvent[] = v.events) => ({ state: v.state, events: v.events, flow: flowOf(doc, v.key), user, undo: undoRefusal(doc, all, v.key) });
 const FIRST: StepKey = { stage: 0, sub: 1, step: 0, round: 1 };
 /**
  * Packing (TL-P2, TL-P7): a master whose first step is recorded at issue (the line, the released bulk batch, the
@@ -629,7 +630,7 @@ export function batchRoutes(app: FastifyInstance, sql: Sql) {
           ...current, events: events.slice(-LAST_EVENTS), contentHash: stepHash(l.batch.id, s),
           // The label questions of what was entered by hand (shared/engine/links.ts).
           handFields: handFields(findBlock(l.doc.stages[s.key.stage]!.steps[s.key.step]!.block)?.fields ?? [], s.source),
-          actions: decided ? [] : NAMES.filter((a) => !refusal(a, context(l.doc, s, req.user!))),
+          actions: decided ? [] : NAMES.filter((a) => !refusal(a, context(l.doc, s, req.user!, l.events))),
           problems: s.state === 'in_progress' ? doneProblems(l.doc, s, l.now) : [],
         };
       }),
@@ -863,7 +864,7 @@ export function batchRoutes(app: FastifyInstance, sql: Sql) {
             throw new StepError(409, 'batch_closed', [decided ? `The batch is ${decided.payload.terminated ? 'terminated' : decided.kind}.` : 'Production has approved the batch record.']);
           }
           // 3. allowed?
-          const no = refusal(action, context(l.doc, v, user));
+          const no = refusal(action, context(l.doc, v, user, l.events));
           if (no) throw new StepError(no.status, no.error, [no.message]);
           if (action === 'done') { const p = doneProblems(l.doc, v, l.now); if (p.length) throw new StepError(409, 'not_ready', p); }
           if (signer && b.contentHash !== stepHash(id, v)) throw new StepError(409, 'content_changed', ['The step changed since you opened it.']);
