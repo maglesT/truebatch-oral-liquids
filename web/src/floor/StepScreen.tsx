@@ -68,7 +68,7 @@ export function StepScreen({ me, d, blocks, row, now, reload }: { me: Me; d: Bat
   const [md, setMd] = useState<Record<'machine' | 'room', PickItem[]>>({ machine: [], room: [] });
   const last = row.events.at(-1)?.id ?? 0;
   // The block's fields and the label questions of what was entered by hand (a link absent or down).
-  const fields = [...askedFields(doc, block), ...row.handFields];
+  const fields = [...askedFields(doc, block, st), ...row.handFields];
   const line = Object.values(st.settings).find((v): v is { formula: string } => typeof v === 'object' && 'formula' in v);
   const material = line && materialLines(doc).find((l) => l.key === line.formula)?.materialItemId;
   const lots = useLinked<{ lotNumber: string }>(block.fields.some((f) => f.kind === 'lot') && material ? `/api/mms/lots?material=${encodeURIComponent(material)}` : null, 'lots');

@@ -31,6 +31,7 @@ const SETTINGS: Record<string, Step['settings']> = {
   dry: { lodLimit: { high: '2.0', unit: '%' } },
   'dry-constant': { maxChange: '0.5 g' },
   'sub-batch-combine': { accountabilityLimit: pct('99.0', '100.5') },
+  'lab-tests': { what1: 'Assay of paracetamol', unit1: '%', limit1: pct('95.0', '105.0'), what2: 'Viscosity', unit2: 'mPa·s', limit2: { low: '50', high: '150', unit: 'mPa·s' }, what3: 'pH', unit3: 'pH', limit3: { low: '4.5', high: '5.5', unit: 'pH' } },
   dissolution: { test: 'dissolution IR', q: '80', timePoint: '30 min, 900 mL pH 6.8' },
   'blend-uniformity': { meanLimit: pct('90.0', '110.0'), rsdLimit: { high: '5.0', unit: '%' }, individualLimit: pct('85.0', '115.0') },
   'density-flow': { carrLimit: { high: '20', unit: '%' }, hausnerLimit: { high: '1.25', unit: '' }, reposeLimit: { high: '40', unit: '°' } },

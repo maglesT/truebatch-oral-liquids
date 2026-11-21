@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { connect, type Sql } from '../server/db.js';
 import { links } from '../server/links.js';
-import { findBlock } from '../shared/blocks/index.js';
+import { findBlock, labelled } from '../shared/blocks/index.js';
 import { blockProblems, type Block, type BlockField } from '../shared/blocks/format.js';
 import { answersField, coaRefusal, fieldRefusal, inProcessFit, inProcessText, ipcCodes, labRequestId, labTests, requestFits, resultRefusal, sameUnit, type Coa, type QcResult } from '../shared/engine/lims.js';
 import { masterChecks } from '../shared/master/checks.js';
@@ -915,5 +915,24 @@ describe('A3 dissolution in three stages, picked from LIMS (fix round 21 Nov 202
     // LIMS's mean of all 24 must agree.
     expect(inProcessFit(r(all.slice(12), '50.0'), s3!, '%', d.fields, { results: rec(six), moreResults: rec(twelve.slice(6)) }, undefined, codes)).toMatchObject({ error: expect.stringContaining('works it out from the same 24 values') });
     expect(s2!.optional).toBe(true);
+  });
+});
+
+describe('A2 more than one in-process lab test in one step (fix round 21 Nov 2026)', () => {
+  const b = findBlock({ id: 'lab-tests', version: 1 })!;
+  it('each test set by the master is one test of the lab request, named as the master names it; an unset one is left out', () => {
+    const settings = { what1: 'Assay of metformin (layer 1)', unit1: '%', what2: 'Assay of glimepiride (layer 2)', unit2: '%' };
+    const fields = labelled(b.fields, settings);
+    const codes = ipcCodes({ stages: [{ steps: [{ block: { id: 'lab-tests' } }] }] }, 0, 0, b.fields);
+    const unitOf = (f: BlockField) => { const u = f.unit?.startsWith('$') ? (settings as Record<string, string>)[f.unit.slice(1)] : f.unit; return u ?? ''; };
+    expect(labTests(fields, unitOf, codes)).toEqual([
+      { code: 'lab-tests.test1', name: 'test1', label: 'Assay of metformin (layer 1)', unit: '%', individual: null },
+      { code: 'lab-tests.test2', name: 'test2', label: 'Assay of glimepiride (layer 2)', unit: '%', individual: null },
+    ]);
+    expect(blockProblems(b)).toEqual([]);
+    // A result naming test 2's code fills test 2 only.
+    const r = { testName: 'Assay', coaNumber: 'IPR1', unit: '%', reported: '99.1', individual: null, figure: 'result', ipcField: null, ipcCode: 'lab-tests.test2' };
+    expect(inProcessFit(r, b.fields[1]!, '%', b.fields, {}, undefined, codes)).toEqual({ take: { test2: '99.1' } });
+    expect(inProcessFit(r, b.fields[0]!, '%', b.fields, {}, undefined, codes)).toMatchObject({ error: expect.stringContaining('answers Lab test 2, not Lab test 1') });
   });
 });

@@ -12,6 +12,7 @@ import { dryMix } from './dry-mix.js';
 import { dry } from './dry.js';
 import { granulate } from './granulate.js';
 import { lineClearance } from './line-clearance.js';
+import { labTests } from './lab-tests.js';
 import { mix } from './mix.js';
 import { deviceAssembly } from './device-assembly.js';
 import { qaSample } from './qa-sample.js';
@@ -40,6 +41,7 @@ import * as L from './liquids.js';
 import * as P from './liquid-packing.js';
 
 export type { Block, BlockField, BlockSetting } from './format.js';
+export { labelled } from './format.js';
 // In the order of a process: dispensing and preparation, (dry syrup) granulation, blending and coating of granules,
 // then the steps of any stage.
 export const BLOCKS: readonly Block[] = [
@@ -48,7 +50,7 @@ export const BLOCKS: readonly Block[] = [
   // A dry syrup: sifting, (wet) granulation, blending and coating of granules.
   sift, binderSolution, coatingSuspension, dryMix, mix, granulate, dry, dryConstant, sieve,
   // A suspension or a dry syrup: dissolution in the QC lab, picked from LIMS (fix round 21 Nov 2026).
-  subBatchCombine, blendUniformity, densityFlow, dissolution, sprayCoat, check, qaSample, stageYield, lineClearance,
+  subBatchCombine, blendUniformity, densityFlow, dissolution, labTests, sprayCoat, check, qaSample, stageYield, lineClearance,
   // Any edition: assembling devices (a dosing device or dropper, autoinjectors, inhalers) from a component lot.
   deviceAssembly,
   // TrueBatch Liquids Packing, in the order of a packing record.

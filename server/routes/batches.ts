@@ -11,7 +11,7 @@ import { SignError, authenticateSigner, contentHash, sign, signBody } from '../s
 import { masterVersion } from './masters.js';
 import { batchRecordDoc, type RecordInput, type Signature } from '../batch-record.js';
 import { render, sendPdf } from '../pdf.js';
-import { findBlock } from '../../shared/blocks/index.js';
+import { findBlock, labelled } from '../../shared/blocks/index.js';
 import { blocking, masterChecks } from '../../shared/master/checks.js';
 import type { MasterDoc } from '../../shared/master/schema.js';
 import { Dec } from '../../shared/templates/index.js';
@@ -167,7 +167,8 @@ export function labRequestOf(doc: MasterDoc, key: StepKey): { stage: string; ste
   const st = stage?.steps[key.step];
   const block = st && findBlock(st.block);
   if (!stage || !st || !block) return null;
-  const tests = labTests(block.fields, (f) => { const u = f.unit?.startsWith('$') ? st.settings[f.unit.slice(1)] : f.unit; return typeof u === 'string' ? u : ''; },
+  // A2: the lab request names each test as the master does (labelFrom: "Assay of metformin").
+  const tests = labTests(labelled(block.fields, st.settings), (f) => { const u = f.unit?.startsWith('$') ? st.settings[f.unit.slice(1)] : f.unit; return typeof u === 'string' ? u : ''; },
     ipcCodes(doc, key.stage, key.step, block.fields));
   if (!tests.length) return null;
   const extra = [stage.kind === 'sub-batch' ? `sub-batch ${key.sub}` : '', st.flow.kind === 'repeat-until' ? `round ${key.round}` : ''].filter(Boolean).join(', ');

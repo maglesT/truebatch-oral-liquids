@@ -2,7 +2,7 @@
  * What is open in a batch, and its timers, computed from the master version and the step events. Nothing is stored:
  * the event log is the single source of truth.
  */
-import { findBlock, type Block } from '../blocks/index.js';
+import { findBlock, labelled, type Block } from '../blocks/index.js';
 import { materialLines, type MasterDoc, type Step } from '../master/schema.js';
 import { keyId, stepState, type EventKind, type State, type StepEvent, type StepKey } from './state.js';
 import { c1WithinLimits, convert, Dec, findUnit } from '../templates/index.js';
@@ -45,10 +45,11 @@ export function stepTitle(doc: MasterDoc, st: Step): string {
   return [block?.name ?? st.key, what].filter(Boolean).join(': ');
 }
 /** The fields a step asks for: a pack without a leaflet is not asked about a leaflet. */
-export function askedFields(doc: MasterDoc, block: Block): Block['fields'] {
-  if (block.id !== 'carton-check' || !doc.pack) return block.fields;
+export function askedFields(doc: MasterDoc, block: Block, st?: { settings: Readonly<Record<string, unknown>> }): Block['fields'] {
   const has = (kind: string) => doc.pack!.materials.some((x) => x.kind === kind);
-  return block.fields.filter((f) => (f.name !== 'leaflet' || has('leaflet')) && (f.name !== 'device' || has('measuring device')));
+  const fields = block.id !== 'carton-check' || !doc.pack ? block.fields : block.fields.filter((f) => (f.name !== 'leaflet' || has('leaflet')) && (f.name !== 'device' || has('measuring device')));
+  // A2: the labels the master step gives (a lab test's "what is tested").
+  return st ? labelled(fields, st.settings) : fields;
 }
 /** Where a step instance is, in words: "Granulation › Dry to an LOD limit (round 2)". */
 export function stepLabel(doc: MasterDoc, k: StepKey): string {
