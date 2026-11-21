@@ -12,7 +12,9 @@ import { terminatedText } from '../../../shared/engine/release.js';
 // (equipment_use_v1). On the batch screen and the QA "To review" list; the batch is read when the window opens, and the
 // signature covers it as read then. Its windows open over the whole page (a portal), not inside the row or card that
 // holds the button: a row on the To review list moves on hover, which would hold a fixed window inside its card.
-export function Terminate({ id, batchNo, onDone }: { id: number; batchNo: string; onDone: () => Promise<void> | void }) {
+// Fix round 21 Nov 2026 (A5), `abandon`: production abandons a batch before any step is recorded: a reason and the
+// signature only (nothing was used; packing: the bulk tablets issued go back).
+export function Terminate({ id, batchNo, onDone, abandon = false }: { id: number; batchNo: string; onDone: () => Promise<void> | void; abandon?: boolean }) {
   const [step, setStep] = useState<'reason' | 'sign' | null>(null);
   const [reason, setReason] = useState('');
   const [d, setD] = useState<BatchDetail | null>(null);
@@ -26,14 +28,14 @@ export function Terminate({ id, batchNo, onDone }: { id: number; batchNo: string
       setD(b); setBack(b.batch.issued.map(() => '')); setStep('reason');
     } catch (e) { setError(plainError(e)); }
   };
-  const lots = d?.batch.issued ?? [];
+  const lots = abandon ? [] : d?.batch.issued ?? [];
   const returns = lots.map((l, i) => ({ lot: l.lot, value: back[i]!.trim(), unit: l.unit }));
   return (<>
-    <button type="button" className="big soft-bad" onClick={() => void open()}>Terminate batch</button>
+    <button type="button" className="big soft-bad" onClick={() => void open()}>{abandon ? 'Abandon batch' : 'Terminate batch'}</button>
     {error && <p className="notice bad" role="alert">{error}</p>}
     {step && d && createPortal(<>{step === 'reason' && (
-      <ReasonDialog title={`Terminate batch ${batchNo}`} label="Reason for terminating" submit="Continue to sign" onCancel={close} wide
-        hint="The batch stops here and is rejected. Its record is kept; no step can be recorded any more, and its machines and rooms are freed."
+      <ReasonDialog title={`${abandon ? 'Abandon' : 'Terminate'} batch ${batchNo}`} label={abandon ? 'Reason for abandoning' : 'Reason for terminating'} submit="Continue to sign" onCancel={close} wide
+        hint={abandon ? 'No step of this batch has been recorded. It is terminated and its record kept; its number is not used again.' : 'The batch stops here and is rejected. Its record is kept; no step can be recorded any more, and its machines and rooms are freed.'}
         onSubmit={async (why) => {
           const missing = lots.filter((_, i) => !/^\d+(\.\d+)?$/.test(back[i]!.trim()));
           if (missing.length) throw new Error(`Say how much of lot ${missing.map((l) => l.lot).join(', ')} went back to stores unused: 0 if none.`);
@@ -56,8 +58,8 @@ export function Terminate({ id, batchNo, onDone }: { id: number; batchNo: string
       </ReasonDialog>
     )}
     {step === 'sign' && (
-      <SignDialog meaning="rejected" wide what={`Terminate batch ${batchNo} · ${d.master.doc.header.productName} (status now: ${statusText(d.batch.status)})`} onCancel={close}
-        onSign={async ({ proof }) => { await api('POST', `/api/batches/${id}/terminate`, { proof, contentHash: d.batch.contentHash, reason, ...(lots.length ? { returns } : {}) }); close(); await onDone(); }}>
+      <SignDialog meaning={abandon ? 'abandoned' : 'rejected'} wide what={`${abandon ? 'Abandon' : 'Terminate'} batch ${batchNo} · ${d.master.doc.header.productName} (status now: ${statusText(d.batch.status)})`} onCancel={close}
+        onSign={async ({ proof }) => { await api('POST', `/api/batches/${id}/${abandon ? 'abandon' : 'terminate'}`, { proof, contentHash: d.batch.contentHash, reason, ...(lots.length ? { returns } : {}) }); close(); await onDone(); }}>
         <div className="summary-box">
           <p>Reason: <b>{reason}</b></p>
           {lots.length > 0 && <p>Back to stores unused: {returns.map((r, i) => <span key={i}>{i ? ', ' : ''}lot {r.lot} <b>{r.value} {r.unit}</b></span>)}; the rest counts as used.</p>}

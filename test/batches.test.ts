@@ -452,6 +452,29 @@ describe('production approval, QC approval and QA release', () => {
   });
 });
 
+describe('A5 production abandons a batch before any step is recorded (fix round 21 Nov 2026)', () => {
+  it('the issuer abandons it with a reason and a signature; once a step is started, only QA terminates', async () => {
+    const mv = await effectiveMaster();
+    const { id } = await issue(mv);
+    const hash = async () => ((await as('issuer', 'GET', `/api/batches/${id}`)).json() as { batch: { contentHash: string; actions: string[] } }).batch;
+    expect((await hash()).actions).toEqual(['abandon']);
+    expect((await as('issuer', 'POST', `/api/batches/${id}/abandon`, { proof: proofFor('issuer'), contentHash: (await hash()).contentHash })).statusCode).toBe(400);
+    const res = await as('issuer', 'POST', `/api/batches/${id}/abandon`, { proof: proofFor('issuer'), contentHash: (await hash()).contentHash, reason: 'Issued on the wrong master' });
+    expect(res.statusCode).toBe(200);
+    const [e] = await t.owner<{ kind: string; payload: object }[]>`select kind, payload from batch_events where batch_id = ${id}`;
+    expect(e).toEqual({ kind: 'rejected', payload: { terminated: true, abandoned: true, reason: 'Issued on the wrong master' } });
+    const b = (await as('viewer', 'GET', `/api/batches/${id}`)).json() as { batch: { status: string; actions: string[] } };
+    expect(b.batch).toMatchObject({ status: 'rejected', actions: [] });
+    const text = await recordText(id);
+    expect(text).toMatch(/Abandoned before any step was recorded by ISSUER at .*: Issued on the wrong master/);
+    // Another batch: a step started, so abandoning is refused.
+    const other = (await issue(mv)).id;
+    await act('asha', other, '0.1.0.1', 'start');
+    const no = await as('issuer', 'POST', `/api/batches/${other}/abandon`, { proof: proofFor('issuer'), contentHash: ((await as('issuer', 'GET', `/api/batches/${other}`)).json() as { batch: { contentHash: string } }).batch.contentHash, reason: 'x' });
+    expect(no.json()).toMatchObject({ error: 'not_ready', problems: ['A step of this batch has been recorded: QA terminates it (with what went back to stores).'] });
+  });
+});
+
 describe('QA terminates a batch that cannot be finished (owner, 16 Nov 2026)', () => {
   let id: number;
   const full = async (who = 'viewer') => (await as(who, 'GET', `/api/batches/${id}`)).json() as {

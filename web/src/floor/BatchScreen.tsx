@@ -131,6 +131,12 @@ function Overview({ me, d, blocks, now, reload }: { me: Me; d: BatchDetail; bloc
         <div className="panel-head"><h2>Production approval</h2><span className="muted">when every stage is closed</span></div>
         <button className="big" onClick={() => go(`${batchLink(d.batch.id)}/approve`)}>{d.batch.status === 'manufacturing complete' ? 'Review and approve the record' : 'See what is still open'}</button>
       </section>}
+      {d.batch.actions.includes('abandon') && (
+        <section className="dash-panel" aria-label="Abandon the batch">
+          <div className="panel-head"><h2>Abandon the batch (production)</h2><span className="muted">issued by mistake: possible until the first step is recorded</span></div>
+          <Terminate id={d.batch.id} batchNo={d.batch.batchNo} onDone={reload} abandon />
+        </section>
+      )}
       {d.batch.actions.includes('terminate') && (
         <section className="dash-panel" aria-label="Terminate the batch">
           <div className="panel-head"><h2>Terminate the batch (QA)</h2><span className="muted">when the batch cannot be finished: it is rejected, its record kept</span></div>

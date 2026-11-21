@@ -60,7 +60,7 @@ export function ToReview({ me }: { me: Me }) {
                       <small>{b.productCode} · {statusText(b.status)} by {b.by}, {plainClock(b.since)}</small>
                       <span className="pending-badges">
                         {b.openDeviations > 0 && <span className="chip chip-bad">{b.openDeviations} open deviation{b.openDeviations === 1 ? '' : 's'}</span>}
-                        {b.actions.some((a) => a !== 'terminate') && <span className="chip chip-ok">Ready for your signature</span>}
+                        {b.actions.some((a) => a !== 'terminate' && a !== 'abandon') && <span className="chip chip-ok">Ready for your signature</span>}
                       </span>
                     </span>
                     <span className="pending-go">Review →</span>

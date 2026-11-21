@@ -349,6 +349,8 @@ const BATCH_BODIES: Record<BatchAction, z.ZodTypeAny> = {
   reject: signBody.extend({ reason }),
   // Per lot the batch used: how much went back to stores unused (stock.ts issuedLots, returnProblems).
   terminate: signBody.extend({ reason, returns: z.array(z.object({ lot: z.string().max(60), value: z.string().trim().regex(/^\d+(\.\d+)?$/, 'a quantity, 0 or more'), unit: z.string().max(20) })).max(200).optional() }),
+  // Fix round 21 Nov 2026 (A5): production abandons a batch before any step is recorded.
+  abandon: signBody.extend({ reason }),
   'close-deviation': z.object({ note: z.number().int().positive(), reason }),
   // Owner decision 20 Nov 2026: a note without a number, closed here (reason, e-signature) or sent to Deviations.
   'close-exception': signBody.extend({ note: z.number().int().positive(), reason }),
@@ -805,15 +807,16 @@ export function batchRoutes(app: FastifyInstance, sql: Sql) {
           const checked: BulkChecked | null = bulk && { bulk: bulk.bulk, state: bulk.state, ...(bulk.link && bulk.state !== 'ok' ? { link: bulk.link, typed: b.bulkChecked!.trim() } : {}) };
           if (signer && b.contentHash !== batchHash(l)) throw new StepError(409, 'content_changed', ['The batch record changed since you opened it.']);
           // Terminate: what went back to stores unused of each lot the batch used; material_use_v1 gives it back to MMS.
-          const issued = action === 'terminate' ? issuedLots(l.doc, openSteps(l.doc, l.events, l.now).steps) : [];
-          const wrong = returnProblems(issued, b.returns ?? []);
+          const issued = action === 'terminate' || action === 'abandon' ? issuedLots(l.doc, openSteps(l.doc, l.events, l.now).steps) : [];
+          // Abandoned: nothing was used, so all of it went back (packing: the bulk tablets issued at issue).
+          const wrong = action === 'abandon' ? [] : returnProblems(issued, b.returns ?? []);
           if (wrong.length) throw new StepError(400, 'invalid_values', wrong);
-          const returns = issued.map((x) => ({ ...x, value: b.returns!.find((r) => r.lot.toLowerCase() === x.lot.toLowerCase() && r.unit === x.unit)!.value }));
+          const returns = action === 'abandon' ? issued.map((x) => ({ ...x })) : issued.map((x) => ({ ...x, value: b.returns!.find((r) => r.lot.toLowerCase() === x.lot.toLowerCase() && r.unit === x.unit)!.value }));
           // QC approval (readers round 2): while LIMS answers, the report number is an approved CoA of this batch there
           // (picked, kept with its LIMS reference); absent or down, typed by hand and marked so for QA.
           const qc = action === 'qc-approve' ? await pullCoa(app, b.reportNo!, { kind: 'PRODUCT', batchNo: l.batch.batchNo, productCode: l.doc.header.productCode }) : null;
           if (qc?.problems.length) throw new StepError(409, 'not_in_lims', qc.problems);
-          const payload = { ...(action === 'terminate' ? { terminated: true } : {}), ...(returns.length ? { returns } : {}), ...(b.reportNo ? { reportNo: (qc?.values.coaNumber as string | undefined) ?? b.reportNo } : {}),
+          const payload = { ...(action === 'terminate' || action === 'abandon' ? { terminated: true } : {}), ...(action === 'abandon' ? { abandoned: true } : {}), ...(returns.length ? { returns } : {}), ...(b.reportNo ? { reportNo: (qc?.values.coaNumber as string | undefined) ?? b.reportNo } : {}),
             ...(qc ? { source: qc.source } : {}), ...(b.reason ? { reason: b.reason } : {}), ...(b.note ? { note: b.note } : {}), ...(checked ? { bulk: checked } : {}) };
           const [ev] = await tx<{ id: number }[]>`
             insert into batch_events (batch_id, kind, payload, person_id) values (${id}, ${rule.event}, ${tx.json(payload)}, ${user.id}) returning id::int`;

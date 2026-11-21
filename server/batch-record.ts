@@ -19,7 +19,7 @@ export interface RecordInput extends LoadedBatch { versionNo: number; issuedByNa
 
 const MEANING: Record<string, string> = {
   issued: 'Issued', performed: 'Performed', verified: 'Verified (second person)', released: 'Released', rejected: 'Rejected',
-  production_approved: 'Production approved', qc_approved: 'QC approved', exception_closed: 'Exception closed here',
+  production_approved: 'Production approved', qc_approved: 'QC approved', exception_closed: 'Exception closed here', abandoned: 'Abandoned',
 };
 const EVENT: Record<EventKind, string> = {
   started: 'Started', value: 'Recorded', done: 'Signed as done', checked: 'Checked', sent_back: 'Sent back', corrected: 'Corrected',
