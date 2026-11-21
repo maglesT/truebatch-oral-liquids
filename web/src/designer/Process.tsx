@@ -135,6 +135,8 @@ function StageForm({ doc, si, stage, onChange, roles, machineTypes, md }: {
       {/* TL-11: the machines and rooms the floor is offered stand in these rooms (balances also in a dispensing area). */}
       <ChipSet label="Rooms this stage may run in (an area, or a room)" values={stage.roomTypes} options={rooms.options} groups={rooms.groups} text={rooms.text} onChange={(roomTypes) => onChange({ ...stage, roomTypes })}
         empty="None chosen yet: choose the rooms (needed when the stage works machines or names a room)" />
+      {/* A10 (fix round 21 Nov 2026): a product need not share another product's rooms. */}
+      <p className="muted small">An area allows all its rooms; a room picked by its code allows only that room, so this product can have rooms of its own (a new room is added in master data first).</p>
       <ChipSet label="Allowed machine types" values={stage.machineTypes} options={machineTypes} onChange={(machineTypes) => onChange({ ...stage, machineTypes })} empty="Any machine type" />
       <fieldset className="checklist">
         <legend>Intermediate produced</legend>

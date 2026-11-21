@@ -135,10 +135,11 @@ test('TL-P2 packing journey: packing master from the skeleton, approved; a packi
     await expect(issue.getByText(/Not offered, because the Logbook does not have/)).toHaveCount(0);
     await issue.getByRole('group', { name: 'Filling line' }).getByRole('button', { name: /FL-01/ }).click();
     await issue.getByLabel('Bulk batch no.').fill('TL260001');
-    // Pull, don't type: the bulk issued is what is left of the bulk batch's good quantity, from TrueBatch Liquids,
-    // offered in the field; less may be typed (a part issue), more is refused. Its ready time and hold come with it.
-    await expect(issue.getByLabel('Bulk issued')).toHaveValue('615');
-    await expect(issue.getByText('Left to issue of TL260001: 615 L (615 L good in TrueBatch Liquids). Issue all of it, or type less for a part issue.')).toBeVisible();
+    // Pull, don't type: what is left of the bulk batch's good quantity comes from TrueBatch Liquids; the field offers the
+    // bulk the packing master's batch needs (fix round 21 Nov 2026, A6: 1000 packs × 61.5 mL), more than is left is
+    // refused. Its ready time and hold come with it.
+    await expect(issue.getByLabel('Bulk issued')).toHaveValue('61.5');
+    await expect(issue.getByText('Left to issue of TL260001: 615 L (615 L good in TrueBatch Liquids). Shown: the bulk for the packing batch of the master, 61.5 L. Type the bulk actually issued.')).toBeVisible();
     await expect(issue.getByLabel(/Bulk ready/)).toHaveCount(0);
     await issue.getByLabel('Bulk issued').fill('616');
     await issue.getByRole('button', { name: 'Next: sign' }).click();
@@ -156,6 +157,9 @@ test('TL-P2 packing journey: packing master from the skeleton, approved; a packi
   await issue.getByRole('group', { name: 'Filling line' }).getByRole('button', { name: /FL-01/ }).click();
   await expect(issue.locator('datalist option[value="TL260001"]')).toHaveCount(1);
   await issue.getByLabel('Bulk batch no.').fill('TL260001');
+  // The issuer types the bulk actually issued: all 615 L (A6: the field offers the master's batch, 61.5 L).
+  await expect(issue.getByLabel('Bulk issued')).toHaveValue('61.5');
+  await issue.getByLabel('Bulk issued').fill('615');
   await issue.getByRole('button', { name: 'Next: sign' }).click();
   await iss.page.getByRole('dialog').last().getByRole('button', { name: 'Sign', exact: true }).click();
   await expect(issue.getByRole('alert')).toContainText('the status label says clean, within its clean hold is not recorded');
@@ -267,7 +271,7 @@ test('TL-21 QA terminates a packing batch after materials were issued: the windo
   const iss = await person(browser, 'piss');
   const mv = ((await (await iss.page.request.get('/api/masters')).json()) as { id: number; state: string }[]).find((v) => v.state === 'effective')!.id;
   const labels = { 'line.clean': 'yes', 'line.calibrated': 'yes', 'line.inService': 'yes', 'line.qualified': 'yes' };
-  const res = await iss.page.request.post('/api/batches', { data: { masterVersionId: mv, proof: await iss.proof('issued'), values: { line: 'ln-1', ...labels, bulk: 'TL260002' } } });
+  const res = await iss.page.request.post('/api/batches', { data: { masterVersionId: mv, proof: await iss.proof('issued'), values: { line: 'ln-1', ...labels, bulk: 'TL260002', quantity: '369' } } });
   expect(res.ok(), await res.text()).toBe(true);
   const batch = await res.json() as { id: number; batchNo: string };
   await iss.ctx.close();

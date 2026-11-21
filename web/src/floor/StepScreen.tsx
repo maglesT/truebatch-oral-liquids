@@ -171,7 +171,10 @@ export function StepScreen({ me, d, blocks, row, now, reload }: { me: Me; d: Bat
   const picksFor = (f: BlockField) => pickOf(f).offered.map((p) => ({ ...p, notFit: logbook?.notFit[p.itemId] }));
   // An empty picker says why (once master data is read) and what the Logbook leaves out; one with choices says nothing.
   const mdRead = md.room.length > 0 && (md.machine.length > 0 || !block.fields.some((x) => x.kind === 'machine'));
-  const noteFor = (f: BlockField) => [mdRead && !fits(f).length ? emptyNote(stage, f, md.machine, md.room, dispensingRooms(doc, md.room), qty) : null, pickOf(f).note];
+  // A10 (fix round 21 Nov 2026): every room the stage allows is busy or not clean: say how the master gets its own room.
+  const allBusy = (f: BlockField) => { const p = picksFor(f); return f.kind === 'room' && p.length > 0 && p.every((x) => x.notFit); };
+  const noteFor = (f: BlockField) => [mdRead && !fits(f).length ? emptyNote(stage, f, md.machine, md.room, dispensingRooms(doc, md.room), qty) : null, pickOf(f).note,
+    allBusy(f) ? `Every room this stage allows (${stage.roomTypes.join(', ')}) is in use or not fit in the Logbook. Wait for one, or the master names another room for this stage (by its code, in the stage settings of a new master version); a new room is added in master data first.` : null];
 
   const post = (action: string, body: object = {}, key = row.id) => api('POST', `/api/batches/${d.batch.id}/steps/${key}/${action}`, body);
   const run = async (fn: () => Promise<unknown>) => {

@@ -19,7 +19,7 @@ export function seedMasterData(m: FakeMaster) {
     { ...item('mat-cot', 'MAT-007', 'Film coating system'), category: 'excipient', unit: 'kg' },
   );
   m.equipment_.push(
-    { ...item('eq-bal', 'BAL-01', 'Balance 60 kg'), kind: 'instrument', type: 'balance', room: 'DSP-01' },
+    { ...item('eq-bal', 'BAL-01', 'Weighing balance'), kind: 'instrument', type: 'balance', room: 'DSP-01' },
     { ...item('eq-bln', 'BLN-01', 'Bin blender 200 L'), kind: 'equipment', type: 'blender', room: 'BLN-01' },
     { ...item('eq-prs', 'PRS-01', 'Rotary tablet press'), kind: 'equipment', type: 'tablet press', room: 'CMP-01' },
     // The skeleton's sifting and in-process tests stand in the rooms of their stages (the master check warns otherwise).
