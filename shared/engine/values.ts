@@ -224,6 +224,16 @@ export function packFacts(p: Pack): Record<string, string> {
     fillTarget: target && `${target} mL`, fillWeight: p.fillWeightG && `${p.fillWeightG} g` }).filter(([, v]) => v !== undefined).map(([k, v]) => [`pack.${k}`, v!]));
 }
 
+/**
+ * Fix round 21 Nov 2026 (A6): the bulk the packing master's batch needs, in the bulk's unit: its packs × the fill
+ * target (a liquid, L) or × the fill weight (a dry syrup, kg); undefined when the pack's fill is not set.
+ */
+export function planBulk(doc: Pick<MasterDoc, 'header' | 'pack'>, unit: string): string | undefined {
+  const p = doc.pack;
+  const per = !p ? undefined : unit === 'kg' ? p.fillWeightG : p.fillVolumeMl && new Dec(p.fillVolumeMl).plus(p.fillExcessMl ?? '0').toString();
+  return per ? new Dec(doc.header.batchSize).times(per).div(1000).toString() : undefined;
+}
+
 /** A header value: as written, or worked out from it (the volume, the mass, the containers of a dry syrup). */
 export function headerValue(doc: MasterDoc, h: (typeof HEADER_VALUES)[number]): string | Stored {
   const { batchSize, batchUnit, densityGPerMl: d, fillWeightG: fill } = doc.header;

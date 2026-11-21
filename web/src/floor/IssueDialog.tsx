@@ -7,6 +7,7 @@ import { FieldInput } from './Fields.js';
 import { findBlock } from '../../../shared/blocks/index.js';
 import { handFields, type Source } from '../../../shared/engine/links.js';
 import { emptyNote, inLogbook, machineRefusal } from '../../../shared/engine/picks.js';
+import { planBulk } from '../../../shared/engine/values.js';
 
 // TL-03: issue a batch from the effective master version, signed "issued". A packing master's first step is recorded
 // at issue: the line, the released bulk batch (picked from TrueBatch Liquids; typed from its labels without the link)
@@ -44,7 +45,10 @@ export function IssueDialog({ row, onCancel }: { row: MasterRow; onCancel: () =>
   // answers, and so does the bulk issued when it gives it (pull, don't type): what is left of its good quantity,
   // offered; less may be typed (a part issue).
   const picked = bulk?.link === 'ok' ? bulk.batches.find((x) => x.batchNo === String(values.bulk ?? '').trim()) : undefined;
-  const offered = picked?.goodQuantity ? picked.left ?? picked.goodQuantity : undefined;
+  // Fix round 21 Nov 2026 (A6): offered is the bulk the packing master's batch needs (or what is left when less), not all of it.
+  const left = picked?.goodQuantity ? picked.left ?? picked.goodQuantity : undefined;
+  const plan = planBulk(doc, block?.fields.find((f) => f.name === 'quantity')?.unit ?? 'L');
+  const offered = left === undefined || plan === undefined || Number(left) <= Number(plan) ? left : plan;
   const fields = [...atIssue.filter((f) => !['mfgDate', 'readyAt', 'holdHours'].includes(f.name) || (bulk && bulk.link !== 'ok')), ...asked];
   const sent = Object.fromEntries(Object.entries(values).filter(([k]) => fields.some((f) => f.name === k)));
   // Another bulk batch: the bulk typed for the previous one goes.
@@ -68,7 +72,7 @@ export function IssueDialog({ row, onCancel }: { row: MasterRow; onCancel: () =>
           <FieldInput key={f.name === 'quantity' ? `quantity-${picked?.batchNo ?? ''}` : f.name} f={f} unit={f.unit ?? ''} saved={f.name === 'quantity' && offered ? { value: offered, unit: f.unit ?? 'L' } : undefined} picks={f.kind === 'machine' ? linePicks : []} note={[f.kind === 'machine' && machines.length && !lines.length ? emptyNote(doc.stages[0]!, f, machines, rooms) : null, f.kind === 'machine' ? offer.note : null]} onChange={set(f.name)}
             options={f.kind === 'bulk' ? (bulk?.batches ?? []).map((x) => x.batchNo) : []} />
         ))}
-        {picked?.goodQuantity && <p className="notice">Left to issue of {picked.batchNo}: {Number(offered).toLocaleString('en-IN')} {picked.goodUnit ?? ''} ({Number(picked.goodQuantity).toLocaleString('en-IN')} {picked.goodUnit ?? ''} good in TrueBatch Liquids{Number(picked.issued ?? 0) > 0 ? `, ${Number(picked.issued).toLocaleString('en-IN')} already issued to other packing batches` : ''}). Issue all of it, or type less for a part issue.</p>}
+        {picked?.goodQuantity && <p className="notice">Left to issue of {picked.batchNo}: {Number(left).toLocaleString('en-IN')} {picked.goodUnit ?? ''} ({Number(picked.goodQuantity).toLocaleString('en-IN')} {picked.goodUnit ?? ''} good in TrueBatch Liquids{Number(picked.issued ?? 0) > 0 ? `, ${Number(picked.issued).toLocaleString('en-IN')} already issued to other packing batches` : ''}). {offered === left ? 'Shown: all that is left.' : `Shown: the bulk for the packing batch of the master, ${Number(offered).toLocaleString('en-IN')} ${picked.goodUnit ?? ''}.`} Type the bulk actually issued.</p>}
         {doc.pack && bulk && bulk.link !== 'ok' && <p className="notice warn">TrueBatch Liquids is not linked or not answering: type the bulk batch, its ready time and hold from its labels and batch record; a second person checks it.</p>}
         {problems.length > 0 && <div className="notice bad" role="alert">{problems.map((p, i) => <p key={i}>{p}</p>)}</div>}
         <div className="actions">

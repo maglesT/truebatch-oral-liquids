@@ -486,9 +486,9 @@ describe('a packing batch from a released bulk batch', () => {
     const s = (await get(a)).steps[0]!;
     expect(s).toMatchObject({ values: { quantity: { value: '123', unit: 'L' } }, source: { quantity: { from: 'truebatch_liquids' } } });
     expect(s.results.packs).toMatchObject({ ok: true, shown: '123 L ÷ 61.5 mL = 2000 packs' });
-    // A second packing batch of the same bulk is offered what is left: 357 L.
+    // A second packing batch of the same bulk is offered what is left: 357 L; all of it may be typed.
     expect((await offers())[0]).toEqual(['TL260006', '480', '123', '357']);
-    const rest = await issue({ line: 'ln-4', bulk: 'TL260006' });
+    const rest = await issue({ line: 'ln-4', bulk: 'TL260006', quantity: '357' });
     expect(rest.statusCode, rest.body).toBe(200);
     const b = (rest.json() as { id: number }).id;
     expect((await get(b)).steps[0]!.values.quantity).toEqual({ value: '357', unit: 'L' });
@@ -507,7 +507,12 @@ describe('a packing batch from a released bulk batch', () => {
     expect((await get(a)).steps[0]!.values.quantity).toEqual({ value: '400', unit: 'L' });
     const again = await issue({ line: 'ln-4', bulk: 'TL260006' });
     expect(again.statusCode, again.body).toBe(200);
-    expect((await get((again.json() as { id: number }).id)).steps[0]!.values.quantity).toEqual({ value: '80', unit: 'L' });
+    // A6 (fix round 21 Nov 2026): not typed, the issue is the bulk the packing master's batch needs (1000 packs × 61.5 mL
+    // = 61.5 L), not all 80 L left; the rest stays for the next packing batch.
+    const plan = (await get((again.json() as { id: number }).id)).steps[0]!;
+    expect(plan.values.quantity).toEqual({ value: '61.5', unit: 'L' });
+    expect(plan.source.quantity).toMatchObject({ shown: expect.stringMatching(/, 61\.5 L issued \(the packing master's batch\)$/) });
+    expect((await offers())[0]).toEqual(['TL260006', '480', '461.5', '18.5']);
     // A bulk TrueBatch Liquids gives in another unit than the master fills is refused, never converted.
     await t.owner.unsafe(`update ${TB}.batch_fact_v1 set good_unit = 'kg' where batch_number = 'TL260006'`);
     expect((await issue({ line: 'ln-5', bulk: 'TL260006' })).json())
