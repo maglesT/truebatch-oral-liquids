@@ -307,3 +307,24 @@ export function inProcessFit(r: Pick<QcResult, 'testName' | 'coaNumber' | 'unit'
   }
   return { take };
 }
+
+/**
+ * Fix round 21 Nov 2026 (A12, for LIMS: an in-process specification is written from the master, before any batch
+ * raises a request): the in-process lab tests of every block, as a master step's lab request lists them (labTests):
+ * the code without its '@<n>' (ipcCodes adds it when the block is in the master more than once), the label (or the text
+ * setting the master names it with), the unit (fixed, or the setting that names it) and the number of values (a staged
+ * list: all its stages). db/migrations/0029 keeps the same list as the view lab_field_parameters (not published) for
+ * report.master_lab_field_v1; a test compares the two, so a new in-process field needs a migration replacing it.
+ */
+export interface LabFieldParameter { block: string; blockName: string; field: string; code: string; label: string; labelSetting: string | null; unit: string | null; unitSetting: string | null; individual: number | null }
+export function labFieldParameters(blocks: readonly { id: string; name: string; fields: readonly BlockField[] }[]): LabFieldParameter[] {
+  return blocks.flatMap((b) => {
+    const codes = ipcCodes({ stages: [{ steps: [{ block: { id: b.id } }] }] }, 0, 0, b.fields);
+    return labTests(b.fields, (f) => f.unit ?? '', codes).map((t) => {
+      const f = b.fields.find((x) => x.name === t.name)!;
+      const set = f.unit?.startsWith('$');
+      return { block: b.id, blockName: b.name, field: t.name, code: t.code, label: t.label, labelSetting: f.labelFrom ?? null,
+        unit: set ? null : t.unit, unitSetting: set ? f.unit!.slice(1) : null, individual: t.individual };
+    });
+  });
+}
