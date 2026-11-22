@@ -1,11 +1,11 @@
 import { PACKING_LINE, type Block } from './format.js';
 
-// TrueBatch Liquids Packing (plan section 4, rules TL-P2, TL-P6, TL-17): the released bulk issued to the filling line and
+// TrueBatch Oral Liquids Packing (plan section 4, rules TL-P2, TL-P6, TL-17): the released bulk issued to the filling line and
 // its reconciliation at the end. Copies of TrueBatch Tablets' bulk-issue and finished-goods, by volume (a liquid, L)
 // or by weight (a dry syrup powder, kg): the unit is the block's, so each has a variant (Tablets way).
 //
 // Issue: the batch facts recorded when the packing batch is issued (server/routes/batches.ts): the line (one active
-// packing order per line, TL-P7), the RELEASED bulk batch of TrueBatch Liquids pulled from its batch_fact_v1 with its
+// packing order per line, TL-P7), the RELEASED bulk batch of TrueBatch Oral Liquids pulled from its batch_fact_v1 with its
 // date of manufacture, the bulk issued (what is left of its good quantity), when the bulk was ready and its hold
 // (bulk_ready_at, bulk_hold_hours; refused once the hold is over); typed from the bulk's labels and record with a
 // second-person check when the link is off. The containers to fill are the bulk ÷ the fill target (T6).

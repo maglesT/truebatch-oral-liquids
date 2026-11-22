@@ -291,7 +291,7 @@ describe('walking a stage', () => {
 
   it('TL-22 the batch record PDF shows the corrected value struck through with its reason, the worked lines, limits, notes and who did what', async () => {
     const text = await recordText(id);
-    expect(text).toMatch(/^TrueBatch Liquids · Batch record TL\d{6} · PRD-001 Examplol 100 mg film-coated tablets/);
+    expect(text).toMatch(/^TrueBatch Oral Liquids · Batch record TL\d{6} · PRD-001 Examplol 100 mg film-coated tablets/);
     expect(text).toContain('Status | In production');
     expect(text).toContain('Changed values | marked CHANGED');
     expect(text).toContain('Tare weight: 0.849 kg  CHANGED');

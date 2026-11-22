@@ -1,6 +1,6 @@
-# TrueBatch Liquids rules
+# TrueBatch Oral Liquids rules
 
-The 21 TrueBatch Liquids rules (TL-15 and TL-16, compression and punches, are tablets only and left unused). Each is checked once, in the app. Each test that proves a rule starts its name with the rule
+The 21 TrueBatch Oral Liquids rules (TL-15 and TL-16, compression and punches, are tablets only and left unused). Each is checked once, in the app. Each test that proves a rule starts its name with the rule
 ID, e.g. `TL-08 the person who performed a step cannot check it`. `npm run traceability` prints the rule-to-test list;
 CI (`npm run traceability -- --check`) fails when a rule has no test, unless its feature comes later (marked
 "later" in the Tests column, with the feature it waits for).
@@ -23,7 +23,7 @@ Clauses: the binding clauses each rule rests on (US: 21 CFR 211 and Part 11; EU:
 | TL-12 | Only released, in-date lots are used | US 211.84(a); 211.86; 211.87; 211.101(c)(1); EU C5 5.34; IN SCHM 14.14, 14.16, 14.17 | `test/links.test.ts` (MMS lot status, material and dates; the label without it), `test/lims.test.ts` (a lot typed by hand: its CoA from LIMS) |
 | TL-13 | The dispensing target comes from the master, adjusted by assay and LOD | US 211.101(a),(b),(d); 211.188(b)(3),(4); EU C5 5.37, 5.39; C4 4.20(d), 4.8; IN SCHM 14.18, 14.20; 17.3.8.3(f); 7 (recalls) | `test/engine.test.ts`, `test/master-checks.test.ts` |
 | TL-14 | In-process checks against the master's limits (dissolved and clear, pH, density, viscosity, appearance, bulk assay, particle or droplet size, a dry syrup blend's LOD); a bulk sample for QC is a QA hold; out of limits needs a deviation note | US 211.110(a)-(c) incl. (a)(3),(5),(6); 211.188(b)(5),(10); 211.192; EU C4 4.18(d),(e), 4.20(f); C5 5.43; IN SCHM 17.3.6.2(g),(h); 17.3.8.3(i); 18.4.2; 19.7.5; SCHM-IX 4.3 | `test/engine.test.ts`, `test/liquid-blocks.test.ts`, `e2e/floor.spec.ts`, `test/lims.test.ts` (the bulk test's figures and blend uniformity picked from LIMS for the step's own lab request) |
-| TL-17 | Hold times run on the server clock; an overrun needs a deviation note. The bulk hold runs from the end of manufacturing to the end of filling: TrueBatch Liquids publishes when the bulk was ready and its hold, Liquids Packing refuses an issue after it and needs a deviation note for filling after it | US 211.111; EU C4 4.18(f); C5 5.41; A9 9; IN SCHM 17.3.6.2(k); 17.3.8.3(h); 18.4.4; SCHM-IX 4.5 | `test/engine.test.ts`, `test/batches.test.ts`, `test/links.test.ts` (bulk_ready_at, bulk_hold_hours) |
+| TL-17 | Hold times run on the server clock; an overrun needs a deviation note. The bulk hold runs from the end of manufacturing to the end of filling: TrueBatch Oral Liquids publishes when the bulk was ready and its hold, Liquids Packing refuses an issue after it and needs a deviation note for filling after it | US 211.111; EU C4 4.18(f); C5 5.41; A9 9; IN SCHM 17.3.6.2(k); 17.3.8.3(h); 18.4.4; SCHM-IX 4.5 | `test/engine.test.ts`, `test/batches.test.ts`, `test/links.test.ts` (bulk_ready_at, bulk_hold_hours) |
 | TL-18 | Yield is calculated and verified, by volume or weight (the bulk in L by its level or by net weight ÷ density, a dry syrup in kg); out of limits blocks release | US 211.103; 211.186(b)(7); 211.188(b)(7); 211.192; EU C4 4.17(d), 4.20(g); C5 5.44; IN SCHM 17.3.6.2(d); 17.3.8.3(j); 18.2.3; 18.4.6 | `test/engine.test.ts`, `test/release.test.ts`, `test/liquid-blocks.test.ts`, `test/links.test.ts` (batch_fact_v1) |
 | TL-19 | Rework only as a new batch issued from an approved master | US 211.115(a),(b); EU C5 5.67, 5.68, 5.69; C4 4.20(d); IN SCHM 14.32, 14.33, 14.34; 17.3.8.3(f) | `test/batches.test.ts` |
 | TL-20 | The record is complete before production signs | US 211.188(b); EU C4 4.20(i); IN SCHM 17.3.8.3 (lead-in, (d)); 18.5.12 | `test/release.test.ts`, `test/batches.test.ts` |
@@ -31,10 +31,10 @@ Clauses: the binding clauses each rule rests on (US: 21 CFR 211 and Part 11; EU:
 | TL-22 | A complete copy (PDF) with its signatures and changes | US 11.10(b); 211.180(c); EU A11 8.1, 8.2; C4 4.27; IN SCHM 17.2.8 ("readily available") | `test/batches.test.ts`, `e2e/release.spec.ts` |
 | TL-23 | A step that names a training is signed (performed or checked) only by a person Recruitment shows trained in it; while Recruitment cannot be reached the signer confirms it and QA sees it | US 211.25(a); 11.10(i); EU C2 2.11 | `test/training.test.ts`, `e2e/floor.spec.ts` |
 
-## Packing rules (TrueBatch Liquids Packing)
+## Packing rules (TrueBatch Oral Liquids Packing)
 
 The 10 packing rules of the liquids minimum register, section E (TL-P1 to TL-P9 from tablets, P1-P4 and P6 adapted, and
-TL-P10 filling; filling happens in packing: "TrueBatch Liquids Packing", a separate product with the shared engine). Each uses the mechanisms of the rules above: the master and its
+TL-P10 filling; filling happens in packing: "TrueBatch Oral Liquids Packing", a separate product with the shared engine). Each uses the mechanisms of the rules above: the master and its
 check (TL-01, TL-02), issue (TL-03), entries, signatures and second-person checks (TL-04 to TL-08), deviation notes
 (TL-09), in-process checks and periodic checks (TL-14), reconciliation that blocks release (TL-18) and QA
 release (TL-21, TL-22), which apply to the packing record unchanged (QC approves it, then QA releases it). The tests
@@ -43,7 +43,7 @@ name the packing rule; the tests of the shared rules cover the packing record th
 | Rule | Requirement | Clauses | Tests |
 |------|-------------|---------|-------|
 | TL-P1 | A packing master per product, container and size (and destination): the bottle, closure, measuring device and fill (nominal fill + excess, or a dry syrup's fill weight), its packing materials with codes, where the batch number, dates and MRP are printed, line clearance before and after, and IPCs with limits | US 211.186(b) incl. (b)(8); EU C4 4.19; A9 8; IN SCHM 17.3.7; SCHM-IX 4.3, 4.4 | `test/packing.test.ts` |
-| TL-P2 | A packing record per packing batch, linked to the RELEASED bulk batch, issued in L (or kg) with when it was ready and its hold (refused after it): quantities, responsible people, checks, specimens and problems | US 211.188(b)(6),(8),(9),(13); EU C4 4.21; A9 9; IN SCHM 17.3.9; SCHM-IX 4.5 | `test/packing.test.ts`, `test/packing-api.test.ts` (bulk released and in its hold, read from TrueBatch Liquids; typed from its labels without the link), `e2e/packing.spec.ts` |
+| TL-P2 | A packing record per packing batch, linked to the RELEASED bulk batch, issued in L (or kg) with when it was ready and its hold (refused after it): quantities, responsible people, checks, specimens and problems | US 211.188(b)(6),(8),(9),(13); EU C4 4.21; A9 9; IN SCHM 17.3.9; SCHM-IX 4.5 | `test/packing.test.ts`, `test/packing-api.test.ts` (bulk released and in its hold, read from TrueBatch Oral Liquids; typed from its labels without the link), `e2e/packing.spec.ts` |
 | TL-P3 | Line clearance before and after packing, checked by a second person | US 211.130(e); 211.188(b)(6); EU C4 4.19(f),(g), C5 5.50; IN SCHM 17.3.9.2, 18.5.2 | `test/packing.test.ts` |
 | TL-P4 | Printed and other packing materials issued only by their signed and checked step, from a released lot of the master's material; every component checked against the packing master at line start; bottles washed or air-rinsed before filling | US 211.125(a),(b),(f), 211.130(d); 211.94(c); EU C5 5.52; IN SCHM-IX 2.8 | `test/packing.test.ts` |
 | TL-P5 | Coding (batch number, dates, MRP) checked at the start and at intervals; the camera challenged; packs inspected on line; line samples never returned; the customer's serialisation checked (codes of this batch, no serial twice, reconciled), never generated | US 211.122(g), 211.130(c), 211.134; EU C5 5.55-5.60; IN SCHM 18.5.4-18.5.9 | `test/packing.test.ts` |

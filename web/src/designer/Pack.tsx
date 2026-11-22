@@ -1,4 +1,4 @@
-// TrueBatch Liquids Packing: the pack (product, bulk product, container, closure, measuring device, fill, shelf life,
+// TrueBatch Oral Liquids Packing: the pack (product, bulk product, container, closure, measuring device, fill, shelf life,
 // destination, MRP, serialisation) and its packing materials, picked from master data (TL-P1).
 import { useState } from 'react';
 import type { MasterData, Product } from '../api-designer.js';
@@ -32,7 +32,7 @@ export function PackFields({ header, pack, products, onChange }: { header: Heade
       <span className="field-label">Pack product</span>
       <ProductPick label="Pack product" itemId={header.productItemId} code={header.productCode} name={header.productName} products={ownProducts(products, 'pack')}
         onPick={(p) => setH({ productItemId: p.itemId, productCode: p.code, productName: p.name })} />
-      <span className="field-label">Bulk filled and packed (TrueBatch Liquids product)</span>
+      <span className="field-label">Bulk filled and packed (TrueBatch Oral Liquids product)</span>
       <ProductPick label="Bulk product" itemId={pack.bulkItemId} code={pack.bulkCode} name={pack.bulkName} products={ownProducts(products, 'bulk')}
         onPick={(p) => set({ bulkItemId: p.itemId, bulkCode: p.code, bulkName: p.name })} />
       <div className="form-grid">

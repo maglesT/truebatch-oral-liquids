@@ -1,4 +1,4 @@
-// TrueBatch Liquids Packing: the shared server (server/start.ts) as the packing product, with its own web UI.
+// TrueBatch Oral Liquids Packing: the shared server (server/start.ts) as the packing product, with its own web UI.
 import { fileURLToPath } from 'node:url';
 import { start } from '../../server/start.js';
 import { PACKING } from '../product.js';

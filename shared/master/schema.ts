@@ -162,7 +162,7 @@ export const headerSchema = z.object({
 // as answered: when the warning reads differently (the item changed), it needs a new answer.
 export const answerSchema = z.object({ about: text(1000), choice: text().min(1), reason: text(1000) }).strict();
 
-// TrueBatch Liquids Packing (TL-P1): a packing master is per product, pack type and size, and destination. Its header
+// TrueBatch Oral Liquids Packing (TL-P1): a packing master is per product, pack type and size, and destination. Its header
 // names the finished pack product and the standard packing batch in packs (batchSize, batchUnit "packs"); `pack` holds
 // the rest (the bottle, its fill and closure). Its formula is empty: the packing materials
 // are `pack.materials`, and a step setting { formula: key } names one of them.

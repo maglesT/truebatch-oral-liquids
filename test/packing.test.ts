@@ -11,7 +11,7 @@ import { withMaterialUnit } from '../web/src/designer/skeletons.js';
 // The shared test master is built from test-only blocks (test/test-blocks.ts).
 vi.mock('../shared/blocks/index.js', async (original) => (await import('./test-blocks.js')).withTestBlocks(original as never));
 
-// TrueBatch Liquids Packing: the packing master checks (TL-P1 to TL-P10), the packing blocks run by the shared engine,
+// TrueBatch Oral Liquids Packing: the packing master checks (TL-P1 to TL-P10), the packing blocks run by the shared engine,
 // the serialisation check (match, mismatch, duplicate, reconciliation), printed materials reconciled, the expiry from
 // the shelf life, and QC approval before QA release.
 

@@ -51,7 +51,7 @@ describe('sign-on through core', () => {
     const id = await seedUser(t.owner, uniq('nobody'), []);
     const { res, cookie } = await login(t.app, `nobody${n}`);
     expect(res.statusCode).toBe(403);
-    expect(res.body).toContain('no right to use TrueBatch Liquids');
+    expect(res.body).toContain('no right to use TrueBatch Oral Liquids');
     expect(cookie).toBe('');
     expect(await auditRows('login.failed', id)).toHaveLength(1);
   });

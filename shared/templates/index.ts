@@ -1,4 +1,4 @@
-/** TrueBatch Liquids calculation and check templates, version 2 (with the packing templates T27, C8 and C9). */
+/** TrueBatch Oral Liquids calculation and check templates, version 2 (with the packing templates T27, C8 and C9). */
 export { Dec, type Q, type Outcome, type Done, type Refusal, type ResultValue } from './core.js';
 export { checkLimit, roundHalfUp, writtenDecimals, type Check, type Limit, type Level } from './rounding.js';
 export { convert, findUnit, UNIT_LIST, type Kind, type Unit } from './units.js';

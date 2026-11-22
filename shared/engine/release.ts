@@ -120,7 +120,7 @@ export const deviationNumber = (d: Pick<Deviation, 'reference' | 'filed' | 'type
 
 /**
  * Packing (whole-suite run, S24): the deviations of the bulk batch packed that are still open, read for QA's review
- * through two links: TrueBatch Liquids' deviation notes of the bulk batch (deviation_note_v1) and, for their numbers
+ * through two links: TrueBatch Oral Liquids' deviation notes of the bulk batch (deviation_note_v1) and, for their numbers
  * and status, the Deviations system (with the deviations that name the bulk batch there). `state` is the first link
  * that did not answer (`link`); then nothing was checked and QA confirms by hand at release, typed.
  */

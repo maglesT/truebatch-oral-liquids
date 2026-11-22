@@ -4,7 +4,7 @@
   "private": true,
   "license": "SEE LICENSE IN LICENSE",
   "type": "module",
-  "description": "Electronic batch records for oral liquids (TrueBatch Liquids) and for filling and packing them (TrueBatch Liquids Packing), on the Medhanta platform",
+  "description": "Electronic batch records for oral liquids (TrueBatch Oral Liquids) and for filling and packing them (TrueBatch Oral Liquids Packing), on the Medhanta platform",
   "engines": {
     "node": ">=22"
   },

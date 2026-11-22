@@ -1,5 +1,5 @@
 /**
- * Packing master checks (TrueBatch Liquids Packing, docs/rules.md TL-P1 to TL-P10): what a packing master must hold
+ * Packing master checks (TrueBatch Oral Liquids Packing, docs/rules.md TL-P1 to TL-P10): what a packing master must hold
  * before it can be approved. Each problem is an error. The formula and calculation checks do not apply to it.
  */
 import { findBlock, GENERAL_BLOCKS } from '../blocks/index.js';

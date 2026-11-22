@@ -1,7 +1,7 @@
-# TrueBatch Liquids
+# TrueBatch Oral Liquids
 
 An electronic batch record for non-sterile oral liquids (solutions, syrups, elixirs, drops, suspensions, emulsions and
-dry syrups), from dispensing to QA release of the bulk, and TrueBatch Liquids Packing (filling, capping, labelling,
+dry syrups), from dispensing to QA release of the bulk, and TrueBatch Oral Liquids Packing (filling, capping, labelling,
 cartoning) on the Medhanta platform. It is a copy of the TrueBatch Tablets engine. Built the way the Medhanta Logbook is built: one app, plain SQL, a small set of rules checked once in the app.
 
 - Design decisions: `docs/design.md`
@@ -29,14 +29,14 @@ request (`docs/design.md` "LIMS in-process tests"). `reading_v1` (0026, round 46
 done (process parameters and in-process checks, one row per reading) with the master's limits, for Operations'
 continued process verification (`docs/design.md` "Readings for CPV").
 
-## TrueBatch Liquids Packing
+## TrueBatch Oral Liquids Packing
 The packing batch record is a separate product on the platform, built from this repository on the same engine and
 screens: `docs/packing-design.md`, its rules TL-P1 to TL-P9 in `docs/rules.md`. Its own parts are in `packing/` (entry
 points, migrations, the views it publishes) and `ops/packing.*`.
 
 ```sh
 export DATABASE_URL=postgres://truebatch_liquids_owner:dev@localhost:5432/truebatch_liquids_packing_dev DB_APP_ROLE=truebatch_liquids_packing_app
-export TRUEBATCH_LIQUIDS_DATABASE_URL=postgres://...   # optional: TrueBatch Liquids' published views (released bulk batches)
+export TRUEBATCH_LIQUIDS_DATABASE_URL=postgres://...   # optional: TrueBatch Oral Liquids' published views (released bulk batches)
 npm run migrate:packing
 npm run dev:packing        # API on :3001
 npm run dev:packing-web    # UI on :5174 (proxies /api)
@@ -76,8 +76,8 @@ hold time running, a mixing time below its lower limit), which ends that wait at
 terminal in the product's container:
 
 ```sh
-node dist/server/demo-skip.js TL260004 [stage] --as <username>           # TrueBatch Liquids
-node dist/packing/server/demo-skip.js TLP260001 [stage] --as <username>   # TrueBatch Liquids Packing
+node dist/server/demo-skip.js TL260004 [stage] --as <username>           # TrueBatch Oral Liquids
+node dist/packing/server/demo-skip.js TLP260001 [stage] --as <username>   # TrueBatch Oral Liquids Packing
 ```
 
 It skips every wait running now in the batch, or in one stage (its key, name or number), as the named demo person
@@ -88,7 +88,7 @@ counts that wait as satisfied, nothing else changes. Without `TRUEBATCH_DEMO=1` 
 
 ## Conventions
 - One app: `server/` (Fastify), `web/` (React), `db/migrations/` (plain SQL), `test/`, `e2e/` (browser tests), `ops/`, `docs/`;
-  `packing/` for TrueBatch Liquids Packing's own entry points and migrations.
-- A test that proves a rule starts its name with the rule ID: `TL-xx` for TrueBatch Liquids rules, `PL-xx` for platform rules.
+  `packing/` for TrueBatch Oral Liquids Packing's own entry points and migrations.
+- A test that proves a rule starts its name with the rule ID: `TL-xx` for TrueBatch Oral Liquids rules, `PL-xx` for platform rules.
 - Paraphrase regulations; never paste more than a short phrase.
 - Work on a branch, CI green, one review pass, then merge.

@@ -93,7 +93,7 @@ export async function pullLot(app: FastifyInstance, doc: MasterDoc, st: Step, bl
 }
 
 /**
- * Packing: a bulk batch TrueBatch Liquids has RELEASED, of this pack's bulk product; its date of manufacture (the date
+ * Packing: a bulk batch TrueBatch Oral Liquids has RELEASED, of this pack's bulk product; its date of manufacture (the date
  * its first processing step started, batch_fact_v1.manufactured_on) comes with it, and so do the bulk issued (its
  * good quantity in L or kg, batch_fact_v1.good_quantity; owner 17 Nov 2026: pull, don't type), when it was ready and its
  * hold (TL-17). Without a good quantity (not given by its view) the bulk issued is typed.
@@ -105,15 +105,15 @@ export async function pullBulk(app: FastifyInstance, doc: MasterDoc, block: Bloc
   const r = await app.links.truebatch_liquids.batch(batchNo);
   if (r.state !== 'ok') return hand('truebatch_liquids', r.state);
   const b = r.value;
-  if (!b) return refused(`Bulk batch ${batchNo} is not in TrueBatch Liquids.`);
+  if (!b) return refused(`Bulk batch ${batchNo} is not in TrueBatch Oral Liquids.`);
   const problems: string[] = [];
-  if (doc.pack && b.productCode !== doc.pack.bulkCode) problems.push(`Bulk batch ${batchNo} is ${b.productCode ?? 'another product'} in TrueBatch Liquids, not ${doc.pack.bulkCode} ${doc.pack.bulkName}.`);
-  if (!b.released) problems.push(`Bulk batch ${batchNo} is ${b.status.toLowerCase().replaceAll('_', ' ')} in TrueBatch Liquids: only a released bulk batch may be filled.`);
-  if (!b.mfgDate) problems.push(`Bulk batch ${batchNo} has no date of manufacture in TrueBatch Liquids (no processing step started).`);
+  if (doc.pack && b.productCode !== doc.pack.bulkCode) problems.push(`Bulk batch ${batchNo} is ${b.productCode ?? 'another product'} in TrueBatch Oral Liquids, not ${doc.pack.bulkCode} ${doc.pack.bulkName}.`);
+  if (!b.released) problems.push(`Bulk batch ${batchNo} is ${b.status.toLowerCase().replaceAll('_', ' ')} in TrueBatch Oral Liquids: only a released bulk batch may be filled.`);
+  if (!b.mfgDate) problems.push(`Bulk batch ${batchNo} has no date of manufacture in TrueBatch Oral Liquids (no processing step started).`);
   // TL-17, TL-P2: the bulk hold runs from the end of manufacturing; a bulk past its hold is not issued.
   const holdEnd = b.readyAt && b.holdHours ? new Date(new Date(b.readyAt).getTime() + Number(b.holdHours) * 3_600_000) : null;
   if (holdEnd && now > holdEnd) problems.push(`Bulk batch ${batchNo} was ready at ${b.readyAt} and its hold of ${b.holdHours} h ended at ${holdEnd.toISOString().slice(0, 16)}Z: it may not be issued for filling.`);
-  const source: Source = { from: 'truebatch_liquids', asOf: b.dataAsOf, shown: `TrueBatch Liquids batch ${batchNo}: ${b.status}, ${b.productCode ?? '—'}, manufactured ${b.mfgDate ?? '—'}` };
+  const source: Source = { from: 'truebatch_liquids', asOf: b.dataAsOf, shown: `TrueBatch Oral Liquids batch ${batchNo}: ${b.status}, ${b.productCode ?? '—'}, manufactured ${b.mfgDate ?? '—'}` };
   const out: Pulled = { source, values: {}, sources: {}, problems };
   if (b.mfgDate && block.fields.some((x) => x.name === 'mfgDate')) { out.values.mfgDate = b.mfgDate; out.sources.mfgDate = source; }
   if (b.readyAt && b.holdHours && block.fields.some((x) => x.name === 'readyAt')) {
@@ -123,7 +123,7 @@ export async function pullBulk(app: FastifyInstance, doc: MasterDoc, block: Bloc
   const quantity = block.fields.find((x) => x.name === 'quantity');
   if (b.goodQuantity && quantity) {
     const unit = quantity.unit!;
-    if (b.goodUnit && b.goodUnit !== unit) { problems.push(`Bulk batch ${batchNo} is given in ${b.goodUnit} in TrueBatch Liquids; this packing master fills a bulk in ${unit}.`); return out; }
+    if (b.goodUnit && b.goodUnit !== unit) { problems.push(`Bulk batch ${batchNo} is given in ${b.goodUnit} in TrueBatch Oral Liquids; this packing master fills a bulk in ${unit}.`); return out; }
     out.taken = ['quantity'];
     const left = bulkLeft(b.goodQuantity, await others());
     const part = typed === undefined || typed === null || (typeof typed === 'string' && !typed.trim()) ? null : readValue(quantity, typed, unit);
@@ -137,7 +137,7 @@ export async function pullBulk(app: FastifyInstance, doc: MasterDoc, block: Bloc
   return out;
 }
 
-/** Packing: a date of manufacture typed from the bulk labels (no TrueBatch Liquids link): a real date, never in the future. */
+/** Packing: a date of manufacture typed from the bulk labels (no TrueBatch Oral Liquids link): a real date, never in the future. */
 export function mfgDateProblem(f: BlockField, v: string, now: Date, tz: string): string | null {
   const d = new Date(`${v}T00:00:00Z`);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(v) || Number.isNaN(d.getTime()) || d.toISOString().slice(0, 10) !== v) return `${f.label}: give a date, e.g. 2026-11-15.`;

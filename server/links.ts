@@ -152,7 +152,7 @@ export const mmsClient = (l: Link) => ({
     order by expiry_date nulls last, lot_number limit 100`).map((r) => lotOf(r))),
 });
 
-// ---- TrueBatch Liquids: report.batch_fact_v1 and deviation_note_v1 (published), read by TrueBatch Liquids Packing for its bulk batch. The
+// ---- TrueBatch Oral Liquids: report.batch_fact_v1 and deviation_note_v1 (published), read by TrueBatch Oral Liquids Packing for its bulk batch. The
 // date of manufacture is its manufactured_on (owner, 15 Nov 2026): the plant-time date the bulk batch's first
 // processing step started (db/migrations/0007_batch_fact_manufactured_on.sql); null until a step has started.
 // goodQuantity, goodUnit (owner, 17 Nov 2026: pull, don't type): its good_quantity in L or kg, the bulk of its last

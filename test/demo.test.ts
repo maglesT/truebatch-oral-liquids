@@ -171,8 +171,8 @@ describe('demo skip through the server', () => {
     const lines: string[] = [];
     expect(await demoSkipCommand(LIQUIDS, ['TL260001', '--as', 'asha'], {}, (l) => lines.push(l))).toBe(2);
     expect(await demoSkipCommand(PACKING, ['TLP260001', '--as', 'asha'], { TRUEBATCH_DEMO: 'yes' }, (l) => lines.push(l))).toBe(2);
-    expect(lines).toEqual(['Refused: TrueBatch Liquids here is not a demo installation (TRUEBATCH_DEMO is not 1).',
-      'Refused: TrueBatch Liquids Packing here is not a demo installation (TRUEBATCH_DEMO is not 1).']);
+    expect(lines).toEqual(['Refused: TrueBatch Oral Liquids here is not a demo installation (TRUEBATCH_DEMO is not 1).',
+      'Refused: TrueBatch Oral Liquids Packing here is not a demo installation (TRUEBATCH_DEMO is not 1).']);
     expect(await demoSkipCommand(LIQUIDS, ['TL260001'], { TRUEBATCH_DEMO: '1' }, () => {})).toBe(1);
     const b = await issue();
     expect(await skipWaits(t.sql, b.batchNo, undefined, 'nobody')).toEqual({ error: 'There is no person nobody here: they sign in once first.' });

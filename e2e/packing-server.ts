@@ -1,5 +1,5 @@
-// Starts TrueBatch Liquids Packing with its built UI on a fresh schema of the test database, for its browser journey,
-// with a stand-in for TrueBatch Liquids' batch_fact_v1 (two released bulk batches, with their good quantity in L, ready time and hold). Master data is an in-memory stand-in.
+// Starts TrueBatch Oral Liquids Packing with its built UI on a fresh schema of the test database, for its browser journey,
+// with a stand-in for TrueBatch Oral Liquids' batch_fact_v1 (two released bulk batches, with their good quantity in L, ready time and hold). Master data is an in-memory stand-in.
 // The Logbook's equipment_status_v1 is stood in too, knowing line FL-01 only (dirty); its link is down (no grant) until
 // the journey grants it for its pick-list check (e2e/packing.spec.ts).
 import { connect } from '../server/db.js';

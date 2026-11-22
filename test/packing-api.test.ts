@@ -12,8 +12,8 @@ import { call, freshApp, handLabels, login, proofFor, seedUser, TEST_DATABASE_UR
 import { packing } from './packing-fixture.js';
 import { openSteps, returnsOf, usesOfLot } from '../shared/engine/index.js';
 
-// TrueBatch Liquids Packing through its own server: its own permission codes, a packing batch issued from a RELEASED
-// bulk batch read from TrueBatch Liquids' batch_fact_v1 (a fake provider schema, read with packing's restricted login),
+// TrueBatch Oral Liquids Packing through its own server: its own permission codes, a packing batch issued from a RELEASED
+// bulk batch read from TrueBatch Oral Liquids' batch_fact_v1 (a fake provider schema, read with packing's restricted login),
 // the hand fallback with a second person, one active order per line, the whole record run to QC approval and QA release,
 // the packing record PDF, its published view, and its insert-only tables.
 
@@ -27,7 +27,7 @@ const P = (...codes: string[]) => codes.map((c) => `truebatch_liquids_packing.${
 beforeAll(async () => {
   t = await freshApp(async (db) => {
     TB = `${db.schema}_tb`;
-    // TrueBatch Liquids' published batch_fact_v1, as a table with its columns. manufactured_on (the date the first
+    // TrueBatch Oral Liquids' published batch_fact_v1, as a table with its columns. manufactured_on (the date the first
     // processing step started) is not the issue date: TL260001 was issued on 31 Oct and started on 3 Nov.
     await db.owner.unsafe(`
       create schema ${TB};
@@ -36,7 +36,7 @@ beforeAll(async () => {
       create table ${TB}.batch_fact_v1 (batch_id uuid, batch_number text, product_code text, strength text, mbr_version_id uuid, family_code text, record_kind text,
         status text, issued_at timestamptz, completed_at timestamptz, released boolean, read_at timestamptz default now(), data_as_of timestamptz default now(), manufactured_on date,
         bulk_ready_at timestamptz, bulk_hold_hours numeric);
-      -- TrueBatch Liquids' deviation_note_v1 and the Deviations system's deviation_v1 (in the same fake schema): the bulk
+      -- TrueBatch Oral Liquids' deviation_note_v1 and the Deviations system's deviation_v1 (in the same fake schema): the bulk
       -- batch's open deviations block packing release (whole-suite run, S24).
       create table ${TB}.deviation_note_v1 (note_id bigint, source_ref text, batch_number text, product_code text, step text, note text, reference text, status text,
         noted_at timestamptz, read_at timestamptz default now(), data_as_of timestamptz default now());
@@ -93,13 +93,13 @@ async function effective() {
 // No Logbook link here: the line's status labels are answered at issue (TL-11).
 const issue = (values: Record<string, unknown>) => as('issuer', 'POST', '/api/batches', { masterVersionId: mv, proof: proofFor('issuer'), values: { ...handLabels('line', 'machine'), ...values } });
 
-describe('TrueBatch Liquids Packing: its own product on the platform', () => {
+describe('TrueBatch Oral Liquids Packing: its own product on the platform', () => {
   it('PL-01 packing reads only its own permission codes from core, each as the shared code of the same thing', async () => {
     const me = (await as('op1', 'GET', '/api/me')).json() as { permissions: string[] };
     expect(me.permissions).toEqual(['truebatch_liquids.batch.operate']);
     const refused = await login(t.app, 'liquids');
     expect(refused.res.statusCode).toBe(403);
-    expect(refused.res.body).toContain('You have no right to use TrueBatch Liquids Packing.');
+    expect(refused.res.body).toContain('You have no right to use TrueBatch Oral Liquids Packing.');
   });
 
   it('PL-01 the packing draft manifest declares exactly the packing permission codes and labels, in the platform format', () => {
@@ -121,13 +121,13 @@ describe('TrueBatch Liquids Packing: its own product on the platform', () => {
 
 describe('a packing batch from a released bulk batch', () => {
   let first = 0;
-  it('TL-P2 the issue screen offers the RELEASED bulk batches of the pack\'s bulk product, read from TrueBatch Liquids', async () => {
+  it('TL-P2 the issue screen offers the RELEASED bulk batches of the pack\'s bulk product, read from TrueBatch Oral Liquids', async () => {
     const r = (await as('issuer', 'GET', '/api/bulk-batches?product=PRD-001')).json() as { link: string; batches: { batchNo: string }[] };
     expect([r.link, ...r.batches.map((b) => b.batchNo)]).toEqual(['ok', 'TL260005', 'TL260004', 'TL260001']);
     expect((await as('op1', 'GET', '/api/bulk-batches?product=PRD-001')).statusCode).toBe(403);
   });
 
-  it('TL-P2 a packing batch is issued from a RELEASED bulk batch of TrueBatch Liquids: line, bulk and litres recorded, the date of manufacture, ready time and hold pulled (the date its first step started, not its issue date)', async () => {
+  it('TL-P2 a packing batch is issued from a RELEASED bulk batch of TrueBatch Oral Liquids: line, bulk and litres recorded, the date of manufacture, ready time and hold pulled (the date its first step started, not its issue date)', async () => {
     const res = await issue({ line: 'ln-1', bulk: 'TL260001', quantity: '615' });
     expect(res.statusCode, res.body).toBe(200);
     expect(res.json()).toMatchObject({ batchNo: expect.stringMatching(/^TLP\d{6}$/) });
@@ -140,15 +140,15 @@ describe('a packing batch from a released bulk batch', () => {
     expect(s.results.packs).toMatchObject({ ok: true, shown: '615 L ÷ 61.5 mL = 10000 packs' });
     // The pulled date and hold cannot be typed over.
     const r = await as('op1', 'POST', `/api/batches/${first}/steps/0.1.0.1/record`, { values: { mfgDate: '2026-11-01', holdHours: '9999' } });
-    expect(r.json()).toMatchObject({ problems: ['Date of manufacture of the bulk comes from TrueBatch Liquids and cannot be typed over', 'Bulk hold (hours, from the master of the bulk) comes from TrueBatch Liquids and cannot be typed over'] });
+    expect(r.json()).toMatchObject({ problems: ['Date of manufacture of the bulk comes from TrueBatch Oral Liquids and cannot be typed over', 'Bulk hold (hours, from the master of the bulk) comes from TrueBatch Oral Liquids and cannot be typed over'] });
   });
 
   it('TL-P2 bulk must be released: a bulk batch not released, of another product, unknown or past its hold is refused', async () => {
     const no = async (bulk: string) => (await issue({ line: 'ln-2', bulk, quantity: '100' })).json() as { problems: string[] };
-    expect((await no('TL260002')).problems).toEqual(['Bulk batch TL260002 is qc approved in TrueBatch Liquids: only a released bulk batch may be filled.']);
-    expect((await no('TL260003')).problems).toEqual(['Bulk batch TL260003 is PRD-002 in TrueBatch Liquids, not PRD-001 Examplol 120 mg/5 mL syrup.']);
-    expect((await no('TL269999')).problems).toEqual(['Bulk batch TL269999 is not in TrueBatch Liquids.']);
-    expect((await no('TL260005')).problems).toEqual(['Bulk batch TL260005 has no date of manufacture in TrueBatch Liquids (no processing step started).']);
+    expect((await no('TL260002')).problems).toEqual(['Bulk batch TL260002 is qc approved in TrueBatch Oral Liquids: only a released bulk batch may be filled.']);
+    expect((await no('TL260003')).problems).toEqual(['Bulk batch TL260003 is PRD-002 in TrueBatch Oral Liquids, not PRD-001 Examplol 120 mg/5 mL syrup.']);
+    expect((await no('TL269999')).problems).toEqual(['Bulk batch TL269999 is not in TrueBatch Oral Liquids.']);
+    expect((await no('TL260005')).problems).toEqual(['Bulk batch TL260005 has no date of manufacture in TrueBatch Oral Liquids (no processing step started).']);
     expect((await issue({ line: 'ln-2', bulk: 'TL260001' })).json()).toMatchObject({ problems: ['Bulk issued is not recorded'] });
     // TL-17: a bulk past its hold (720 h from when it was ready) is not issued for filling.
     await t.owner.unsafe(`update ${TB}.batch_fact_v1 set bulk_ready_at = now() - interval '40 days' where batch_number = 'TL260004'`);
@@ -165,7 +165,7 @@ describe('a packing batch from a released bulk batch', () => {
     expect(res.json()).toMatchObject({ error: 'line_in_use', problems: [expect.stringMatching(/^Line FL-01 has an active packing order: batch TLP\d{6} \(PK-001\) is still being packed\. One packing order per line\.$/)] });
   });
 
-  it('TL-P2 without the TrueBatch Liquids link the bulk is typed from its labels (RELEASED), with its ready time and hold, and a second person checks it', async () => {
+  it('TL-P2 without the TrueBatch Oral Liquids link the bulk is typed from its labels (RELEASED), with its ready time and hold, and a second person checks it', async () => {
     await t.owner.unsafe(`revoke select on ${TB}.batch_fact_v1 from ${PACKING_APP_ROLE}`);
     try {
       const typed = { line: 'ln-2', bulk: 'TL260004', quantity: '300', readyAt: '2026-11-06T18:00:00Z', holdHours: '720', 'bulk.released': 'yes', 'bulk.product': 'yes' };
@@ -329,7 +329,7 @@ describe('a packing batch from a released bulk batch', () => {
     const toReview = (await as('qa1', 'GET', '/api/batches/to-review')).json() as { id: number; waiting: string }[];
     expect(toReview.find((x) => x.id === id)).toMatchObject({ waiting: 'QA' });
     // Whole-suite run, S24: the bulk batch's deviations still open are shown in QA's review and block release until they
-    // are closed in the Deviations system: one by the number on its TrueBatch Liquids note, one Deviations filed from a
+    // are closed in the Deviations system: one by the number on its TrueBatch Oral Liquids note, one Deviations filed from a
     // note written without a number (its source_ref), one only naming the bulk batch there. A closed one, a note without
     // a deviation, or another batch's deviation, does not.
     await t.owner.unsafe(`insert into ${TB}.deviation_note_v1 (note_id, source_ref, batch_number, step, note, reference, status) values
@@ -362,13 +362,13 @@ describe('a packing batch from a released bulk batch', () => {
     for (const text of ['Open deviations of the bulk batch TL260001', 'Deviation DEV-2026-0047 of the bulk batch TL260001', 'Label mix-up found at packing']) expect(open).toContain(text);
     await t.owner.unsafe(`update ${TB}.deviation_v1 set status = 'closed', closed_at = now() where number in ('DEV-2026-0045', 'DEV-2026-0047', 'DEV-2026-0048')`);
     expect(await review()).toEqual({ bulk: 'TL260001', state: 'ok', open: [] });
-    // The TrueBatch Liquids link does not answer (its view refused): the bulk deviations are not checked, and QA confirms
+    // The TrueBatch Oral Liquids link does not answer (its view refused): the bulk deviations are not checked, and QA confirms
     // by hand, typed, before release.
     await t.owner.unsafe(`revoke select on ${TB}.deviation_note_v1 from ${PACKING_APP_ROLE}`);
     expect(await review()).toEqual({ bulk: 'TL260001', state: 'down', link: 'truebatch_liquids', open: [] });
     const unchecked = await release();
     expect(unchecked.statusCode).toBe(409);
-    expect(unchecked.json()).toMatchObject({ problems: ['Bulk deviations not checked (TrueBatch Liquids link down): bulk batch TL260001. Check them in the Deviations system and type what you found.'] });
+    expect(unchecked.json()).toMatchObject({ problems: ['Bulk deviations not checked (TrueBatch Oral Liquids link down): bulk batch TL260001. Check them in the Deviations system and type what you found.'] });
     const rel = await release({ bulkChecked: 'Checked in the Deviations system: none open for TL260001' });
     expect(rel.statusCode, rel.body).toBe(200);
     await t.owner.unsafe(`grant select on ${TB}.deviation_note_v1 to ${PACKING_APP_ROLE}`);
@@ -378,9 +378,9 @@ describe('a packing batch from a released bulk batch', () => {
 
     // TL-22 for packing: the packing record PDF, with the pack, the bulk and the packing materials.
     const pdf = JSON.stringify(batchRecordDoc(await recordInput(t.sql, (await loadBatch(t.sql, id))!, t.app.master), 'QA'));
-    for (const text of ['Packing record TLP', 'TrueBatch Liquids Packing', 'batch TL260001 · 615 L issued · line FL-01', 'expiry 10/2028', 'QC report QC-26-0101', 'Packing materials',
+    for (const text of ['Packing record TLP', 'TrueBatch Oral Liquids Packing', 'batch TL260001 · 615 L issued · line FL-01', 'expiry 10/2028', 'QC report QC-26-0101', 'Packing materials',
       'bottle, child-resistant cap, measuring cup; fill 60 mL + 1.5 mL excess, 48 packs per shipper', 'Lot LABEL-1: 10200 nos', '9900 nos used',
-      'Bulk deviations not checked (TrueBatch Liquids link down): bulk batch TL260001; QA confirmed by hand (typed): Checked in the Deviations system: none open for TL260001']) expect(pdf).toContain(text);
+      'Bulk deviations not checked (TrueBatch Oral Liquids link down): bulk batch TL260001; QA confirmed by hand (typed): Checked in the Deviations system: none open for TL260001']) expect(pdf).toContain(text);
     // A count in master data's name for it (nos), as on screen and in MMS: per pack, the lots issued, the values.
     for (const text of ['"1 carton per pack"', 'Lot CARTON-1: 10200 nos', 'Quantity issued: 10200 nos', 'Used in good packs: 9840 nos']) expect(pdf).toContain(text);
     for (const text of ['"1 units per pack"', 'Lot CARTON-1: 10200 units', 'Quantity issued: 10200 units']) expect(pdf).not.toContain(text);
@@ -412,8 +412,8 @@ describe('a packing batch from a released bulk batch', () => {
     const [relAt] = await t.owner<{ at: Date }[]>`select at from batch_events where batch_id = ${id} and kind = 'released'`;
     expect(await t.owner.unsafe(`select released_at, released_by from ${t.schema}_report.packing_batch_v1 where coded_batch_number = 'TL260001'`))
       .toEqual([{ released_at: relAt!.at, released_by: 'QA1' }]);
-    // For the Logbook: the line used, as TrueBatch Liquids publishes its machines. For MMS: the packing materials issued,
-    // per lot, in the material's unit, as TrueBatch Liquids publishes what it dispensed.
+    // For the Logbook: the line used, as TrueBatch Oral Liquids publishes its machines. For MMS: the packing materials issued,
+    // per lot, in the material's unit, as TrueBatch Oral Liquids publishes what it dispensed.
     const batchNo = (await loadBatch(t.sql, id))!.batch.batchNo;
     expect(await lineUse()).toEqual({ ended: true });
     // One use of the line, for its whole filling stage (not the line named at issue, nor the clearance after packing);
@@ -508,9 +508,9 @@ describe('a packing batch from a released bulk batch', () => {
     const again = await issue({ line: 'ln-4', bulk: 'TL260006' });
     expect(again.statusCode, again.body).toBe(200);
     expect((await get((again.json() as { id: number }).id)).steps[0]!.values.quantity).toEqual({ value: '80', unit: 'L' });
-    // A bulk TrueBatch Liquids gives in another unit than the master fills is refused, never converted.
+    // A bulk TrueBatch Oral Liquids gives in another unit than the master fills is refused, never converted.
     await t.owner.unsafe(`update ${TB}.batch_fact_v1 set good_unit = 'kg' where batch_number = 'TL260006'`);
     expect((await issue({ line: 'ln-5', bulk: 'TL260006' })).json())
-      .toMatchObject({ problems: ['Bulk batch TL260006 is given in kg in TrueBatch Liquids; this packing master fills a bulk in L.'] });
+      .toMatchObject({ problems: ['Bulk batch TL260006 is given in kg in TrueBatch Oral Liquids; this packing master fills a bulk in L.'] });
   });
 });
