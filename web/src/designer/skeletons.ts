@@ -123,7 +123,7 @@ export function skeletonStages(id: string, h: Header): Stage[] {
   }));
 }
 
-// TrueBatch Liquids Packing: the filling and packing record for a pack and its materials (plan section 3, P1-P4). Issue to
+// TrueBatch Oral Liquids Packing: the filling and packing record for a pack and its materials (plan section 3, P1-P4). Issue to
 // the line (the released bulk and each packing material); filling and packing (line clearance, set-up, the containers
 // washed or air-rinsed, the fill with its rounds: a bottle of a solution or drops, a bottle with the bulk stirred for a
 // suspension or emulsion, a single-dose unit, or powder by weight; capping, the room alongside, coding, inspection and

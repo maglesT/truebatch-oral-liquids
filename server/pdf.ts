@@ -7,6 +7,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import PdfPrinter from 'pdfmake';
 import type { Content, TDocumentDefinitions } from 'pdfmake/interfaces.js';
+import { MARK_SVG } from './brand.js';
 import { plantClock } from '../shared/plant-time.js';
 
 // Embedded Unicode fonts, so names and symbols print exactly as entered. Characters neither font has are printed as a
@@ -50,7 +51,7 @@ export function pageFrame(title: string, by: string, content: Content[], now = n
     pageSize: 'A4',
     pageMargins: [28, 50, 28, 36],
     defaultStyle: { font: 'Noto', fontSize: 9 },
-    header: { text: [...(demo ? [DEMO] : []), ...runs(title)], margin: [28, 20, 28, 0], fontSize: 9, bold: true },
+    header: { columns: [{ svg: MARK_SVG, width: 20 }, { text: [...(demo ? [DEMO] : []), ...runs(title)], margin: [0, 5, 0, 0] }], columnGap: 6, margin: [28, 14, 28, 0], fontSize: 9, bold: true },
     footer: (page, pages) => ({
       text: [...(demo ? [{ ...DEMO, text: 'DEMO installation, not a GMP record · ' }] : []),
         `Generated ${plant(now)} by ${by} · ${demo ? 'copy' : 'true copy'} of the electronic record · page ${page} of ${pages}`],

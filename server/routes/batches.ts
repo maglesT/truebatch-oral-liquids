@@ -104,7 +104,7 @@ async function deviationsRead(app: FastifyInstance, l: LoadedBatch): Promise<{ r
 }
 
 /**
- * Packing (whole-suite run, S24): the open deviations of the bulk batch packed, read through TrueBatch Liquids' deviation
+ * Packing (whole-suite run, S24): the open deviations of the bulk batch packed, read through TrueBatch Oral Liquids' deviation
  * notes of that batch (their number, or the deviation Deviations filed from a note without one) and the Deviations
  * system (their status, and the deviations naming the bulk batch there). null for a manufacturing batch or before the
  * bulk batch is recorded; a link that does not answer: state absent or down, and QA confirms by hand at release.
@@ -124,7 +124,7 @@ export async function bulkDeviations(app: FastifyInstance, l: LoadedBatch): Prom
   const all = new Map<string, BulkDeviation>();
   for (const n of numbered) {
     const d = byNo.value.get(n.reference!);
-    // A number typed in TrueBatch Liquids that Deviations does not know: its status is TrueBatch Liquids' (closed by QA there).
+    // A number typed in TrueBatch Oral Liquids that Deviations does not know: its status is TrueBatch Oral Liquids' (closed by QA there).
     all.set(n.reference!, { number: n.reference!, status: d?.status ?? n.status ?? 'open', title: d?.title ?? n.note, step: n.step });
   }
   for (const n of bare) {
@@ -220,7 +220,7 @@ async function readValues(app: FastifyInstance, tx: Tx, doc: MasterDoc, key: Ste
   const stage = doc.stages[key.stage]!;
   const step = stage.steps[key.step]!;
   const block = findBlock(step.block)!;
-  // Packing: a bulk quantity typed while the bulk batch's good quantity comes from TrueBatch Liquids (a part issue) is
+  // Packing: a bulk quantity typed while the bulk batch's good quantity comes from TrueBatch Oral Liquids (a part issue) is
   // read with the bulk batch again, up to what is left of it (pullBulk).
   const bulkField = block.fields.find((f) => f.kind === 'bulk');
   const quantityPulled = (s?: Source) => !!s && !isHand(s);
@@ -759,7 +759,7 @@ export function batchRoutes(app: FastifyInstance, sql: Sql) {
     return { link: r.state, items: known.map((k) => k.id), notFit: Object.fromEntries(known.filter((k) => k.notFit).map((k) => [k.id, k.notFit])) };
   });
 
-  // Packing: the bulk batches TrueBatch Liquids has released of a product, for the issue's pick list (pull, don't type).
+  // Packing: the bulk batches TrueBatch Oral Liquids has released of a product, for the issue's pick list (pull, don't type).
   app.get<{ Querystring: { product?: string } }>('/api/bulk-batches', { preHandler: requirePermission('truebatch_liquids.batch.issue') }, async (req) => {
     const r = await app.links.truebatch_liquids.released(String(req.query.product ?? ''));
     // With the good quantity: what the other packing batches were already issued of each, and what is left to issue.

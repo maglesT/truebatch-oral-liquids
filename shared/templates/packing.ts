@@ -1,5 +1,5 @@
 /**
- * Packing templates (TrueBatch Liquids Packing): T27 expiry from the shelf life (TL-P8), C8 printed data against the
+ * Packing templates (TrueBatch Oral Liquids Packing): T27 expiry from the shelf life (TL-P8), C8 printed data against the
  * batch data (TL-P5, TL-P9) and C9 codes of the customer's serialisation system read from sample packs. Dates are
  * plain text (YYYY-MM-DD); a printed date is a month.
  */

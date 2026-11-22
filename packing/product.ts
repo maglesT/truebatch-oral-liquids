@@ -1,12 +1,12 @@
 import type { Product } from '../server/product.js';
 
-// TrueBatch Liquids Packing: the packing batch record, from the RELEASED bulk tablets of TrueBatch Liquids to QA
+// TrueBatch Oral Liquids Packing: the packing batch record, from the RELEASED bulk tablets of TrueBatch Oral Liquids to QA
 // release of the packed batch. Its permissions are its own (the platform's code format allows no "-"); the app reads
 // each as the TrueBatch code of the same thing (server/product.ts). QC approves the packed batch (the finished packed
 // product tested and complies, with the QC report number) before QA releases it, as for tablets (owner, 15 Nov 2026).
 export const PACKING: Product = {
   id: 'truebatch_liquids_packing',
-  name: 'TrueBatch Liquids Packing',
+  name: 'TrueBatch Oral Liquids Packing',
   batchPrefix: 'TLP',
   permissions: {
     'truebatch_liquids_packing.master.author': 'Write packing master record versions',

@@ -24,7 +24,7 @@ export interface TestDb {
   close: () => Promise<void>;
 }
 
-// A fresh schema per test file keeps files independent when Vitest runs them in parallel. TrueBatch Liquids Packing's
+// A fresh schema per test file keeps files independent when Vitest runs them in parallel. TrueBatch Oral Liquids Packing's
 // database has its own migrations and app role (packing/migrate.ts).
 export async function freshDb(product: Product = LIQUIDS): Promise<TestDb> {
   const packing = product.id !== LIQUIDS.id;

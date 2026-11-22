@@ -1,5 +1,5 @@
 /**
- * The readings TrueBatch Liquids publishes in report.reading_v1 (round 46, for Operations' continued process
+ * The readings TrueBatch Oral Liquids publishes in report.reading_v1 (round 46, for Operations' continued process
  * verification): every number field of the blocks a liquid master may use, with the master setting that holds its
  * limits, worked out from the block's own checks (a C1 on the value: each reading; a T7 on the list: their mean), or the
  * fixed limit a block writes itself. db/migrations/0026 keeps the same list as the view reading_parameters; a test

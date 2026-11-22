@@ -1,11 +1,11 @@
-# TrueBatch Liquids: design decisions
+# TrueBatch Oral Liquids: design decisions
 
 Owner decisions of 15 November 2026. Built the Logbook way (the platform Logbook is the model for structure, patterns
 and size), not the Batchwright way.
 
 ## Product
-- **One product per dosage form.** TrueBatch Liquids covers manufacturing, from dispensing to QA release of bulk
-  tablets. Packing is a separate product, "TrueBatch Liquids Packing", in this repository on the same engine
+- **One product per dosage form.** TrueBatch Oral Liquids covers manufacturing, from dispensing to QA release of bulk
+  tablets. Packing is a separate product, "TrueBatch Oral Liquids Packing", in this repository on the same engine
   (`docs/packing-design.md`).
 
 ## Platform

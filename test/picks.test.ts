@@ -9,7 +9,7 @@ import { pack } from './packing-fixture.js';
 const TYPES = ['Balance', 'Analytical balance', 'Micro balance', 'IPC balance', 'Platform balance', 'Bin blender', 'Blender', 'Auto coater', 'Blister packer',
   'Strip packer', 'High speed blister line', 'Rapid mixer granulator', 'Fluid bed dryer', 'Tablet compression machine', 'Tablet press', 'Cold forming machine',
   'Filter press', 'Air compressor', 'Dry heat steriliser', 'Case packer', 'Sifter', 'Multimill', 'Friabilator', 'Disintegration tester', 'Manufacturing vessel',
-  // TrueBatch Liquids: filling lines, cappers and bottle washers.
+  // TrueBatch Oral Liquids: filling lines, cappers and bottle washers.
   'Bottle filling line', 'Filling and capping machine', 'Capping machine', 'Bottle washing machine', 'Air rinser', 'Holding tank', 'Colloid mill', 'Homogeniser', 'Stirrer'];
 const MACHINES = TYPES.map((type, i) => ({ code: `EQ-${i}`, type, room: null }));
 const BALANCES = ['Balance', 'IPC balance', 'Platform balance'];

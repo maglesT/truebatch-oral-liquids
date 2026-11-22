@@ -1,7 +1,7 @@
-# TrueBatch Liquids Packing: design decisions
+# TrueBatch Oral Liquids Packing: design decisions
 
-Owner decisions of 15 November 2026. The packing batch record: from the RELEASED bulk tablets of TrueBatch Liquids to
-QA release of the packed batch. Built the Logbook way, as TrueBatch Liquids is.
+Owner decisions of 15 November 2026. The packing batch record: from the RELEASED bulk tablets of TrueBatch Oral Liquids to
+QA release of the packed batch. Built the Logbook way, as TrueBatch Oral Liquids is.
 
 ## A separate product on the same engine
 - **Its own product on the platform**: its own tile, licence, database (`truebatch_liquids_packing`), app login
@@ -14,7 +14,7 @@ QA release of the packed batch. Built the Logbook way, as TrueBatch Liquids is.
   inside the app each permission is known by its TrueBatch code, and a product's own codes in core's token are read as
   those (`truebatch_liquids_packing.batch.operate` is `truebatch_liquids.batch.operate`); every other code is ignored.
 - **`packing/`** holds only what is the packing product's own: its entry points (`packing/server/index.ts`,
-  `packing/web/`), its descriptor (`packing/product.ts`), its migrations (`packing/migrate.ts`: TrueBatch Liquids'
+  `packing/web/`), its descriptor (`packing/product.ts`), its migrations (`packing/migrate.ts`: TrueBatch Oral Liquids'
   migrations without the views it publishes, with packing's app role, then `packing/migrations/`) and its published
   views (`packing_batch_v1`, `equipment_use_v1`, `material_use_v1`, `deviation_note_v1`). `ops/packing.Dockerfile` and `ops/packing.manifest.draft.json` are its image and manifest.
 
@@ -31,14 +31,14 @@ QA release of the packed batch. Built the Logbook way, as TrueBatch Liquids is.
 
 ## The packing record
 - **Issued from a released bulk batch** (TL-P2): the issue carries the line, the bulk batch and the tablets issued,
-  recorded as the first step's values. The bulk batch is read live from TrueBatch Liquids' `batch_fact_v1`: it must
+  recorded as the first step's values. The bulk batch is read live from TrueBatch Oral Liquids' `batch_fact_v1`: it must
   be RELEASED and of the master's bulk product. Its date of manufacture (owner, 15 November 2026) is the date the
-  bulk batch's FIRST processing step started, in plant time: TrueBatch Liquids publishes it as
+  bulk batch's FIRST processing step started, in plant time: TrueBatch Oral Liquids publishes it as
   `batch_fact_v1.manufactured_on` (`db/migrations/0007_batch_fact_manufactured_on.sql`), not its issue date; a bulk
   batch without one is refused. Without the link the bulk and its date of manufacture are typed from the bulk labels
   ("RELEASED", the product) with a second-person check, and QA's review lists them; a typed date in the future is
   refused. The tablets issued come with the bulk batch too (owner, 17 November 2026: pull, don't type): its good
-  tablets, `batch_fact_v1.good_quantity` (`0015`); typed only while TrueBatch Liquids does not give them. Offered is
+  tablets, `batch_fact_v1.good_quantity` (`0015`); typed only while TrueBatch Oral Liquids does not give them. Offered is
   what is LEFT of them (bug fix, 17 November 2026): the good tablets less the tablets issued to the other packing
   batches of the same bulk batch, net of what went back unused when QA terminated one (the terminate window asks for
   the bulk tablets too). Less may be typed (a part issue), more is refused; `shared/engine/stock.ts` `bulkLeft`.
@@ -68,17 +68,17 @@ QA release of the packed batch. Built the Logbook way, as TrueBatch Liquids is.
   step, null until it is done, `0109`, for OEE; then `released_at` and `released_by`, the time of QA's release event
   and the name printed on its e-signature, null until released, `0111`, so MMS shows who released the FG lot and when) for MMS finished goods; the line named only in the line clearance has the stage as its `step_name` ("Packing", `0107`); `equipment_use_v1` (the line and rooms used, for the Logbook) and
   `material_use_v1` (per signed issue step its lot, packing material and quantity issued in the material's unit, for
-  MMS to reduce the lot's stock) with TrueBatch Liquids' names and columns
+  MMS to reduce the lot's stock) with TrueBatch Oral Liquids' names and columns
   (`packing/migrations/0102_packing_equipment_and_material_use.sql`). `0103`: one use of the line per packing batch:
   it is in use by the batch through its packing and its reconciliation and line clearance (stages in the line's
   rooms), and dirty after the batch (the line named at issue, the line clearance after packing and a balance do not start a use;
   that clearance is not refused because the line is dirty), `step_name` at the end of both, quantities in the material's
-  master-data unit (a count in e.g. nos), and `deviation_note_v1` with TrueBatch Liquids' columns (source_ref
+  master-data unit (a count in e.g. nos), and `deviation_note_v1` with TrueBatch Oral Liquids' columns (source_ref
   `truebatch_liquids_packing:note:<id>`), so the Deviations system files packing's notes too (late periodic checks).
   `0110` (whole-suite run, S17): a use of the line or a room starts when it was first recorded on a step, not at that
-  step's start (as TrueBatch Liquids' `0016`).
+  step's start (as TrueBatch Oral Liquids' `0016`).
   **The bulk batch's open deviations** (whole-suite run, S24): QA's review and the packing record PDF list the
-  deviations of the bulk batch packed that are still open, read through TrueBatch Liquids' `deviation_note_v1` of the
+  deviations of the bulk batch packed that are still open, read through TrueBatch Oral Liquids' `deviation_note_v1` of the
   bulk batch (a note's number, or the deviation Deviations filed from a note without one) and the Deviations system's
   `deviation_v1` (their status, and the deviations that name the bulk batch there); release waits until they are closed
   there (`server/routes/batches.ts` bulkDeviations, `shared/engine/release.ts` bulkRefusal). When either link is off
@@ -94,10 +94,10 @@ QA release of the packed batch. Built the Logbook way, as TrueBatch Liquids is.
   of it); the rest counts as used (destroyed or coded). The quantities are kept in the terminate event
   (`payload.returns`: lot, material, quantity and unit as `material_use_v1` publishes them) and `material_use_v1`
   takes them off the batch's issues of that lot, the last first, never below 0: same columns and rows, MMS shows the
-  returned material available again with no change there. Shared with TrueBatch Liquids (`db/migrations/0012`,
+  returned material available again with no change there. Shared with TrueBatch Oral Liquids (`db/migrations/0012`,
   `shared/engine/stock.ts`); see docs/design.md.
 
 ## Left for later
-- An issue screen (as for TrueBatch Liquids, batches are issued through the API for now) and a read-only line display.
+- An issue screen (as for TrueBatch Oral Liquids, batches are issued through the API for now) and a read-only line display.
 - Reading the serialisation system's file (the count is typed with the file reference).
 - Artwork specimens as attachments (the line set-up confirms they are attached to the paper annex).

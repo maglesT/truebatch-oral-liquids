@@ -1,4 +1,4 @@
-# TrueBatch Liquids: calculation and check templates (version 2)
+# TrueBatch Oral Liquids: calculation and check templates (version 2)
 
 Small, pure TypeScript functions. One function per template. No formula language, no parser, no
 expression engine. The master batch record picks a template and its inputs. Underneath there is
@@ -203,6 +203,6 @@ as when it was answered; until then the warning blocks "Send for review" and app
 - `basic.ts` (T1–T6, T21), `series.ts` (T7, C1–C4, noFurtherChange), `mixing.ts` (T26 and the alcohol table),
   `dispensing.ts` (T8–T12, T15, T16, T18–T20, C5), `liquid.ts` (T17), `time.ts` (T13, F8), `uniformity.ts` (T14),
   `physical.ts` (T22, T22 mixed lots, T23–T25), `staged.ts` (C6), `sampling.ts` (C7); `uniformity.ts` also T14 stratified;
-  `packing.ts` (T27, C8, C9: TrueBatch Liquids Packing)
+  `packing.ts` (T27, C8, C9: TrueBatch Oral Liquids Packing)
 - `test/templates/*.test.ts`: table-style tests. Every test name starts with its template ID. Each expected number
   has its hand calculation in a comment. Real cases cite the formulation number from the formulation test.

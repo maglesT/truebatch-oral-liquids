@@ -9,7 +9,7 @@ import { links } from './links.js';
 import { isDemo } from './demo.js';
 import type { Product } from './product.js';
 
-/** Starts one product's server (server/index.ts for TrueBatch Liquids, packing/server/index.ts for packing). */
+/** Starts one product's server (server/index.ts for TrueBatch Oral Liquids, packing/server/index.ts for packing). */
 export async function start(product: Product, webRoot?: string) {
   const config = loadConfig(process.env, product);
   const sql = connect(config.DATABASE_URL, { role: config.DB_APP_ROLE });

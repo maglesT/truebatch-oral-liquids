@@ -34,7 +34,7 @@ const SETTINGS: Record<string, Step['settings']> = {
   'blend-uniformity': { meanLimit: pct('90.0', '110.0'), rsdLimit: { high: '5.0', unit: '%' }, individualLimit: pct('85.0', '115.0') },
   'density-flow': { carrLimit: { high: '20', unit: '%' }, hausnerLimit: { high: '1.25', unit: '' }, reposeLimit: { high: '40', unit: '°' } },
   compress: weights,
-  // TrueBatch Liquids (shared/blocks/liquids.ts).
+  // TrueBatch Oral Liquids (shared/blocks/liquids.ts).
   water: { water: 'hot', temperatureLimit: { low: '70', high: '80', unit: '°C' }, quantityLimit: { low: '0.9', high: '1.1', unit: 'kg' } },
   dissolve: { speedLimit: { low: '10', high: '20', unit: 'rpm' }, temperatureLimit: { low: '20', high: '30', unit: '°C' }, timeLimit: minutes },
   'sugar-syrup': { temperatureLimit: { low: '70', high: '80', unit: '°C' }, densityLimit: { low: '1.30', high: '1.33', unit: 'g/mL' }, timeLimit: minutes },

@@ -15,7 +15,7 @@ export type Kind =
   | 'mass rate' | 'volume rate' | 'count rate' | 'current' | 'power' | 'specific energy'
   | 'relative humidity' | 'absolute humidity' | 'absolute humidity per volume' | 'log' | 'frequency' | 'rpm per Hz' | 'charge'
   | 'IU' | 'CFU' | 'activity units' | 'IU per mass' | 'CFU per mass' | 'activity units per mass' | 'mass per IU'
-  // TrueBatch Liquids (library section 3).
+  // TrueBatch Oral Liquids (library section 3).
   | 'volume fraction' | 'viscosity' | 'torque' | 'IU per volume' | 'IU per drop' | 'pH';
 
 export interface Unit {
@@ -79,7 +79,7 @@ const TABLE: [string, Kind, Dec | string, string?][] = [
   ['CFU/g', 'CFU per mass', '1'], ['CFU/mg', 'CFU per mass', '1000'],
   ['U/g', 'activity units per mass', '1'], ['U/mg', 'activity units per mass', '1000'],
   ['mg/IU', 'mass per IU', '1'],
-  // TrueBatch Liquids (library section 3): containers and drops counted; a strength per 5 mL is a concentration; an
+  // TrueBatch Oral Liquids (library section 3): containers and drops counted; a strength per 5 mL is a concentration; an
   // alcohol strength in % v/v is a volume fraction, never % w/w or % w/v; viscosity; cap removal torque; vitamins in
   // IU per mL or per drop (a drop is counted, never a volume: drops per mL is the product's setting).
   ['bottles', 'count', '1'], ['sachets', 'count', '1'], ['cups', 'count', '1'], ['ampoules', 'count', '1'], ['drops', 'count', '1'],

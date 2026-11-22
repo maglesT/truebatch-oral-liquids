@@ -1,6 +1,6 @@
 import type { Block } from './format.js';
 
-// TrueBatch Liquids library (library.md section 5): the blocks taken from the TrueBatch Injectables library (data,
+// TrueBatch Oral Liquids library (library.md section 5): the blocks taken from the TrueBatch Injectables library (data,
 // sterile words removed) and the new ones of the plan. Each block is data; the engine runs it. Where a library
 // "setting" changes which fields are needed, the block has a variant of its own (dissolve / sugar-syrup / hydrate,
 // make-up / make-up-volume, bulk-yield / bulk-yield-weight, liquid-fill / liquid-fill-unit, powder-fill /
@@ -245,7 +245,7 @@ export const roomStatus: Block = {
     within('pressureCheck', 'Differential pressure', 'pressure?', 'pressureLimit?'), finished('running', 'Work in the room')],
 };
 
-// ---------------------------------------------------------------- Filling (TrueBatch Liquids Packing, library 5.4)
+// ---------------------------------------------------------------- Filling (TrueBatch Oral Liquids Packing, library 5.4)
 
 // Wash or air-rinse bottles, caps or droppers before filling (TL-P4; Inj. component-wash).
 export const bottleWash: Block = {

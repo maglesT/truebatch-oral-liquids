@@ -1,7 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 import { E2E_PACKING_PORT, E2E_PORT } from './e2e/config.js';
 
-// Browser journeys. The web servers build the UI and start the real app (TrueBatch Liquids, and TrueBatch Liquids
+// Browser journeys. The web servers build the UI and start the real app (TrueBatch Oral Liquids, and TrueBatch Oral Liquids
 // Packing) on their own schemas of the test database; the specs share them, so they run one at a time.
 export default defineConfig({
   testDir: 'e2e',
@@ -22,7 +22,7 @@ export default defineConfig({
     timeout: 120_000,
     reuseExistingServer: false,
   }, {
-    // TrueBatch Liquids Packing (e2e/packing.spec.ts).
+    // TrueBatch Oral Liquids Packing (e2e/packing.spec.ts).
     command: 'npx vite build --config packing/vite.config.ts && npx tsx e2e/packing-server.ts',
     url: `http://127.0.0.1:${E2E_PACKING_PORT}/api/health`,
     timeout: 120_000,

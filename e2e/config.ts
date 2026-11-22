@@ -5,7 +5,7 @@ export const E2E_PORT = Number(process.env.E2E_PORT ?? 8291);
 export const E2E_SCHEMA = process.env.E2E_SCHEMA ?? 'e2e';
 // Recruitment's stand-in training_v1 (e2e/server.ts).
 export const E2E_RECRUITMENT = `${E2E_SCHEMA}_rc`;
-// TrueBatch Liquids Packing's browser journey: its own server, schema and people (packing codes from core).
+// TrueBatch Oral Liquids Packing's browser journey: its own server, schema and people (packing codes from core).
 export const E2E_PACKING_PORT = Number(process.env.E2E_PACKING_PORT ?? E2E_PORT + 1);
 export const E2E_PACKING_SCHEMA = `${E2E_SCHEMA}_packing`;
 const pk = (...c: string[]) => c.map((x) => `truebatch_liquids_packing.${x}` as const);

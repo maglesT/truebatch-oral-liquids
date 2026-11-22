@@ -49,7 +49,7 @@ export const BLOCKS: readonly Block[] = [
   subBatchCombine, blendUniformity, densityFlow, sprayCoat, check, qaSample, stageYield, lineClearance,
   // Any edition: assembling devices (a dosing device or dropper, autoinjectors, inhalers) from a component lot.
   deviceAssembly,
-  // TrueBatch Liquids Packing, in the order of a packing record.
+  // TrueBatch Oral Liquids Packing, in the order of a packing record.
   P.liquidBulkIssue, P.powderBulkIssue, packMaterialIssue, packClearance, lineSetup, L.bottleWash, L.liquidFill, L.liquidFillStirred, L.liquidFillUnit, L.powderFill,
   L.powderFillSachet, L.capCheck, visionChallenge, serialReceived, codingCheck, formingCheck, leakTest, onlineInspection,
   cartonCheck, serialSample, P.liquidFinishedGoods, P.powderFinishedGoods, printedReconciliation, serialReconciliation, destruction, packClearanceAfter,

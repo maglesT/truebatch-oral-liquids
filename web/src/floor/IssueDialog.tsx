@@ -9,8 +9,8 @@ import { handFields, type Source } from '../../../shared/engine/links.js';
 import { emptyNote, inLogbook, machineRefusal } from '../../../shared/engine/picks.js';
 
 // TL-03: issue a batch from the effective master version, signed "issued". A packing master's first step is recorded
-// at issue: the line, the released bulk batch (picked from TrueBatch Liquids; typed from its labels without the link)
-// and the tablets issued (what is left of its good tablets, pulled with it when TrueBatch Liquids gives them: all of it,
+// at issue: the line, the released bulk batch (picked from TrueBatch Oral Liquids; typed from its labels without the link)
+// and the tablets issued (what is left of its good tablets, pulled with it when TrueBatch Oral Liquids gives them: all of it,
 // or less typed for a part issue). A value the server finds typed by hand (a link absent or down) asks its label questions.
 export function IssueDialog({ row, onCancel }: { row: MasterRow; onCancel: () => void }) {
   const [v, setV] = useState<Version | null>(null);
@@ -40,7 +40,7 @@ export function IssueDialog({ row, onCancel }: { row: MasterRow; onCancel: () =>
   // The label questions of a value the server found typed by hand ("… is not recorded").
   const asked = handFields(block?.fields ?? [], Object.fromEntries((block?.fields ?? []).map((f) => [f.name, { from: 'hand', link: 'mms', state: 'absent' } as Source])))
     .filter((f) => problems.some((p) => p.startsWith(`${f.label} is not recorded`)));
-  // The date of manufacture, when the bulk was ready and its hold come with the bulk batch while TrueBatch Liquids
+  // The date of manufacture, when the bulk was ready and its hold come with the bulk batch while TrueBatch Oral Liquids
   // answers, and so does the bulk issued when it gives it (pull, don't type): what is left of its good quantity,
   // offered; less may be typed (a part issue).
   const picked = bulk?.link === 'ok' ? bulk.batches.find((x) => x.batchNo === String(values.bulk ?? '').trim()) : undefined;
@@ -68,8 +68,8 @@ export function IssueDialog({ row, onCancel }: { row: MasterRow; onCancel: () =>
           <FieldInput key={f.name === 'quantity' ? `quantity-${picked?.batchNo ?? ''}` : f.name} f={f} unit={f.unit ?? ''} saved={f.name === 'quantity' && offered ? { value: offered, unit: f.unit ?? 'L' } : undefined} picks={f.kind === 'machine' ? linePicks : []} note={[f.kind === 'machine' && machines.length && !lines.length ? emptyNote(doc.stages[0]!, f, machines, rooms) : null, f.kind === 'machine' ? offer.note : null]} onChange={set(f.name)}
             options={f.kind === 'bulk' ? (bulk?.batches ?? []).map((x) => x.batchNo) : []} />
         ))}
-        {picked?.goodQuantity && <p className="notice">Left to issue of {picked.batchNo}: {Number(offered).toLocaleString('en-IN')} {picked.goodUnit ?? ''} ({Number(picked.goodQuantity).toLocaleString('en-IN')} {picked.goodUnit ?? ''} good in TrueBatch Liquids{Number(picked.issued ?? 0) > 0 ? `, ${Number(picked.issued).toLocaleString('en-IN')} already issued to other packing batches` : ''}). Issue all of it, or type less for a part issue.</p>}
-        {doc.pack && bulk && bulk.link !== 'ok' && <p className="notice warn">TrueBatch Liquids is not linked or not answering: type the bulk batch, its ready time and hold from its labels and batch record; a second person checks it.</p>}
+        {picked?.goodQuantity && <p className="notice">Left to issue of {picked.batchNo}: {Number(offered).toLocaleString('en-IN')} {picked.goodUnit ?? ''} ({Number(picked.goodQuantity).toLocaleString('en-IN')} {picked.goodUnit ?? ''} good in TrueBatch Oral Liquids{Number(picked.issued ?? 0) > 0 ? `, ${Number(picked.issued).toLocaleString('en-IN')} already issued to other packing batches` : ''}). Issue all of it, or type less for a part issue.</p>}
+        {doc.pack && bulk && bulk.link !== 'ok' && <p className="notice warn">TrueBatch Oral Liquids is not linked or not answering: type the bulk batch, its ready time and hold from its labels and batch record; a second person checks it.</p>}
         {problems.length > 0 && <div className="notice bad" role="alert">{problems.map((p, i) => <p key={i}>{p}</p>)}</div>}
         <div className="actions">
           <button type="button" className="big" onClick={onCancel}>Cancel</button>

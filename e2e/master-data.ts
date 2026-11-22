@@ -5,7 +5,7 @@ const item = (itemId: string, code: string, name: string) => ({ itemId, code, na
 export function seedMasterData(m: FakeMaster) {
   m.products_.push(
     { ...item('prd-1', 'PRD-001', 'Examplol 100 mg tablets'), strength: '100 mg', dosageForm: 'powder for oral suspension', kind: 'bulk' },
-    // A pack (TrueBatch Liquids Packing's): never offered for a manufacturing master.
+    // A pack (TrueBatch Oral Liquids Packing's): never offered for a manufacturing master.
     { ...item('pk-1', 'PK-001', 'Examplol 100 mg tablets, 10 x 10 blister'), strength: '100 mg', dosageForm: 'powder for oral suspension', kind: 'pack' },
     { ...item('prd-2', 'PRD-002', 'Samplomide 50 mg film-coated tablets'), strength: '50 mg', dosageForm: 'oral suspension' },
     // Never offered: not an oral liquid.

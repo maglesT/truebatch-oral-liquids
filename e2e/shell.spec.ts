@@ -7,7 +7,7 @@ test('PL-01: sign in through core, see My work with the TrueBatch header, and lo
   await expect(page.getByRole('img', { name: 'TrueBatch' })).toBeVisible();
   await logIn(page, 'op1');
   await expect(page.getByRole('heading', { name: 'My work' })).toBeVisible();
-  await expect(page.locator('header.bar')).toContainText('TrueBatch Liquids');
+  await expect(page.locator('header.bar')).toContainText('TrueBatch Oral Liquids');
   await expect(page.locator('header.bar')).toContainText('OP1');
   await logOut(page);
 });

@@ -1,7 +1,7 @@
 import { PERMISSIONS } from './auth.js';
 import type { SignOn } from './signon.js';
 
-// The products this server runs (owner, 15 Nov 2026): TrueBatch Liquids, and TrueBatch Liquids Packing, a separate
+// The products this server runs (owner, 15 Nov 2026): TrueBatch Oral Liquids, and TrueBatch Oral Liquids Packing, a separate
 // product on the platform (own tile, licence, permissions, database and sign-on client) that shares this server, its
 // engine, templates, signatures, audit trail, links and screens. Inside the app every permission is known by its
 // TrueBatch code (server/auth.ts): a product's own codes in core's token are read as those
@@ -17,7 +17,7 @@ export interface Product {
   batchPrefix: string;
 }
 
-export const LIQUIDS: Product = { id: 'truebatch_liquids', name: 'TrueBatch Liquids', permissions: PERMISSIONS, batchPrefix: 'TL' };
+export const LIQUIDS: Product = { id: 'truebatch_liquids', name: 'TrueBatch Oral Liquids', permissions: PERMISSIONS, batchPrefix: 'TL' };
 
 /** The product's own codes from core, as the app's codes; any other code is dropped. */
 export const ownCodes = (p: Product, codes: string[]) => codes.filter((c) => c in p.permissions).map((c) => `truebatch_liquids${c.slice(p.id.length)}`);

@@ -36,7 +36,7 @@ export interface AppOptions {
   cookieSecure?: boolean;
   // The fixed start of every batch number (TL-03).
   batchPrefix?: string;
-  // Which product this server is: TrueBatch Liquids (default) or TrueBatch Liquids Packing (server/product.ts).
+  // Which product this server is: TrueBatch Oral Liquids (default) or TrueBatch Oral Liquids Packing (server/product.ts).
   product?: Product;
   // A demo installation (TRUEBATCH_DEMO=1, server/demo.ts): the screens say DEMO and waits may be skipped.
   demo?: boolean;

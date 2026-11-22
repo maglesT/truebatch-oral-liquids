@@ -8,7 +8,7 @@ import { connect, type Sql } from '../server/db.js';
 const here = path.dirname(fileURLToPath(import.meta.url));
 export const MIGRATIONS_DIR = path.resolve(here, here.includes(`${path.sep}dist${path.sep}`) ? '../../db/migrations' : 'migrations');
 
-// Another product's database built from these migrations (TrueBatch Liquids Packing, packing/migrate.ts): the folders
+// Another product's database built from these migrations (TrueBatch Oral Liquids Packing, packing/migrate.ts): the folders
 // in order, files to leave out, and its own app role in place of truebatch_liquids_app.
 export interface Plan { dirs: { dir: string; skip?: string[] }[]; role?: string }
 

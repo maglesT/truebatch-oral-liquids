@@ -14,7 +14,7 @@ import { TEMPLATES } from '../engine/templates.js';
 
 const name = z.string().regex(/^[a-z][a-zA-Z0-9]{0,39}$/);
 
-// bulk: a bulk tablet batch of TrueBatch Liquids (packing; pulled from its batch_fact_v1, server/pull.ts).
+// bulk: a bulk tablet batch of TrueBatch Oral Liquids (packing; pulled from its batch_fact_v1, server/pull.ts).
 export const FIELD_KINDS = ['number', 'text', 'yes-no', 'choice', 'timer', 'lot', 'machine', 'room', 'bulk'] as const;
 export const fieldSchema = z.object({
   name,
@@ -94,7 +94,7 @@ export const blockSchema = z.object({
   periodic: z.object({ maxMinutes: z.number().int().positive(), alongside: z.boolean().optional() }).strict().optional(),
   // Packing: the fields recorded when the batch is issued, as the first step of the record (TL-P2, TL-P7).
   atIssue: z.array(name).min(1).optional(),
-  // A block of TrueBatch Liquids Packing (a packing master uses these and the general ones; a tablet master never).
+  // A block of TrueBatch Oral Liquids Packing (a packing master uses these and the general ones; a tablet master never).
   packing: z.boolean().optional(),
   // A new master step from this block starts as a QA hold (the master may change it).
   qaHold: z.boolean().optional(),
