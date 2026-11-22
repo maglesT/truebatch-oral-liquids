@@ -71,7 +71,8 @@ function pdfText(def: TDocumentDefinitions): string {
     if (typeof c === 'string') return c;
     if (Array.isArray(c)) return c.map(walk).join('');
     if (!c || typeof c !== 'object') return '';
-    const o = c as { text?: unknown; stack?: unknown[]; table?: { body: unknown[][] }; decoration?: string };
+    const o = c as { text?: unknown; stack?: unknown[]; columns?: unknown[]; table?: { body: unknown[][] }; decoration?: string };
+    if (o.columns) return o.columns.map(walk).join('');
     if (o.stack) return o.stack.map(walk).join('\n');
     if (o.table) return o.table.body.map((r) => r.map((x) => walk(x).trim()).join(' | ')).join('\n');
     const t = walk(o.text);

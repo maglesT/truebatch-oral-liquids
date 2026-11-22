@@ -62,7 +62,7 @@ export function App() {
     <>
       {banner}
       <header className="bar">
-        <span className="brand"><img className="brand-mark" src="/truebatch-mark.svg" alt="TrueBatch" /><span><b>{product.name}</b><small>by Medhanta</small></span></span>
+        <span className="brand"><img className="brand-mark" src="/brand/liquids-mark.svg" alt="" /><span><b>{product.name}</b><small>by Medhanta</small></span></span>
         <nav>
           <button className={page === 'home' && !route.batch && !release ? 'tab on' : 'tab'} onClick={() => { setPage('home'); go('#/'); }}>My work</button>
           {['qc.approve', 'qa.release'].some((c) => can(me, c)) && (
