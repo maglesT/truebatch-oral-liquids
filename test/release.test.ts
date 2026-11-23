@@ -116,6 +116,44 @@ describe('batch signatures', () => {
   });
 });
 
+describe('segregation of duties between the batch signers (MED-09)', () => {
+  // Person 1 performed the steps (ev), person 2 checked them; the batch events below name their own signers.
+  const signed = (kind: BatchEventKind, person: number): BatchEvent => ({ ...be(kind), person });
+  const supervisor = { id: 11, permissions: ['truebatch_liquids.batch.supervise', 'truebatch_liquids.qc.approve', 'truebatch_liquids.qa.release'] };
+  const qc = { id: 12, permissions: ['truebatch_liquids.qc.approve', 'truebatch_liquids.qa.release'] };
+  const qa = { id: 13, permissions: ['truebatch_liquids.qa.release'] };
+  const operatorQa = { id: 1, permissions: ['truebatch_liquids.batch.operate', 'truebatch_liquids.qa.release'] };
+  const checkerQa = { id: 2, permissions: ['truebatch_liquids.batch.check', 'truebatch_liquids.qa.release'] };
+  const prodApproved = [signed('production_approved', supervisor.id)];
+  const qcApproved = [...prodApproved, signed('qc_approved', qc.id)];
+
+  it('MED-09 TL-21: the production approver cannot approve the batch for QC', () => {
+    expect(batchRefusal('qc-approve', view(complete, prodApproved), supervisor)).toEqual({ status: 403, error: 'own_work',
+      problems: ['You signed the production approval of this batch: another person approves it for QC.'] });
+    expect(batchRefusal('qc-approve', view(complete, prodApproved), qc)).toBeNull();
+  });
+
+  it('MED-09 TL-21: the production approver and the QC approver cannot release or reject the batch', () => {
+    for (const action of ['release', 'reject'] as const) {
+      const words = action === 'release' ? 'releases' : 'rejects';
+      expect(batchRefusal(action, view(complete, qcApproved), supervisor)).toEqual({ status: 403, error: 'own_work',
+        problems: [`You signed the production approval of this batch: another QA person ${words} it.`] });
+      expect(batchRefusal(action, view(complete, qcApproved), qc)).toEqual({ status: 403, error: 'own_work',
+        problems: [`You signed the QC approval of this batch: another QA person ${words} it.`] });
+      expect(batchRefusal(action, view(complete, qcApproved), qa)).toBeNull();
+    }
+  });
+
+  it('MED-09 TL-21: a person who performed a step of the batch cannot release or reject it', () => {
+    for (const action of ['release', 'reject'] as const) {
+      expect(batchRefusal(action, view(complete, qcApproved), operatorQa)).toEqual({ status: 403, error: 'own_work',
+        problems: [`You performed a step of this batch: another QA person ${action === 'release' ? 'releases' : 'rejects'} it.`] });
+      // The second-person checker did not perform a step.
+      expect(batchRefusal(action, view(complete, qcApproved), checkerQa)).toBeNull();
+    }
+  });
+});
+
 describe('a deviation note without a number: closed here or sent to Deviations (owner decision 20 Nov 2026)', () => {
   const bare = ev('note', '0.1.0.1', { min: 5, payload: { text: 'Granules spilled at discharge' } });
   const decider = { id: 9, permissions: ['truebatch_liquids.exception.decide'] };
