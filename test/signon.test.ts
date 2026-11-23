@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { POLICY, requirePermission, sessionKey } from '../server/auth.js';
 import { buildApp } from '../server/app.js';
+import { openPending, sealPending } from '../server/routes/auth.js';
 import { call, directory, fakeMaster, fakeSignOn, freshApp, login, seedUser, TEST_PROOF_KEY, type TestApp } from './helpers.js';
 
 // People, passwords, lockout and the permission register are Medhanta core's; TrueBatch signs people on through core
@@ -112,7 +113,7 @@ describe('sign-on through core', () => {
     expect(start.statusCode).toBe(302);
     expect(new URL(String(start.headers.location), 'http://x').searchParams.get('code')).toBe(`op${n}`);   // login_hint: this person
     const pending = start.cookies.find((c) => c.name === 'signon')!;
-    expect(pending.value).toMatch(/\.sign\.\d+\.performed$/);
+    expect(openPending(t.app.proofKey, pending.value)).toMatch(/\.sign\.\d+\.performed$/);
     const page = await t.app.inject({ method: 'GET', url: String(start.headers.location), headers: { cookie: `signon=${pending.value}` } });
     expect(page.body).toMatch(/"signProof":"[^"]+"/);
     expect(page.body).toContain('location.origin');   // posted only to TrueBatch's own window
@@ -126,10 +127,36 @@ describe('sign-on through core', () => {
     const start = await t.app.inject({ method: 'GET', url: '/sign?meanings=performed', headers: { cookie } });
     const pending = start.cookies.find((c) => c.name === 'signon')!;
     // As if core answered from its existing session: the password was last entered before this signature started.
-    const old = pending.value.replace(/\.sign\.\d+\./, `.sign.${Date.now() + 60_000}.`);
+    const old = sealPending(t.app.proofKey, openPending(t.app.proofKey, pending.value).replace(/\.sign\.\d+\./, `.sign.${Date.now() + 60_000}.`));
     const page = await t.app.inject({ method: 'GET', url: String(start.headers.location), headers: { cookie: `signon=${old}` } });
     expect(page.body).toContain('Your password was not asked for again');
     expect(page.body).not.toContain('signProof');
+  });
+
+  it('MED-01 PL-05: a forged sign-on cookie with startedAt=0 is refused', async () => {
+    await seedUser(t.owner, uniq('op'), ['truebatch_liquids.batch.operate']);
+    const { cookie } = await login(t.app, `op${n}`);
+    const signOnce = async (forge: (value: string, sealed: string) => string) => {
+      const start = await t.app.inject({ method: 'GET', url: '/sign?meanings=performed', headers: { cookie } });
+      const sealed = start.cookies.find((c) => c.name === 'signon')!.value;
+      const value = openPending(t.app.proofKey, sealed);
+      expect(value).toMatch(/\.sign\.\d+\.performed$/);
+      return t.app.inject({ method: 'GET', url: String(start.headers.location), headers: { cookie: `signon=${forge(value, sealed)}` } });
+    };
+    // Unsealed, as the cookie was before MED-01: startedAt 0 made any earlier password entry pass.
+    const unsealed = await signOnce((value) => value.replace(/\.sign\.\d+\./, '.sign.0.'));
+    expect(unsealed.statusCode).toBe(400);
+    expect(unsealed.body).not.toContain('signProof');
+    // The sealed cookie with startedAt changed to 0 but its MAC kept: the MAC no longer matches.
+    const edited = await signOnce((_, sealed) => sealed.replace(/\.sign\.\d+\./, '.sign.0.'));
+    expect(edited.statusCode).toBe(400);
+    expect(edited.body).not.toContain('signProof');
+    // Sealed with the right key but with no start time: refused as a password not asked for again.
+    const empty = await signOnce((value) => sealPending(t.app.proofKey, value.replace(/\.sign\.\d+\./, '.sign..')));
+    expect(empty.body).toContain('Your password was not asked for again');
+    expect(empty.body).not.toContain('signProof');
+    // The cookie as the server set it still gives a proof.
+    expect((await signOnce((_, sealed) => sealed)).body).toMatch(/"signProof":"[^"]+"/);
   });
 
   it(`PL-01: a session expires after ${POLICY.sessionIdleMinutes} idle minutes`, async () => {

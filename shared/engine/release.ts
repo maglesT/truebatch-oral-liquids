@@ -6,7 +6,7 @@ import type { Permission } from '../../server/auth.js';
 import { findBlock } from '../blocks/index.js';
 import type { MasterDoc } from '../master/schema.js';
 import { openSteps, outOfLimits, stepLabel, timers, type StepView, type Timer } from './batch.js';
-import { keyId, parseKey, type State, type StepEvent } from './state.js';
+import { involved, keyId, parseKey, type State, type StepEvent } from './state.js';
 import { failed } from './values.js';
 import { isHand, PROVIDER_NAME, type LinkState, type Source } from './links.js';
 import type { Returned } from './stock.js';
@@ -157,7 +157,9 @@ const isYield = (doc: MasterDoc, v: StepView) => findBlock(doc.stages[v.key.stag
 
 // QC approves before QA releases, for a packing record too (owner, 15 Nov 2026: "QC signs first").
 // packing: a packing batch (its status reads in words as one: "packing complete", statusWords).
-export interface BatchView { status: BatchStatus; open: string[]; late: string[]; deviations: Deviation[]; exceptions: Exception[]; yieldOut: string[]; packing: boolean }
+// signedBy (MED-09): who signed the production and QC approvals, and who performed a step (started, recorded, corrected,
+// signed as performed or marked not applicable).
+export interface BatchView { status: BatchStatus; open: string[]; late: string[]; deviations: Deviation[]; exceptions: Exception[]; yieldOut: string[]; packing: boolean; signedBy: { production: number[]; qc: number[]; steps: number[] } }
 
 /** The batch status, and what stands in the way of the next signature; `read`: the deviations as Deviations has them now. */
 export function batchView(doc: MasterDoc, events: readonly StepEvent[], batchEvents: readonly BatchEvent[], now: Date, read?: ReadonlyMap<string, DeviationStatus> | null): BatchView {
@@ -174,7 +176,9 @@ export function batchView(doc: MasterDoc, events: readonly StepEvent[], batchEve
   const status: BatchStatus = has('released') ? 'released' : has('rejected') ? 'rejected' : has('qc_approved') ? 'QC approved'
     : has('production_approved') ? 'production approved' : open.length ? 'in production' : 'manufacturing complete';
   const exc = exceptions(events, batchEvents, read).map((x) => ({ ...x, where: stepLabel(doc, parseKey(x.step)!) }));
-  return { status, open, late, deviations: devs, exceptions: exc, yieldOut, packing: !!doc.pack };
+  const by = (k: BatchEventKind) => batchEvents.filter((e) => e.kind === k).map((e) => e.person);
+  const signedBy = { production: by('production_approved'), qc: by('qc_approved'), steps: [...involved(events)].filter((p): p is number => p !== null) };
+  return { status, open, late, deviations: devs, exceptions: exc, yieldOut, packing: !!doc.pack, signedBy };
 }
 
 /**
@@ -214,7 +218,17 @@ export function batchRefusal(action: BatchAction, v: BatchView, user: { id?: num
   if (action === 'production-approve' && v.status === 'in production') return no(...v.open);
   if (v.status !== rule.from) return no(`Not possible while the batch is ${words}.`);
   if (action === 'production-approve') return no(...v.late);
-  if (action === 'qc-approve') return null;
+  // MED-09 (TL-21): segregation of duties between the batch signers. QC approval is not by the production approver;
+  // release or rejection is not by the production approver, the QC approver or anyone who performed a step of the batch.
+  const own = (problem: string) => ({ status: 403 as const, error: 'own_work', problems: [problem] });
+  const me = user.id;
+  if (action === 'qc-approve') return me !== undefined && v.signedBy.production.includes(me) ? own('You signed the production approval of this batch: another person approves it for QC.') : null;
+  if (me !== undefined) {
+    const decides = action === 'release' ? 'releases' : 'rejects';
+    if (v.signedBy.production.includes(me)) return own(`You signed the production approval of this batch: another QA person ${decides} it.`);
+    if (v.signedBy.qc.includes(me)) return own(`You signed the QC approval of this batch: another QA person ${decides} it.`);
+    if (v.signedBy.steps.includes(me)) return own(`You performed a step of this batch: another QA person ${decides} it.`);
+  }
   // TL-21: release or rejection only with every linked deviation closed; TL-18: a yield out of limits blocks release.
   const open = v.deviations.filter((d) => d.open).map((d) => `Deviation ${d.reference} (${d.where ?? `step ${d.step}`}) is ${d.status ? `still open in the Deviations system (${deviationStatusWords(d.status)}): it is closed there first` : 'open'}`);
   // Owner decision 20 Nov 2026: every note without a number is decided first; a note sent to Deviations waits until
