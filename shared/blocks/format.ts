@@ -71,7 +71,7 @@ export const calcSchema = z.object({
   name,
   label: z.string().min(1),
   template: z.string(),
-  args: z.record(z.unknown()),
+  args: z.record(z.string(), z.unknown()),
 }).strict();
 
 export const blockSchema = z.object({

@@ -12,21 +12,23 @@ import { tablet } from './engine-fixture.js';
 import { GTIN, packing } from './packing-fixture.js';
 
 type Seg = string | number;
-type Any = z.ZodTypeAny;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type Any = any; // zod 4 nests core types that do not unify with ZodType
+// zod 4: the discriminator key sits in the definition.
+const discOf = (s: unknown): string => (s as { def: { discriminator: string } }).def.discriminator;
 
 /** Every field of a schema as an abstract path: "stages[].steps[].flow<repeat-until>.maxRounds", "…settings{}|1.low". */
 function schemaPaths(s: Any, at: string, out: Set<string>): Set<string> {
   if (s instanceof z.ZodOptional || s instanceof z.ZodNullable) return schemaPaths(s.unwrap(), at, out);
-  if (s instanceof z.ZodDefault) return schemaPaths(s._def.innerType, at, out);
-  if (s instanceof z.ZodEffects) return schemaPaths(s.innerType(), at, out);
+  if (s instanceof z.ZodDefault) return schemaPaths(s.def.innerType, at, out);
   if (s instanceof z.ZodObject) {
     for (const [k, v] of Object.entries(s.shape as Record<string, Any>)) schemaPaths(v, `${at}.${k}`, out);
     return out;
   }
   if (s instanceof z.ZodArray) return schemaPaths(s.element, `${at}[]`, out);
-  if (s instanceof z.ZodRecord) return schemaPaths(s.valueSchema, `${at}{}`, out);
+  if (s instanceof z.ZodRecord) return schemaPaths(s.valueType, `${at}{}`, out);
   if (s instanceof z.ZodDiscriminatedUnion) {
-    for (const o of s.options as z.ZodObject<z.ZodRawShape>[]) schemaPaths(o, `${at}<${(o.shape[s.discriminator] as z.ZodLiteral<string>).value}>`, out);
+    for (const o of s.options as z.ZodObject<z.ZodRawShape>[]) schemaPaths(o, `${at}<${(o.shape[discOf(s)] as z.ZodLiteral<string>).value}>`, out);
     return out;
   }
   if (s instanceof z.ZodUnion) {
@@ -78,9 +80,8 @@ function variants(base: unknown): { list: Variant[][]; seen: Set<string> } {
     if (s instanceof z.ZodOptional || s instanceof z.ZodNullable || s instanceof z.ZodDefault) {
       if (v === undefined) return;
       list.push([{ field: `${at} (left out)`, at: shown(segs), doc: setAt(base, segs, undefined) }]);
-      return walk(s instanceof z.ZodDefault ? s._def.innerType : s.unwrap(), v, segs, at);
+      return walk(s instanceof z.ZodDefault ? s.def.innerType : s.unwrap(), v, segs, at);
     }
-    if (s instanceof z.ZodEffects) return walk(s.innerType(), v, segs, at);
     if (s instanceof z.ZodObject) {
       for (const [k, f] of Object.entries(s.shape as Record<string, Any>)) walk(f, (v as Record<string, unknown>)[k], [...segs, k], `${at}.${k}`);
       return;
@@ -95,19 +96,19 @@ function variants(base: unknown): { list: Variant[][]; seen: Set<string> } {
     }
     if (s instanceof z.ZodRecord) {
       for (const [k, x] of Object.entries(v as Record<string, unknown>)) {
-        walk(s.valueSchema, x, [...segs, k], `${at}{}`);
+        walk(s.valueType, x, [...segs, k], `${at}{}`);
         list.push([{ field: `${at}{} (one removed)`, at: shown([...segs, k]), doc: setAt(base, [...segs, k], undefined) }]);
       }
       return;
     }
     if (s instanceof z.ZodDiscriminatedUnion) {
-      const kind = (v as Record<string, string>)[s.discriminator]!;
+      const kind = (v as Record<string, string>)[discOf(s)]!;
       const options = s.options as z.ZodObject<z.ZodRawShape>[];
-      const o = options.find((x) => (x.shape[s.discriminator] as z.ZodLiteral<string>).value === kind)!;
+      const o = options.find((x) => (x.shape[discOf(s)] as z.ZodLiteral<string>).value === kind)!;
       walk(o, v, segs, `${at}<${kind}>`);
       for (const x of options) {
-        const k = (x.shape[s.discriminator] as z.ZodLiteral<string>).value;
-        if (k !== kind) list.push([{ field: `${at}<${kind}>.${s.discriminator} → ${k}`, at: shown(segs), doc: setAt(base, segs, { [s.discriminator]: k }) }]);
+        const k = (x.shape[discOf(s)] as z.ZodLiteral<string>).value;
+        if (k !== kind) list.push([{ field: `${at}<${kind}>.${discOf(s)} → ${k}`, at: shown(segs), doc: setAt(base, segs, { [discOf(s)]: k }) }]);
       }
       return;
     }

@@ -328,7 +328,7 @@ async function readValues(app: FastifyInstance, tx: Tx, doc: MasterDoc, key: Ste
 }
 
 const reason = z.string().trim().min(1).max(1000);
-const values = z.record(z.unknown());
+const values = z.record(z.string(), z.unknown());
 const BODIES: Record<Action, z.ZodTypeAny> = {
   start: z.object({}),
   record: z.object({ values }),
@@ -503,7 +503,7 @@ export function batchRoutes(app: FastifyInstance, sql: Sql) {
 
   // TL-03: issue a batch from an effective master version, with the next number of the year (never reused).
   app.post('/api/batches', { preHandler: requirePermission('truebatch_liquids.batch.issue') }, async (req, reply) => {
-    const b = z.object({ masterVersionId: z.number().int().positive(), proof: z.string().min(1).max(2000), values: z.record(z.unknown()).optional() }).safeParse(req.body);
+    const b = z.object({ masterVersionId: z.number().int().positive(), proof: z.string().min(1).max(2000), values: z.record(z.string(), z.unknown()).optional() }).safeParse(req.body);
     if (!b.success) return reply.code(400).send({ error: 'invalid' });
     const user = req.user!;
     try {

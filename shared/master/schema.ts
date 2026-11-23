@@ -41,7 +41,7 @@ export const stepSchema = z.object({
   // The name people read (e.g. "Punch and die check — after compression"); without it, the block's name and material.
   name: text(120).optional(),
   instruction: text(4000).optional(),
-  settings: z.record(settingValueSchema).default({}),
+  settings: z.record(z.string(), settingValueSchema).default({}),
   // The performer always signs; a second person checks when true.
   checker: z.boolean(),
   // The next step waits for the check (otherwise it opens when this step is done).
